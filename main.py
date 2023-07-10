@@ -1,5 +1,8 @@
+import testing
+
+
 def main():
-    print("Hello world")
+    testing.standard_io_poker()
 
 
 if __name__ == "__main__":
