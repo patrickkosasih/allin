@@ -3,6 +3,7 @@ testing.py
 
 A module for early testing and basic interface to the poker game before the GUI is implemented.
 """
+import random
 
 import rules
 
@@ -24,21 +25,21 @@ def print_state(game: rules.PokerGame):
 
     """
 
-    for player in game.current_hand.players:
-        print(f"{'-> ' if player is game.current_hand.get_current_player() else '   '}"
+    for player in game.current_deal.players:
+        print(f"{'-> ' if player is game.current_deal.get_current_player() else '   '}"
               f"{player.player_data.name}: {[rules.card_str(card) for card in player.pocket_cards]}; "
               f"${player.player_data.money:,}; "
               f"{'Folded' if player.folded else ('Called' if player.called else '')} ", end="")
 
-        if not game.current_hand.community_cards:
+        if not game.current_deal.community_cards:
             # If the current round is still the preflop round then determine the D, SB, and BB
-            players = game.current_hand.players
+            players = game.current_deal.players
 
             if player is players[game.dealer]:
                 print("D")
-            elif player is players[game.current_hand.blinds[0]]:
+            elif player is players[game.current_deal.blinds[0]]:
                 print("SB")
-            elif player is players[game.current_hand.blinds[1]]:
+            elif player is players[game.current_deal.blinds[1]]:
                 print("BB")
             else:
                 print()
@@ -47,8 +48,8 @@ def print_state(game: rules.PokerGame):
             print()
 
 
-    print(f"\nPot: {game.current_hand.pot}\n"
-          f"Community cards: {[rules.card_str(card) for card in game.current_hand.community_cards]}")
+    print(f"\nPot: {game.current_deal.pot}\n"
+          f"Community cards: {[rules.card_str(card) for card in game.current_deal.community_cards]}")
 
 
 def standard_io_poker():
@@ -74,7 +75,7 @@ def standard_io_poker():
         print_state(game)
         print()
 
-        player_name = game.current_hand.get_current_player().player_data.name  # Name of the current turn player
+        player_name = game.current_deal.get_current_player().player_data.name  # Name of the current turn player
         action = input(f"What will {player_name} do? ").upper().split()
         # The input is uppercased and then split into a list.
         new_amount = 0
@@ -92,10 +93,41 @@ def standard_io_poker():
                 new_amount = int(action[1])
 
             action_code = rules.Actions.__dict__[action[0]]
-            game.current_hand.action(action_code, new_amount)
+            game.current_deal.action(action_code, new_amount)
 
         except (IndexError, KeyError):
             print("Invalid input.")
 
         except ValueError as e:
             print("Invalid betting amount:", e)
+
+
+def hand_ranking_test(n_tests=10, repeat_until=0):
+    deck = rules.generate_deck()
+    table_format = "{pocket: <15}{community: <20}{ranking_type: <20}"
+
+    print(table_format.format(pocket="Pocket cards",
+                              community="Community cards",
+                              ranking_type="Ranking type"))
+
+    # for i in range(tests):
+    i = 0
+    while True:
+        i += 1
+
+        cards = [deck[x] for x in random.sample(range(52), 7)]
+
+        # String representations
+        cards_str = [rules.card_str(x) for x in cards]
+        pocket, community = cards_str[:2], cards_str[2:]
+
+        ranking = rules.HandRanking(cards)
+
+        print(table_format.format(pocket=' '.join(pocket),
+                                  community=' '.join(community),
+                                  ranking_type=rules.HandRanking.TYPE_STR[ranking.ranking_type].capitalize()))
+
+        if ranking.ranking_type == repeat_until or (i >= n_tests and repeat_until == 0):
+            break
+
+    print("Repeats:", i)
