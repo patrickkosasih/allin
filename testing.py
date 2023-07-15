@@ -4,10 +4,16 @@ testing.py
 A module for early testing and basic interface to the poker game before the GUI is implemented.
 """
 import random
+import time
 
 import rules
 
 
+"""
+=======================
+Output helper functions
+=======================
+"""
 def print_state(game: rules.PokerGame):
     """
     Prints the state of the current game/hand:
@@ -52,6 +58,19 @@ def print_state(game: rules.PokerGame):
           f"Community cards: {[rules.card_str(card) for card in game.current_deal.community_cards]}")
 
 
+def card_list_str(cards: list[rules.Card]) -> str:
+    """
+    Returns a readable string format for a list of cards.
+    e.g. "J♠ 10♣ 7♣ 6♥ A♦"
+    """
+    return " ".join([rules.card_str(card) for card in cards])
+
+
+"""
+=====================
+Run on main functions
+=====================
+"""
 def standard_io_poker():
     """
     Run a text based poker game using the console's basic input and output.
@@ -104,11 +123,16 @@ def standard_io_poker():
 
 def hand_ranking_test(n_tests=10, repeat_until=0):
     deck = rules.generate_deck()
-    table_format = "{pocket: <15}{community: <20}{ranking_type: <20}"
+    table_format = "{pocket: <20}{community: <20}{ranking_type: <20}{ranked_cards: <20}{kickers: <20}" \
+                   "{tiebreaker_score: <20}{exec_time}"
 
     print(table_format.format(pocket="Pocket cards",
                               community="Community cards",
-                              ranking_type="Ranking type"))
+                              ranking_type="Ranking type",
+                              ranked_cards = "Ranked cards",
+                              kickers="Kickers",
+                              tiebreaker_score="Tiebreaker score",
+                              exec_time="Execution time"))
 
     # for i in range(tests):
     i = 0
@@ -116,16 +140,17 @@ def hand_ranking_test(n_tests=10, repeat_until=0):
         i += 1
 
         cards = [deck[x] for x in random.sample(range(52), 7)]
-
-        # String representations
-        cards_str = [rules.card_str(x) for x in cards]
-        pocket, community = cards_str[:2], cards_str[2:]
-
+        t = time.perf_counter()
         ranking = rules.HandRanking(cards)
+        t = time.perf_counter() - t
 
-        print(table_format.format(pocket=' '.join(pocket),
-                                  community=' '.join(community),
-                                  ranking_type=rules.HandRanking.TYPE_STR[ranking.ranking_type].capitalize()))
+        print(table_format.format(pocket=card_list_str(cards[:2]),
+                                  community=card_list_str(cards[2:]),
+                                  ranking_type=rules.HandRanking.TYPE_STR[ranking.ranking_type].capitalize(),
+                                  ranked_cards=card_list_str(ranking.ranked_cards),
+                                  kickers=card_list_str(ranking.kickers),
+                                  tiebreaker_score=ranking.tiebreaker_score,
+                                  exec_time=f"{t * 1E6: .5} μs"))
 
         if ranking.ranking_type == repeat_until or (i >= n_tests and repeat_until == 0):
             break
