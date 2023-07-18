@@ -163,12 +163,22 @@ class HandRanking:
         1. Count cards based on the rank and suit
         """
         # region Step 1
-        rank_count = {}  # The number of cards for a certain rank.
-        suit_count = {}  # The number of cards for a certain suit.
+        rank_count = {}  # The number of cards for a certain rank. Structure: {rank: number of cards of that rank}
+        suit_count = {}  # The number of cards for a certain suit. Structure: {suit: number of cards of that suit}
 
         for card in self.cards:
             rank_count[card.rank] = rank_count.setdefault(card.rank, 0) + 1
             suit_count[card.suit] = suit_count.setdefault(card.suit, 0) + 1
+
+        sorted_rank_count = sorted(rank_count.items(), key=lambda x: (x[1] << 4) + x[0], reverse=True)
+        """
+        `sorted_rank_count` is a list of tuples from `rank_count.items()` dict. The (rank, rank count) pairs/tuples
+        are sorted from the highest rank count, then the same rank counts are sorted from the highest rank.
+        
+        To do so, the key of the sorting is `lambda x: (x[1] << 4) + x[0]` as seen above. The rank count (x[1]) is bit
+        shifted 4 bits to the left (multiplied by 16) and then added by the rank (x[0]) so that the tuples are sorted
+        by the rank count first and then by the rank.
+        """
         # endregion Step 1
 
         """
@@ -186,8 +196,7 @@ class HandRanking:
         rank count.
         """
         # region Step 2
-        sorted_rank_count = sorted(rank_count.items(), key=lambda x: x[1], reverse=True)
-        # A list of (rank, number of cards of that rank) tuples sorted from the highest rank count.
+
 
         highest_count = sorted_rank_count[0][1]  # The highest number of cards of the same rank
         highest_count_2 = sorted_rank_count[1][1]  # The 2nd highest number of cards of the same rank
@@ -302,14 +311,20 @@ class HandRanking:
         """
         # region Step 4
         if self.ranking_type > HandRanking.FLUSH and any(x >= 5 for x in suit_count.values()):
-            self.ranking_type = min(self.ranking_type, HandRanking.FLUSH)
+            self.ranking_type = HandRanking.FLUSH
 
             flush_suit = next(suit for suit in suit_count if suit_count[suit] >= 5)
             self.ranked_cards = sorted([card for card in self.cards if card.suit == flush_suit], reverse=True)[:5]
+            # The ranked cards list is sorted from the highest cards with the flush suit (the suit with 5 or more
+            # cards). Only the 5 highest cards are saved.
+
         # endregion Step 4
 
         """
         5. Determine the ranked cards on rank count based rankings
+        
+        If the best hand ranking found is a rank count based ranking, then the ranked cards are determined in this step.
+        Otherwise, this step is skipped.
         
         On rank count based hand rankings, the ranked cards are chosen based on the highest rank count; and also the 2nd
         highest rank count for full house and two pair. If the ranking is high card, the one and only ranked card is the
@@ -325,30 +340,21 @@ class HandRanking:
         """
         # region Step 5
         if self.ranking_type in HandRanking.RANK_COUNT_BASED:
-            high_card = self.ranking_type == HandRanking.HIGH_CARD
+            # The ranked cards are the highest number of cards with the same rank.
+            self.ranked_cards = [card for card in self.cards if card.rank == sorted_rank_count[0][0]]
 
-            if not high_card:
-                # The ranked cards are the highest number of cards with the same rank.
-                self.ranked_cards = [card for card in self.cards if card.rank == sorted_rank_count[0][0]]
+            if self.ranking_type in (HandRanking.FULL_HOUSE, HandRanking.TWO_PAIR):
+                # On full house and two pair, the 2nd highest number of card of the same rank is also part of the
+                # ranked cards.
+                self.ranked_cards += [card for card in self.cards if card.rank == sorted_rank_count[1][0]]
 
-                if self.ranking_type in (HandRanking.FULL_HOUSE, HandRanking.TWO_PAIR):
-                    # On full house and two pair, the 2nd highest number of card of the same rank is also part of the
-                    # ranked cards.
-                    self.ranked_cards += [card for card in self.cards if card.rank == sorted_rank_count[1][0]]
+            self.kickers = sorted((x for x in self.cards if x not in self.ranked_cards),
+                                  key=lambda x: x.rank, reverse=True)[:5 - len(self.ranked_cards)]
+            """
+            The kickers are the first n cards that are not part of the ranked cards, sorted from the highest.
+            n being `5 - len(self.ranked_cards)` so that the length of kickers + length of ranked cards = 5.
+            """
 
-            sorted_rank_cards = iter(sorted((x for x in self.cards if x not in self.ranked_cards),
-                                            key=lambda x: x.rank, reverse=True))
-            """`sorted_rank_cards` is an iterator of cards sorted from the highest rank that are not part of the ranked
-            cards."""
-
-            if high_card:
-                # High cards are separate because the only ranked card on a high card is not based on the sorted rank
-                # count.
-                self.ranked_cards = [next(sorted_rank_cards)]
-
-            # The unfilled slots of the 5 card hand are saved as kickers.
-            while len(self.ranked_cards) + len(self.kickers) < 5:
-                self.kickers.append(next(sorted_rank_cards))
         # endregion Step 5
 
         """
@@ -376,8 +382,10 @@ class HandRanking:
             
         * Rank count based rankings:
             The tiebreaker list consists of the first and last cards of the ranked cards list, and the kickers list.
-            On two pairs, the first element of the tiebreaker list must be the rank of the higher pair, so if the first
-            card of the ranked cards list is lower than the last, they are swapped.
+            This is possible because the ranked cards list has already been sorted previously so that the first card on
+            the list is always the prioritized one. For example, on a full house, the three cards of the same rank has
+            more influence in the tiebreak, and on the ranked cards list, the three cards are already put before the two
+            other cards.
         
         After determining the tiebreaker list, the next step is to reduce it to an integer value. The ranks of every
         card are bit shifted 4 bits to the right (same as multiplying by 16) and then added by the next value. The
@@ -392,9 +400,6 @@ class HandRanking:
 
             else:
                 tiebreaker_list = [self.ranked_cards[0], self.ranked_cards[-1]] + self.kickers
-
-                if self.ranking_type == HandRanking.TWO_PAIR and tiebreaker_list[0] < tiebreaker_list[1]:
-                    tiebreaker_list[0], tiebreaker_list[1] = tiebreaker_list[1], tiebreaker_list[0]
 
             # print(" ".join([card_str(card) for card in tiebreaker_list]))
 
@@ -563,6 +568,9 @@ class Deal:
             self.community_cards.append(self.deck.pop(0))
 
         print("NEXT BETTING ROUND")
+
+    def showdown(self):
+        pass
 
     def get_next_turn(self, n=1, turn=-1, first_call=True) -> int:
         """
