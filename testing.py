@@ -6,7 +6,8 @@ A module for early testing and basic interface to the poker game before the GUI 
 import random
 import time
 
-import rules
+from rules.basic import *
+from rules.game_flow import *
 
 
 """
@@ -22,7 +23,7 @@ PLAYER_STATE_FORMAT = "{turn_arrow: <3}{name: <15}{pocket_cards: <10}${money: <1
 Output helper functions
 =======================
 """
-def print_state(game: rules.PokerGame):
+def print_state(game: PokerGame):
     """
     Prints the state of the current game/hand:
 
@@ -42,7 +43,7 @@ def print_state(game: rules.PokerGame):
     for player in game.deal.players:  # player: PlayerHand
         is_preflop = bool(not game.deal.community_cards)
         preflop_role = ""
-        ranking = rules.HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize() if not is_preflop else "n/a"
+        ranking = HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize() if not is_preflop else "n/a"
 
         if is_preflop:
             # If the current round is still the preflop round then determine the D, SB, and BB
@@ -68,12 +69,12 @@ def print_state(game: rules.PokerGame):
           f"Community cards: {card_list_str(game.deal.community_cards)}")
 
 
-def print_winner(game: rules.PokerGame):
+def print_winner(game: PokerGame):
     """
     Print the winner(s) of the deal when a deal ends by showdown or everyone folding.
     """
     for player in game.deal.players:
-        ranking = rules.HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize()
+        ranking = HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize()
 
         win = player in game.deal.winners
         new_money = player.player_data.money
@@ -100,12 +101,12 @@ def print_winner(game: rules.PokerGame):
           f"Community cards: {card_list_str(game.deal.community_cards)}")
 
 
-def card_list_str(cards: list[rules.Card]) -> str:
+def card_list_str(cards: list[Card]) -> str:
     """
     Returns a readable string format for a list of cards.
     e.g. "J♠ 10♣ 7♣ 6♥ A♦"
     """
-    return " ".join([rules.card_str(card) for card in cards])
+    return " ".join([card_str(card) for card in cards])
 
 
 """
@@ -127,7 +128,7 @@ def standard_io_poker():
     Note that check and call does the same thing; and bet and raise also does the same thing.
     """
 
-    game = rules.PokerGame(6)
+    game = PokerGame(6)
 
     while True:
         print("\n" + "=" * 80 + "\n")
@@ -165,7 +166,7 @@ def standard_io_poker():
 
                 new_amount = int(action[1])
 
-            action_code = rules.Actions.__dict__[action[0]]
+            action_code = Actions.__dict__[action[0]]
             game.deal.action(action_code, new_amount)
 
         except (IndexError, KeyError):
@@ -176,7 +177,7 @@ def standard_io_poker():
 
 
 def hand_ranking_test(n_tests=10, repeat_until=0):
-    deck = rules.generate_deck()
+    deck = generate_deck()
     table_format = "{pocket: <20}{community: <20}{ranking_type: <20}{ranked_cards: <20}{kickers: <20}" \
                    "{tiebreaker_score: <20}{exec_time}"
 
@@ -195,12 +196,12 @@ def hand_ranking_test(n_tests=10, repeat_until=0):
 
         cards = [deck[x] for x in random.sample(range(52), 7)]
         t = time.perf_counter()
-        ranking = rules.HandRanking(cards)
+        ranking = HandRanking(cards)
         t = time.perf_counter() - t
 
         print(table_format.format(pocket=card_list_str(cards[:2]),
                                   community=card_list_str(cards[2:]),
-                                  ranking_type=rules.HandRanking.TYPE_STR[ranking.ranking_type].capitalize(),
+                                  ranking_type=HandRanking.TYPE_STR[ranking.ranking_type].capitalize(),
                                   ranked_cards=card_list_str(ranking.ranked_cards),
                                   kickers=card_list_str(ranking.kickers),
                                   tiebreaker_score=ranking.tiebreaker_score,
