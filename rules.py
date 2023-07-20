@@ -123,17 +123,14 @@ class HandRanking:
     representing the name of the ranking type.
     """
 
-    def __init__(self, cards: list[Card]):
+    def __init__(self, cards: list[Card] = None):
         """
         Upon creating a new instance of `HandRankings`, the ranking is immediately calculated by calling the
         `calculate_ranking` method.
 
-        :param cards: A list of cards, must be between 5 and 7 cards (inclusive) in length.
+        :param cards: A list of cards, must be between 5 and 7 cards (inclusive) in length. It is also possible to not
+        pass in the `cards` argument; doing so will skip the `calculate_ranking` process.
         """
-
-        if len(cards) not in range(5, 8):
-            raise ValueError("the list of cards must be 5-7 cards in length")
-
         self.cards = cards
 
         self.ranking_type = 0  # An integer representing the ranking type based on the ranking type constants.
@@ -143,8 +140,10 @@ class HandRanking:
         self.kickers = []
 
         self.tiebreaker_score = 0
+        self.overall_score = 0
 
-        self.calculate_ranking()
+        if cards:
+            self.calculate_ranking()
 
     def calculate_ranking(self):
         """
@@ -158,6 +157,9 @@ class HandRanking:
         5. Determine the ranked cards on rank count based rankings
         6. Calculate the tiebreaker score
         """
+
+        if len(self.cards) not in range(5, 8):
+            raise ValueError("the list of cards must be 5-7 cards in length")
 
         """
         1. Count cards based on the rank and suit
@@ -196,8 +198,6 @@ class HandRanking:
         rank count.
         """
         # region Step 2
-
-
         highest_count = sorted_rank_count[0][1]  # The highest number of cards of the same rank
         highest_count_2 = sorted_rank_count[1][1]  # The 2nd highest number of cards of the same rank
 
@@ -358,11 +358,14 @@ class HandRanking:
         # endregion Step 5
 
         """
-        6. Calculate the tiebreaker score
+        6. Calculate the tiebreaker score and overall score
         
         The tiebreaker score is used to determine which player wins if there are more than one player with the same
         winning hand ranking. Higher tiebreaker score = Better hand. Keep in mind that a better hand ranking type still
         beats a higher tiebreaker score.
+        
+        After calculating the tiebreaker score, the overall score is determined. The overall score is based on both the
+        ranking type and the tiebreaker score. The player(s) with the highest overall score wins the deal.
         
         ==============================
         The Tiebreaker Score Algorithm
@@ -404,6 +407,8 @@ class HandRanking:
             # print(" ".join([card_str(card) for card in tiebreaker_list]))
 
             self.tiebreaker_score = functools.reduce(lambda x, y: (x << 4) + y, (z.rank for z in tiebreaker_list))
+
+        self.overall_score = ((10 - self.ranking_type) << 24) + self.tiebreaker_score
         # endregion Step 6
 
 
@@ -431,11 +436,15 @@ class PlayerHand:
     def __init__(self, deal: "Deal", player_data: PlayerData):
         self.deal = deal
         self.player_data = player_data
+
         self.pocket_cards = []
+        self.hand_ranking = HandRanking()
 
         self.bet_amount = 0  # The amount of money spent on the current betting round
+        self.last_action = ""  # A string representing the action the player previously made.
         self.folded = False
         self.called = False
+        self.all_in = False
 
     def bet(self, new_bet: int, blinds=False):
         """
@@ -451,14 +460,20 @@ class PlayerHand:
 
         if amount_to_pay >= self.player_data.money:
             # ALL IN
+            self.last_action = "all-in"
+            self.all_in = True
+
             amount_to_pay = self.player_data.money
-            new_bet = self.player_data.money
+            new_bet = amount_to_pay + self.bet_amount
 
         self.player_data.money -= amount_to_pay
         self.deal.pot += amount_to_pay
         self.bet_amount = new_bet
 
-        if not blinds:
+        if blinds:
+            if not self.all_in:
+                self.last_action = "bet"
+        else:
             self.called = True
 
 
@@ -469,9 +484,13 @@ class Deal:
     """
 
     def __init__(self, game: "PokerGame"):
+        if len(game.players) < 2:
+            raise ValueError("there must be at least 2 players to start a deal")
+
         self.game = game
         self.players = [PlayerHand(deal=self, player_data=player) for player in game.players]
         # A list of `PlayerHand` instances based on the `PlayerData` list of the `PokerGame`.
+        self.winners = []
 
         self.pot = 0
         self.bet_amount = self.game.sb_amount * 2
@@ -521,31 +540,56 @@ class Deal:
             raise TypeError("action type must be an int")
         elif action_type not in range(3):
             raise ValueError(f"action type must be 0, 1, or 2 (got: {action_type})")
+        elif self.winners:
+            raise StopIteration("this deal has already been concluded")
 
         match action_type:
             case Actions.FOLD:   # Fold
                 self.get_current_player().folded = True
+                self.get_current_player().last_action = "fold"
+
+                # If everyone except one player folds, then that player wins.
+                if sum(not player.folded for player in self.players) == 1:
+                    self.showdown()
 
             case Actions.CALL:   # Check/call
+                # Set action text
+                if self.bet_amount > 0:
+                    self.get_current_player().last_action = "call"
+                else:
+                    self.get_current_player().last_action = "check"
+
                 self.get_current_player().bet(self.bet_amount)
                 self.get_current_player().called = True
 
             case Actions.RAISE:  # Bet/raise
-                if new_amount <= 2 * self.game.sb_amount:
-                    raise ValueError("bet amount must be more than the minimum bet amount"
+                if new_amount < 2 * self.game.sb_amount:
+                    raise ValueError("bet amount must be more than the minimum bet amount "
                                      f"({2 * self.game.sb_amount})")
+
                 elif new_amount <= self.bet_amount:
                     raise ValueError("the new bet amount must be more than the previous betting amount "
                                      f"({self.bet_amount})")
+
+                elif new_amount > self.get_current_player().player_data.money + self.bet_amount:
+                    # raise ValueError("bet amount must not be more than the money left "
+                    #                  f"({self.get_current_player().player_data.money})")
+                    new_amount = self.get_current_player().player_data.money + self.bet_amount  # ALL-IN
 
                 # Everyone except the betting/raising player must call again
                 for x in self.players:
                     x.called = False
 
+                # Set action text
+                if self.bet_amount > 0:
+                    self.get_current_player().last_action = "raise"
+                else:
+                    self.get_current_player().last_action = "bet"
+
                 self.bet_amount = new_amount
                 self.get_current_player().bet(new_amount)
 
-        if all(player.called for player in self.players if not player.folded):
+        if all(player.called or player.all_in for player in self.players if not player.folded):
             self.next_round()
         else:
             self.current_turn = self.get_next_turn()
@@ -556,23 +600,37 @@ class Deal:
 
         :return:
         """
-        for player in self.players:
-            player.bet_amount = 0
-            player.called = False
 
         self.bet_amount = 0
         self.current_turn = self.get_next_turn(1, turn=self.game.dealer)
 
-        draw_n_cards = 3 if len(self.community_cards) == 0 else 1
-        for _ in range(draw_n_cards):
-            self.community_cards.append(self.deck.pop(0))
+        if len(self.community_cards) < 5:
+            draw_n_cards = 3 if len(self.community_cards) == 0 else 1
+            for _ in range(draw_n_cards):
+                self.community_cards.append(self.deck.pop(0))
+        else:
+            self.showdown()
 
-        print("NEXT BETTING ROUND")
+        for player in self.players:
+            player.hand_ranking = HandRanking(self.community_cards + player.pocket_cards)
+            player.bet_amount = 0
+            player.last_action = "folded" if player.folded else ("all-in" if player.all_in else "")
+            player.called = False
 
     def showdown(self):
-        pass
+        """
+        Decide the winner of the current deal with a showdown.
+        Can also be used when there is only 1 player left who hasn't folded.
+        """
+        not_folded = [player for player in self.players if not player.folded]
 
-    def get_next_turn(self, n=1, turn=-1, first_call=True) -> int:
+        max_score = max(player.hand_ranking.overall_score for player in not_folded)
+        self.winners = [player for player in not_folded if player.hand_ranking.overall_score == max_score]
+
+        for winner in self.winners:
+            winner.player_data.money += self.pot // len(self.winners)
+
+    def get_next_turn(self, n=1, turn=-1) -> int:
         """
         Returns the player index after `n` turns of the current player turn.
         Players who have folded or are all-in are skipped.
@@ -584,20 +642,29 @@ class Deal:
 
         :param n: Number of turns after the specified turn
         :param turn: The current turn. If the argument is not passed in then the `self.current_turn` attribute is used.
-        :param first_call: Always True when calling this function from outside, and then False for the recursions that
-        follow. This is done so that the player of the `turn` parameter on the first call is not immediately skipped to
-        the next player if the player on the first call has already folded/all-in.
 
         :return: The player index after `n` turns.
         """
         turn = self.current_turn if turn < 0 else turn
 
-        if not first_call and (self.players[turn].folded or self.players[turn].player_data.money <= 0):
-            return self.get_next_turn(n=n, turn=(turn + 1) % len(self.players), first_call=False)
-        elif n <= 0:
+        if sum(not player.folded for player in self.players) <= 1 or \
+            all(player.all_in for player in self.players if not player.folded):
             return turn
         else:
-            return self.get_next_turn(n=n-1, turn=(turn + 1) % len(self.players), first_call=False)
+            return self.__get_next_turn(n=n - 1, turn=(turn + 1) % len(self.players))
+
+    def __get_next_turn(self, n=1, turn=-1):
+        if self.players[turn].folded or self.players[turn].all_in:
+            # If player is folded/all-in then skip to the next player
+            return self.__get_next_turn(n=n, turn=(turn + 1) % len(self.players))
+
+        elif n <= 0:
+            # Get current turn
+            return turn
+
+        else:
+            # Get next turn
+            return self.__get_next_turn(n=n-1, turn=(turn + 1) % len(self.players))
 
     def get_current_player(self) -> PlayerHand:
         return self.players[self.current_turn]
@@ -617,10 +684,11 @@ class PokerGame:
         self.dealer = 0  # The index of `self.players` who becomes the dealer of the current deal.
         self.sb_amount = 25  # Small blinds amount. Big blinds = 2 * Small blinds.
 
-        self.current_deal = Deal(self)
+        self.deal = Deal(self)
 
     def new_deal(self):
-        # Cycle dealer
-        self.dealer = (self.dealer + 1) % len(self.players)
+        self.players = [player for player in self.players if player.money > 0]  # Remove bankrupt players
+        self.dealer = (self.dealer + 1) % len(self.players)  # Cycle dealer
 
-        self.current_deal = Deal(self)
+        if len(self.players) >= 2:
+            self.deal = Deal(self)

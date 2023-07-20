@@ -10,6 +10,14 @@ import rules
 
 
 """
+==============
+String formats
+==============
+"""
+PLAYER_STATE_FORMAT = "{turn_arrow: <3}{name: <15}{pocket_cards: <10}${money: <10}{ranking: <18} {action: <15}"
+
+
+"""
 =======================
 Output helper functions
 =======================
@@ -23,39 +31,73 @@ def print_state(game: rules.PokerGame):
         b. Player name
         c. Pocket cards
         d. Money
-        e. Called/folded?
-        f. Dealer, small blinds, big blinds (only on preflop round)
+        e. Dealer, small blinds, big blinds (on preflop round); or
+           Current hand ranking (after the flop)
+        f. Player action
 
     2. Pot
     3. Community cards
-
     """
 
-    for player in game.current_deal.players:
-        print(f"{'-> ' if player is game.current_deal.get_current_player() else '   '}"
-              f"{player.player_data.name}: {[rules.card_str(card) for card in player.pocket_cards]}; "
-              f"${player.player_data.money:,}; "
-              f"{'Folded' if player.folded else ('Called' if player.called else '')} ", end="")
+    for player in game.deal.players:  # player: PlayerHand
+        is_preflop = bool(not game.deal.community_cards)
+        preflop_role = ""
+        ranking = rules.HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize() if not is_preflop else "n/a"
 
-        if not game.current_deal.community_cards:
+        if is_preflop:
             # If the current round is still the preflop round then determine the D, SB, and BB
-            players = game.current_deal.players
+            players = game.deal.players
 
             if player is players[game.dealer]:
-                print("D")
-            elif player is players[game.current_deal.blinds[0]]:
-                print("SB")
-            elif player is players[game.current_deal.blinds[1]]:
-                print("BB")
-            else:
-                print()
+                preflop_role = "D"
+            elif player is players[game.deal.blinds[0]]:
+                preflop_role = "SB"
+            elif player is players[game.deal.blinds[1]]:
+                preflop_role = "BB"
 
-        else:
-            print()
+        print(PLAYER_STATE_FORMAT.format(
+            turn_arrow="-> " if player is game.deal.get_current_player() else "",
+            name=player.player_data.name,
+            pocket_cards=card_list_str(player.pocket_cards),
+            money=f"{player.player_data.money:,}",
+            ranking=ranking if not is_preflop else preflop_role,
+            action=f"{player.last_action.capitalize()} {f'${player.bet_amount:,}' if player.bet_amount > 0 else ''}",
+        ))
+
+    print(f"\nPot: ${game.deal.pot:,}\n"
+          f"Community cards: {card_list_str(game.deal.community_cards)}")
 
 
-    print(f"\nPot: {game.current_deal.pot}\n"
-          f"Community cards: {[rules.card_str(card) for card in game.current_deal.community_cards]}")
+def print_winner(game: rules.PokerGame):
+    """
+    Print the winner(s) of the deal when a deal ends by showdown or everyone folding.
+    """
+    for player in game.deal.players:
+        ranking = rules.HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize()
+
+        win = player in game.deal.winners
+        new_money = player.player_data.money
+        old_money = new_money - game.deal.pot // len(game.deal.winners)
+
+        winner_text = f"WINNER!  ${old_money:,} -> ${new_money:,}" if win else ("Folded" if player.folded else "")
+
+        print(PLAYER_STATE_FORMAT.format(
+            turn_arrow="-> " if win else "",
+            name=player.player_data.name,
+            pocket_cards=card_list_str(player.pocket_cards),
+            money=f"{old_money if win else new_money}",
+            ranking=ranking,
+            action=winner_text,
+        ))
+
+    if len(game.deal.winners) > 1:
+        split_pot_text = f" --> Split: ${game.deal.pot:,} / {len(game.deal.winners)} = " \
+                         f"{game.deal.pot // len(game.deal.winners):,}"
+    else:
+        split_pot_text = ""
+
+    print(f"\nPot: ${game.deal.pot:,}{split_pot_text}\n"
+          f"Community cards: {card_list_str(game.deal.community_cards)}")
 
 
 def card_list_str(cards: list[rules.Card]) -> str:
@@ -87,18 +129,30 @@ def standard_io_poker():
 
     game = rules.PokerGame(6)
 
-    # print([rules.card_str(card) for card in game.current_hand.deck])
-
     while True:
-        print("\n" + "=" * 50 + "\n")
+        print("\n" + "=" * 80 + "\n")
+
+        if game.deal.winners:
+            print_winner(game)
+            print()
+            game.new_deal()
+
+            if len(game.players) < 2:
+                print(f"{game.players[0].name} is the last one standing with ${game.players[0].money:,}!")
+                break
+            else:
+                input("Press enter to start next deal. ")
+                continue
+
         print_state(game)
         print()
 
-        player_name = game.current_deal.get_current_player().player_data.name  # Name of the current turn player
+        player_name = game.deal.get_current_player().player_data.name  # Name of the current turn player
         action = input(f"What will {player_name} do? ").upper().split()
         # The input is uppercased and then split into a list.
-        new_amount = 0
-        # New amount for betting/raising
+
+        new_amount = 0  # New amount for betting/raising
+        # action = ["CALL"]
 
         try:
             if action[0] == "QUIT":
@@ -112,7 +166,7 @@ def standard_io_poker():
                 new_amount = int(action[1])
 
             action_code = rules.Actions.__dict__[action[0]]
-            game.current_deal.action(action_code, new_amount)
+            game.deal.action(action_code, new_amount)
 
         except (IndexError, KeyError):
             print("Invalid input.")
