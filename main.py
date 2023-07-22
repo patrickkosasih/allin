@@ -6,13 +6,15 @@ This is the gateway of running the entire Allin app.
 """
 
 import testing
-import rules
+from rules.basic import HandRanking
+from app.app_main import App
 
 
 def main():
-    testing.standard_io_poker()
+    # testing.standard_io_poker()
     # testing.hand_ranking_test(repeat_until=rules.HandRanking.ROYAL_FLUSH)
     # testing.hand_ranking_test(n_tests=25)
+    App().run()
 
 
 if __name__ == "__main__":
