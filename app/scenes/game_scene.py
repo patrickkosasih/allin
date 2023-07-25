@@ -21,5 +21,9 @@ class GameScene(Scene):
             self.cards.append(card)
             self.all_sprites.add(card)
 
+        self.thing = widgets.button.Button(percent_to_px(50, 50), percent_to_px(15, 7.5), text="Hi",
+                                           command=lambda: print("Hello, World!"), b_thickness=5)
+        self.all_sprites.add(self.thing)
+
     def update(self):
         super().update()

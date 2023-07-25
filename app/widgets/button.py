@@ -1,5 +1,6 @@
 import pygame
 import pygame.sprite
+import pygame.gfxdraw
 
 from app.shared import *
 
@@ -38,31 +39,6 @@ class Button(pygame.sprite.Sprite):
         self.text = self.font.render(text, True, text_color)
         self.text_rect = self.text.get_rect(center=(self.rect.width / 2, self.rect.height / 2))
 
-    def draw_button(self, color=(0, 0, 0), b_color=(0, 0, 0), b=0):
-        """
-        Procedurally draw a rounded rectangle for the button.
-
-        :param color: The inner color of the button
-        :param b_color: The border color
-        :param b: The border thickness. If set to 0 then the border is not drawn.
-        :return:
-        """
-
-        x, y, w, h = self.rect
-        r = h / 2
-
-        if b >= 0:
-            # Outer rounded rectangle (for the border)
-            pygame.draw.rect(self.image, b_color, (r, 0, (w - 2 * r), h))
-            pygame.draw.circle(self.image, b_color, (r, r), r)
-            pygame.draw.circle(self.image, b_color, (w - r, r), r)
-
-        # Inner rounded rectangle
-        pygame.draw.rect(self.image, color, (r, b, (w - 2 * r), h - 2 * b))
-        pygame.draw.circle(self.image, color, (r, r), r - b)
-        pygame.draw.circle(self.image, color, (w - r, r), r - b)
-
-
     def update(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
@@ -88,13 +64,21 @@ class Button(pygame.sprite.Sprite):
         """
         if self.hover:
             if self.mouse_down:
-                self.draw_button(hsv_factor(self.color, vf=0.75), hsv_factor(self.b_color, vf=0.75), self.b_thickness)
+                self.draw_button(0.75)
             else:
-                self.draw_button(hsv_factor(self.color, vf=1.25), hsv_factor(self.b_color, vf=1.25), self.b_thickness)
+                self.draw_button(1.25)
 
         else:
-            self.draw_button(self.color, self.b_color, self.b_thickness)
-
-
+            self.draw_button(1)
 
         self.image.blit(self.text, self.text_rect)
+
+    def draw_button(self, brightness=1.0):
+        """
+        Draw a rounded rectangle for the button with the set color and border color attributes.
+
+        :param brightness: The brightness multiplier for the color and border color.
+        """
+        draw_rounded_rect(self.image, self.image.get_rect(topleft=(0, 0)),
+                          hsv_factor(self.color, vf=brightness),
+                          hsv_factor(self.b_color, vf=brightness), self.b_thickness)

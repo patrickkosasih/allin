@@ -1,9 +1,9 @@
 import pygame
+import pygame.gfxdraw
 import colorsys
 
 
 DEFAULT_FONT_NAME = "assets/fonts/qhyts___.ttf"
-# FONT_NORMAL = pygame.font.Font(DEFAULT_FONT_NAME, 40)
 
 
 def w_percent_to_px(x: float) -> float:
@@ -39,3 +39,40 @@ def hsv_factor(rgb: tuple or str, hf=0, sf=1, vf=1) -> tuple:
 
     return int_rgb
 
+
+def draw_rounded_rect(surface: pygame.Surface, rect: pygame.Rect,
+                      color=(0, 0, 0), b_color=(0, 0, 0), b=0) -> None:
+    """
+    Draw a bordered rounded rectangle with the height as its radius.
+
+    A complete rounded rectangle consists of the outer part (for the border) and the inner part (for the fill).
+    A rounded rectangle is drawn by a rectangle and two circles, complete with anti aliasing.
+
+    :param surface: The Pygame surface to draw on
+    :param rect: The rect that determines the position and dimensions rounded rectangle.
+
+    :param color: The fill color of the button.
+    :param b_color: The border color.
+    :param b: The border thickness. If set to 0 then the border is not drawn.
+    """
+
+    x, y, w, h = rect
+    r = h // 2
+    
+    if b > 0:
+        # Outer rectangle (border)
+        draw_rounded_rect(surface, rect, b_color, b=0)
+
+        # Inner rectangle (fill)
+        inner = pygame.Surface((w, h), pygame.SRCALPHA)
+        draw_rounded_rect(inner, pygame.Rect(b, b, w - 2 * b, h - 2 * b), color, b=0)
+        surface.blit(inner, rect, special_flags=pygame.BLENDMODE_NONE)
+
+    else:
+        pygame.gfxdraw.aacircle(surface, x + r, y + r, r, color)  # Left circle
+        pygame.gfxdraw.filled_circle(surface, x + r, y + r, r, color)
+
+        pygame.gfxdraw.aacircle(surface, x + w - r, y + r, r, color)  # Right circle
+        pygame.gfxdraw.filled_circle(surface, x + w - r, y + r, r, color)
+
+        pygame.gfxdraw.box(surface, (x + r, y, (w - 2 * r), h), color)  # Rectangle
