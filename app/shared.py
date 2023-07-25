@@ -6,9 +6,16 @@ DEFAULT_FONT_NAME = "assets/fonts/qhyts___.ttf"
 # FONT_NORMAL = pygame.font.Font(DEFAULT_FONT_NAME, 40)
 
 
+def w_percent_to_px(x: float) -> float:
+    return 0.01 * x * pygame.display.get_window_size()[0]
+
+
+def h_percent_to_px(y: float) -> float:
+    return 0.01 * y * pygame.display.get_window_size()[1]
+
+
 def percent_to_px(x: float, y: float) -> tuple[float, float]:
-    width, height = pygame.display.get_window_size()
-    return 0.01 * x * width, 0.01 * y * height
+    return w_percent_to_px(x), h_percent_to_px(y)
 
 
 def hsv_factor(rgb: tuple or str, hf=0, sf=1, vf=1) -> tuple:

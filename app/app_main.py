@@ -1,7 +1,6 @@
 import pygame
 
-from app.scene import *
-from app.widgets import *
+from app.scenes.game_scene import GameScene
 
 
 DEFAULT_WIDTH, DEFAULT_HEIGHT = 1280, 720
@@ -14,11 +13,12 @@ class App:
 
         pygame.display.set_caption("Allin")
 
-        self.screen = pygame.display.set_mode((DEFAULT_WIDTH, DEFAULT_HEIGHT))
+        # self.screen = pygame.display.set_mode((DEFAULT_WIDTH, DEFAULT_HEIGHT))
+        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         self.clock = pygame.time.Clock()
         self.running = True
 
-        self.scene = Scene()
+        self.scene = GameScene()
 
     def run(self):
         while self.running:
