@@ -35,7 +35,7 @@ class Button(pygame.sprite.Sprite):
         """
         Button text
         """
-        self.font = font if font else pygame.font.Font(DEFAULT_FONT_NAME, 40)
+        self.font = font if font else pygame.font.Font(DEFAULT_FONT_PATH, int(h_percent_to_px(4)))
         self.text = self.font.render(text, True, text_color)
         self.text_rect = self.text.get_rect(center=(self.rect.width / 2, self.rect.height / 2))
 

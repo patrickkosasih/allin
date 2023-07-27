@@ -1,9 +1,11 @@
 import pygame
 import pygame.gfxdraw
 import colorsys
+import random
 
 
-DEFAULT_FONT_NAME = "assets/fonts/qhyts___.ttf"
+DEFAULT_FONT_PATH = "assets/fonts/coolvetica condensed rg.ttf"
+FONT_NORMAL = None
 
 
 def w_percent_to_px(x: float) -> float:
@@ -60,19 +62,32 @@ def draw_rounded_rect(surface: pygame.Surface, rect: pygame.Rect,
     r = h // 2
     
     if b > 0:
+        """
+        If border thickness > 0, draw two rounded rectangles (outer and inner) with b = 0.
+        """
         # Outer rectangle (border)
         draw_rounded_rect(surface, rect, b_color, b=0)
 
         # Inner rectangle (fill)
         inner = pygame.Surface((w, h), pygame.SRCALPHA)
         draw_rounded_rect(inner, pygame.Rect(b, b, w - 2 * b, h - 2 * b), color, b=0)
-        surface.blit(inner, rect, special_flags=pygame.BLENDMODE_NONE)
+        surface.blit(inner, rect)
 
     else:
+        """
+        Draw a borderless rounded rectangle
+        """
         pygame.gfxdraw.aacircle(surface, x + r, y + r, r, color)  # Left circle
         pygame.gfxdraw.filled_circle(surface, x + r, y + r, r, color)
 
         pygame.gfxdraw.aacircle(surface, x + w - r, y + r, r, color)  # Right circle
         pygame.gfxdraw.filled_circle(surface, x + w - r, y + r, r, color)
 
-        pygame.gfxdraw.box(surface, (x + r, y, (w - 2 * r), h), color)  # Rectangle
+        pygame.gfxdraw.box(surface, (x + r, y - 1, (w - 2 * r), h + 2), color)  # Rectangle
+
+
+def rand_color() -> tuple:
+    """
+    Generates a random color in an (R, G, B) tuple format.
+    """
+    return tuple(random.randrange(256) for _ in range(3))
