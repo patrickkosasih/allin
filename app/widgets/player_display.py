@@ -13,12 +13,12 @@ DEFAULT_SUB_COLOR = 32, 46, 38
 DEFAULT_TEXT_COLOR = 255, 255, 255
 
 
-class Player(pygame.sprite.Sprite):
+class PlayerDisplay(pygame.sprite.Sprite):
     """
-    The `Player` class is the GUI representation of a player.
+    The `PlayerDisplay` class is the GUI representation of a player.
     """
 
-    def __init__(self, pos, dimensions, player_data: rules.game_flow.PlayerData):
+    def __init__(self, pos, dimensions, player_data: rules.game_flow.Player):
         super().__init__()
         self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
         self.rect = self.image.get_rect(center=pos)

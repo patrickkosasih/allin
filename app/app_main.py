@@ -3,7 +3,7 @@ import pygame
 from app.scenes.game_scene import GameScene
 
 
-DEFAULT_WIDTH, DEFAULT_HEIGHT = 1280, 720
+WINDOWED_DIMENSIONS = 1280, 720
 FPS = 60
 
 
@@ -13,8 +13,8 @@ class App:
 
         pygame.display.set_caption("Allin")
 
-        # self.screen = pygame.display.set_mode((DEFAULT_WIDTH, DEFAULT_HEIGHT))
-        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
+        # self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         self.clock = pygame.time.Clock()
         self.running = True
 
