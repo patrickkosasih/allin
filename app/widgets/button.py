@@ -7,10 +7,9 @@ from app.shared import *
 
 class Button(pygame.sprite.Sprite):
     DEFAULT_COLOR = (43, 193, 193)
-    DEFAULT_B_COLOR = (28, 144, 175)
 
     def __init__(self, pos, dimensions, color=DEFAULT_COLOR, command=None,
-                 text="", text_color=(0, 0, 0), font=None, b_color=DEFAULT_B_COLOR, b_thickness=0):
+                 text="", text_color=(0, 0, 0), font=None, b_color=None, b_thickness=0):
 
         super().__init__()
         self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
@@ -29,13 +28,13 @@ class Button(pygame.sprite.Sprite):
         Button appearance
         """
         self.color = color
-        self.b_color = b_color
+        self.b_color = b_color if b_color else hsv_factor(color, vf=0.75)
         self.b_thickness = b_thickness
 
         """
         Button text
         """
-        self.font = font if font else pygame.font.Font(DEFAULT_FONT_PATH, int(h_percent_to_px(4)))
+        self.font = font if font else FontSave.get_font(4)
         self.text = self.font.render(text, True, text_color)
         self.text_rect = self.text.get_rect(center=(self.rect.width / 2, self.rect.height / 2))
 
@@ -56,6 +55,7 @@ class Button(pygame.sprite.Sprite):
         if not self.mouse_down and self.mouse_down != self.prev_mouse_down and self.hover:
             # Button press
             self.command()
+            print(self.command)
 
         self.prev_mouse_down = self.mouse_down
 

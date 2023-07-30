@@ -4,8 +4,22 @@ import colorsys
 import random
 
 
-DEFAULT_FONT_PATH = "assets/fonts/coolvetica condensed rg.ttf"
-FONT_NORMAL = None
+class FontSave:
+    DEFAULT_FONT_PATH = "assets/fonts/coolvetica condensed rg.ttf"
+
+    font_dict = {}
+
+    @staticmethod
+    def get_font(percent_size):
+        """
+        Returns a shared font object.
+
+        :param percent_size: The size of the font. Unit: % window height
+        """
+        return FontSave.font_dict.setdefault(
+            percent_size,
+            pygame.font.Font(FontSave.DEFAULT_FONT_PATH, int(h_percent_to_px(percent_size)))
+        )
 
 
 def w_percent_to_px(x: float) -> float:

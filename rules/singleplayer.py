@@ -11,7 +11,7 @@ class ThePlayer(Player):
         """
         Calls every time any player makes an action.
         """
-        self.game.call_on_any_action()
+        self.game.call_on_any_action(action_result)
 
     def on_turn(self):
         """
@@ -27,7 +27,7 @@ class Bot(Player):
 
 class SingleplayerGame(PokerGame):
     def __init__(self, n_players: int,
-                 call_on_any_action: Callable, call_on_turn: Callable):
+                 call_on_any_action: Callable[[ActionResult], None], call_on_turn: Callable[[None], None]):
         super().__init__()
 
         self.the_player = ThePlayer(self, "YOU", 1000)
@@ -39,4 +39,6 @@ class SingleplayerGame(PokerGame):
         self.call_on_turn = call_on_turn
 
         self.new_deal()
+
+        self.deal.get_current_player().player_data.on_turn()
 

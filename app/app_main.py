@@ -1,6 +1,7 @@
 import pygame
 
 from app.scenes.game_scene import GameScene
+from app.shared import FontSave
 
 
 WINDOWED_DIMENSIONS = 1280, 720
@@ -13,8 +14,8 @@ class App:
 
         pygame.display.set_caption("Allin")
 
-        self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
-        # self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        # self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
+        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         self.clock = pygame.time.Clock()
         self.running = True
 
@@ -22,13 +23,18 @@ class App:
 
     def run(self):
         while self.running:
+            dt = self.clock.tick(60) / 1000
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
 
             self.scene.update()
+            self.draw_fps(dt)
             pygame.display.update()
 
-            self.clock.tick(FPS)
-
         pygame.quit()
+
+    def draw_fps(self, dt):
+        fps_text = FontSave.get_font(2).render(f"{1 / dt:.0f} FPS      {dt * 1000:.0f} ms update", True, "white")
+        self.screen.blit(fps_text, fps_text.get_rect(topleft=(5, 5)))

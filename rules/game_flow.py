@@ -24,10 +24,9 @@ class ActionResult:
     # Action codes
     ILLEGAL = 0
     ANY_ACTION = 1
-    YOUR_TURN_NEXT = 2
-    NEW_ROUND = 3
-    SKIP_ROUND = 4
-    DEAL_END = 5
+    NEW_ROUND = 2
+    SKIP_ROUND = 3
+    DEAL_END = 4
 
     # Class fields
     code: int

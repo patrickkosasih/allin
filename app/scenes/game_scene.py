@@ -11,15 +11,31 @@ class GameScene(Scene):
     def __init__(self):
         super().__init__()
 
-        self.game = rules.singleplayer.SingleplayerGame(6, self.on_any_action, self.on_turn)
+        self.game = rules.singleplayer.SingleplayerGame(8, self.on_any_action, self.on_turn)
 
+        """
+        Table and players
+        """
         self.table = widgets.table.Table(percent_to_px(50, 50), percent_to_px(55, 55))
         self.all_sprites.add(self.table)
 
         self.players = pygame.sprite.Group()
         self.init_players()
 
-        # Card test
+        """
+        Action buttons
+        """
+        self.action_buttons = {
+            "fold": None,
+            "call": None,
+            "raise": None
+        }
+        self.init_action_buttons()
+
+
+        """
+        Testing stuff
+        """
         self.cards = pygame.sprite.Group()
         deck_iter = iter(self.game.deal.deck)
 
@@ -32,11 +48,11 @@ class GameScene(Scene):
         #                                    command=lambda: print("Hello, World!"), b_thickness=5)
         # self.all_sprites.add(self.thing)
 
-    def on_any_action(self):
-        pass
+    def on_any_action(self, action_result):
+        print(action_result)
 
     def on_turn(self):
-        pass
+        print("Your turn")
 
     def init_players(self):
         player_angle = 360 / len(self.game.players)  # The angle between players in degrees
@@ -47,6 +63,42 @@ class GameScene(Scene):
                                                           player_data)
             self.players.add(player)
             self.all_sprites.add(player)
+
+    def init_action_buttons(self):
+        """
+        Initialize the three action buttons.
+        """
+        colors = {
+            "fold": (184, 51, 51),
+            "call": (24, 142, 163),
+            "raise": (168, 149, 24)
+        }
+
+        """
+        Measurements
+        """
+        w, h = percent_to_px(15, 6.5)  # Button dimensions
+        w_scr, h_scr = pygame.display.get_window_size()  # Window dimensions
+        m = h / 3  # Margin between button and the edges (bottom and right).
+        x, y = w_scr - w / 2 - m, h_scr - h / 2 - m  # First button position
+
+        for action in self.action_buttons.keys():
+            button = widgets.button.Button(pos=(x, y), dimensions=(w, h), color=colors[action],
+                                           command=lambda a=action: self.action_button_press(a),
+                                           text=action.capitalize(), text_color="white")
+
+            self.action_buttons[action] = button
+            self.all_sprites.add(button)
+
+            y -= h + m
+
+    def action_button_press(self, action_type: str):
+        action_type = action_type.upper()
+
+        if action_type not in rules.game_flow.Actions.__dict__:
+            raise ValueError(f"invalid action: {action_type}")
+
+        self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type])
 
     def deal_cards(self):
         pass
