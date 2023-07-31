@@ -1,5 +1,8 @@
-from rules.game_flow import *
 from typing import Callable
+import time
+import threading
+
+from rules.game_flow import *
 
 
 class ThePlayer(Player):
@@ -22,12 +25,17 @@ class ThePlayer(Player):
 
 class Bot(Player):
     def on_turn(self):
+        threading.Thread(target=self.action_delay, daemon=True).start()
+
+    def action_delay(self, delay=0.5):
+        time.sleep(delay)
         self.action(Actions.CALL)
 
 
 class SingleplayerGame(PokerGame):
     def __init__(self, n_players: int,
-                 call_on_any_action: Callable[[ActionResult], None], call_on_turn: Callable[[None], None]):
+                 call_on_any_action: Callable[[ActionResult], None], call_on_turn: Callable[[None], None],
+                 auto_start=False):
         super().__init__()
 
         self.the_player = ThePlayer(self, "YOU", 1000)
@@ -38,7 +46,6 @@ class SingleplayerGame(PokerGame):
         self.call_on_any_action = call_on_any_action
         self.call_on_turn = call_on_turn
 
-        self.new_deal()
-
-        self.deal.get_current_player().player_data.on_turn()
+        if auto_start:
+            self.new_deal()
 

@@ -155,7 +155,7 @@ class Deal:
         self.winners = []
 
         self.pot = 0
-        self.bet_amount = self.game.sb_amount * 2
+        self.bet_amount = 0
 
         self.community_cards = []
         self.deck = generate_deck()
@@ -174,16 +174,13 @@ class Deal:
         """
         Player turn initialization and blinds
         """
-        self.current_turn = self.game.dealer
-        self.blinds = sb, bb = self.get_next_turn(1), self.get_next_turn(2)
+        self.current_turn = self.get_next_turn(n=1, turn=self.game.dealer)
+        self.action(Actions.BET, self.game.sb_amount, blinds=True)
+        self.action(Actions.BET, self.game.sb_amount * 2, blinds=True)
 
-        self.players[sb].bet(self.game.sb_amount, blinds=True)
-        self.players[bb].bet(self.game.sb_amount * 2, blinds=True)
+        self.get_current_player().player_data.on_turn()
 
-        self.current_turn = self.get_next_turn(3)
-        # The player with the first turn of a new deal is the player after the big blinds
-
-    def action(self, action_type: int, new_amount=0) -> ActionResult:
+    def action(self, action_type: int, new_amount=0, blinds=False) -> ActionResult:
         """
         Takes an action for the current turn player. There are 3 types of actions:
         1. Fold
@@ -194,6 +191,8 @@ class Deal:
         class (0-2).
 
         :param new_amount: The amount of money to bet. Only used when the action type is to bet/raise.
+
+        :param blinds: Used for automatically betting the small and big blinds on the beginning of a deal.
 
         :return: An instance of `ActionResult`.
         """
@@ -214,11 +213,13 @@ class Deal:
             case Actions.FOLD:   # Fold
                 self.get_current_player().folded = True
                 action_result.message = "fold"
+                action_result.bet_amount = self.get_current_player().bet_amount
 
                 # If everyone except one player folds, then that player wins.
                 if sum(not player.folded for player in self.players) == 1:
                     self.showdown()
                     action_result.code = ActionResult.DEAL_END
+
 
             case Actions.CALL:   # Check/call
                 # Set action text
@@ -229,11 +230,12 @@ class Deal:
 
                 self.get_current_player().bet(self.bet_amount)
                 self.get_current_player().called = True
+                action_result.bet_amount = self.bet_amount
 
             case Actions.RAISE:  # Bet/raise
                 illegal_bet = True
 
-                if new_amount < 2 * self.game.sb_amount:
+                if not blinds and new_amount < 2 * self.game.sb_amount:
                     action_result.message = "LESS_THAN_MIN_BET"
 
                 elif new_amount <= self.bet_amount:
@@ -257,13 +259,14 @@ class Deal:
                     x.called = False
 
                 # Set action text
-                if self.bet_amount > 0:
+                if self.bet_amount > 0 and not blinds:
                     action_result.message = "raise"
                 else:
                     action_result.message = "bet"
 
                 self.bet_amount = new_amount
-                self.get_current_player().bet(new_amount)
+                self.get_current_player().bet(new_amount, blinds)
+                action_result.bet_amount = new_amount
 
         if self.get_current_player().all_in:
             action_result.message = "all-in"
@@ -287,7 +290,8 @@ class Deal:
         for player in self.players:
             player.player_data.on_any_action(action_result)
 
-        self.get_current_player().player_data.on_turn()
+        if not blinds:
+            self.get_current_player().player_data.on_turn()
 
         return action_result
 
@@ -386,9 +390,11 @@ class PokerGame:
         if n_players >= 2:
             self.auto_start_game(n_players)
 
-    def new_deal(self):
+    def new_deal(self, cycle_dealer=True):
         self.players = [player for player in self.players if player.money > 0]  # Remove bankrupt players
-        self.dealer = (self.dealer + 1) % len(self.players)  # Cycle dealer
+
+        if cycle_dealer:
+            self.dealer = (self.dealer + 1) % len(self.players)  # Cycle dealer
 
         if len(self.players) >= 2:
             self.deal = Deal(self)

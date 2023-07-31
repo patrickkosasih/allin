@@ -1,5 +1,8 @@
 import pygame.sprite
 
+import tkinter.simpledialog
+
+from rules.game_flow import ActionResult
 import rules.singleplayer
 
 from app.scenes.scene import Scene
@@ -32,6 +35,7 @@ class GameScene(Scene):
         }
         self.init_action_buttons()
 
+        self.game.new_deal(cycle_dealer=False)
 
         """
         Testing stuff
@@ -48,8 +52,18 @@ class GameScene(Scene):
         #                                    command=lambda: print("Hello, World!"), b_thickness=5)
         # self.all_sprites.add(self.thing)
 
-    def on_any_action(self, action_result):
-        print(action_result)
+
+    def on_any_action(self, action_result: ActionResult):
+        if action_result.code == ActionResult.NEW_ROUND:
+            for player in self.players.sprites():
+                player.set_sub_text("")
+
+        else:
+            action_str = action_result.message.capitalize()
+            if action_result.bet_amount > 0:
+                action_str += f" ${action_result.bet_amount:,}"
+
+            self.players.sprites()[action_result.player_index].set_sub_text(action_str)
 
     def on_turn(self):
         print("Your turn")
@@ -94,11 +108,20 @@ class GameScene(Scene):
 
     def action_button_press(self, action_type: str):
         action_type = action_type.upper()
+        new_amount = 0
+
+        if action_type in ("RAISE", "BET"):
+            # Raising and betting is currently done by inputting the new betting amount to the command line.
+            # In the future, a slider GUI for betting will be implemented.
+            new_amount = tkinter.simpledialog.askinteger("Bet / Raise", "Input new betting amount")
+
+            if not new_amount:
+                return
 
         if action_type not in rules.game_flow.Actions.__dict__:
             raise ValueError(f"invalid action: {action_type}")
 
-        self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type])
+        self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type], new_amount)
 
     def deal_cards(self):
         pass

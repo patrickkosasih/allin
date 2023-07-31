@@ -55,7 +55,6 @@ class Button(pygame.sprite.Sprite):
         if not self.mouse_down and self.mouse_down != self.prev_mouse_down and self.hover:
             # Button press
             self.command()
-            print(self.command)
 
         self.prev_mouse_down = self.mouse_down
 
