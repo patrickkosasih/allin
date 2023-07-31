@@ -38,7 +38,7 @@ class Button(pygame.sprite.Sprite):
         self.text = self.font.render(text, True, text_color)
         self.text_rect = self.text.get_rect(center=(self.rect.width / 2, self.rect.height / 2))
 
-    def update(self):
+    def update(self, dt):
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
         """

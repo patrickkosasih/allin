@@ -127,6 +127,6 @@ class PlayerDisplay(pygame.sprite.Sprite):
         self.sub_text_str = text
         self.redraw_component(ComponentCodes.SUB_TEXT)
 
-    def update(self):
+    def update(self, dt):
         self.image.fill((0, 0, 0, 0))
         self.component_group.draw(self.image)

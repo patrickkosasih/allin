@@ -29,12 +29,7 @@ class App:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            self.scene.update()
-            self.draw_fps(dt)
+            self.scene.update(dt)
             pygame.display.update()
 
         pygame.quit()
-
-    def draw_fps(self, dt):
-        fps_text = FontSave.get_font(2).render(f"{1 / dt:.0f} FPS      {dt * 1000:.0f} ms update", True, "white")
-        self.screen.blit(fps_text, fps_text.get_rect(topleft=(5, 5)))

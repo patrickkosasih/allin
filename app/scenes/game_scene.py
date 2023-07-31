@@ -16,6 +16,9 @@ class GameScene(Scene):
 
         self.game = rules.singleplayer.SingleplayerGame(8, self.on_any_action, self.on_turn)
 
+        self.fps_counter = widgets.fps_counter.FPSCounter()
+        self.all_sprites.add(self.fps_counter)
+
         """
         Table and players
         """
@@ -126,5 +129,5 @@ class GameScene(Scene):
     def deal_cards(self):
         pass
 
-    def update(self):
-        super().update()
+    def update(self, dt):
+        super().update(dt)
