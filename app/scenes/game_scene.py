@@ -14,10 +14,12 @@ class GameScene(Scene):
     def __init__(self):
         super().__init__()
 
-        self.game = rules.singleplayer.SingleplayerGame(8, self.on_any_action, self.on_turn)
+        self.game = rules.singleplayer.SingleplayerGame(6, self.on_any_action, self.on_turn)
 
         self.fps_counter = widgets.fps_counter.FPSCounter()
         self.all_sprites.add(self.fps_counter)
+
+        widgets.card.Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
 
         """
         Table and players
@@ -41,25 +43,20 @@ class GameScene(Scene):
         self.game.new_deal(cycle_dealer=False)
 
         """
-        Testing stuff
+        Cards
         """
-        self.cards = pygame.sprite.Group()
-        deck_iter = iter(self.game.deal.deck)
+        self.pocket_cards = pygame.sprite.Group()
+        self.community_cards = pygame.sprite.Group()
 
-        for i in range(-2, 3):
-            card = widgets.card.Card(percent_to_px(50 + 6.5 * i, 50), h_percent_to_px(12.5), next(deck_iter))
-            self.cards.add(card)
-            self.all_sprites.add(card)
-
-        # self.thing = widgets.button.Button(percent_to_px(50, 50), percent_to_px(15, 7.5), text="Hi",
-        #                                    command=lambda: print("Hello, World!"), b_thickness=5)
-        # self.all_sprites.add(self.thing)
+        self.deal_cards()
 
 
     def on_any_action(self, action_result: ActionResult):
         if action_result.code == ActionResult.NEW_ROUND:
-            for player in self.players.sprites():
-                player.set_sub_text("")
+            self.next_round()
+
+        elif action_result.code == ActionResult.DEAL_END:
+            self.showdown()
 
         else:
             action_str = action_result.message.capitalize()
@@ -67,6 +64,8 @@ class GameScene(Scene):
                 action_str += f" ${action_result.bet_amount:,}"
 
             self.players.sprites()[action_result.player_index].set_sub_text(action_str)
+
+        self.players.sprites()[action_result.player_index].update_money()
 
     def on_turn(self):
         print("Your turn")
@@ -127,7 +126,39 @@ class GameScene(Scene):
         self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type], new_amount)
 
     def deal_cards(self):
-        pass
+        for player_display in self.players.sprites():
+            for i in range(2):  # Every player has 2 pocket cards
+                x, y = player_display.rect.midtop
+                x += w_percent_to_px(1) * (1 if i else -1)
+
+                card = widgets.card.Card((x, y))
+                self.all_sprites.add(card)
+                self.pocket_cards.add(card)
+
+                if player_display.player_data is self.game.the_player:
+                    card.card_data = player_display.player_data.player_hand.pocket_cards[i]
+                    card.show_front()
+
+    def next_round(self):
+        for player in self.players.sprites():
+            player.set_sub_text("")
+
+        for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
+            card_data = self.game.deal.community_cards[i]
+            pos = percent_to_px(50 + 6.5 * (i - 2), 50)
+
+            card = widgets.card.Card(pos, card_data)
+            card.show_front()
+
+            self.all_sprites.add(card)
+            self.community_cards.add(card)
+
+    def showdown(self):
+        for player_display in self.players.sprites():
+            ranking_int = player_display.player_data.player_hand.hand_ranking.ranking_type
+            ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
+
+            player_display.set_sub_text(ranking_text)
 
     def update(self, dt):
         super().update(dt)

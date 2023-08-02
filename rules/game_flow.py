@@ -50,6 +50,7 @@ class Player:
 
     def __init__(self, game: "PokerGame", name: str, money: int):
         self.game = game
+        self.player_hand = None
 
         self.name = name
         self.money = money
@@ -66,6 +67,7 @@ class Player:
             return action_result
         else:
             return None
+
 
     """
     Empty methods
@@ -97,6 +99,12 @@ class PlayerHand:
     def __init__(self, deal: "Deal", player_data: Player):
         self.deal = deal
         self.player_data = player_data
+
+        self.player_data.player_hand = self
+        """
+        When creating a `PlayerHand` object, the player hand attribute of the player data gets updated; creating a
+        circular reference between the two.
+        """
 
         self.pocket_cards = []
         self.hand_ranking = HandRanking()
@@ -204,16 +212,18 @@ class Deal:
         elif self.winners:
             raise StopIteration("this deal has already been concluded")
 
+        player: PlayerHand = self.get_current_player()
+
         action_result = ActionResult(code=ActionResult.ANY_ACTION,
-                                     player_index=self.players.index(self.get_current_player()),
+                                     player_index=self.players.index(player),
                                      message="")
         # `action_result` is the return value of this method.
 
         match action_type:
             case Actions.FOLD:   # Fold
-                self.get_current_player().folded = True
+                player.folded = True
                 action_result.message = "fold"
-                action_result.bet_amount = self.get_current_player().bet_amount
+                action_result.bet_amount = player.bet_amount
 
                 # If everyone except one player folds, then that player wins.
                 if sum(not player.folded for player in self.players) == 1:
@@ -228,8 +238,8 @@ class Deal:
                 else:
                     action_result.message = "check"
 
-                self.get_current_player().bet(self.bet_amount)
-                self.get_current_player().called = True
+                player.bet(self.bet_amount)
+                player.called = True
                 action_result.bet_amount = self.bet_amount
 
             case Actions.RAISE:  # Bet/raise
@@ -241,8 +251,8 @@ class Deal:
                 elif new_amount <= self.bet_amount:
                     action_result.message = "LESS_THAN_CURRENT_BET"
 
-                elif new_amount > self.get_current_player().player_data.money + self.bet_amount:
-                    new_amount = self.get_current_player().player_data.money + self.bet_amount  # ALL-IN
+                elif new_amount > player.player_data.money + player.bet_amount:
+                    new_amount = player.player_data.money + player.bet_amount  # ALL-IN
                     illegal_bet = False
 
                 else:
@@ -265,13 +275,13 @@ class Deal:
                     action_result.message = "bet"
 
                 self.bet_amount = new_amount
-                self.get_current_player().bet(new_amount, blinds)
+                player.bet(new_amount, blinds)
                 action_result.bet_amount = new_amount
 
-        if self.get_current_player().all_in:
+        if player.all_in:
             action_result.message = "all-in"
 
-        self.get_current_player().last_action = action_result.message
+        player.last_action = action_result.message
 
         if all(player.called or player.all_in for player in self.players if not player.folded):
             # Next round
@@ -287,10 +297,11 @@ class Deal:
             self.current_turn = self.get_next_turn()
 
         # Broadcast the action result to all players.
-        for player in self.players:
-            player.player_data.on_any_action(action_result)
+        for x in self.players:
+            x.player_data.on_any_action(action_result)
 
-        if not blinds:
+        if not blinds and not self.winners:
+            # Call the `on_turn` method of the next player.
             self.get_current_player().player_data.on_turn()
 
         return action_result

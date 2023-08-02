@@ -49,6 +49,7 @@ class PlayerDisplay(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
         self.rect = self.image.get_rect(center=pos)
+        self.layer = Layer.PLAYER
 
         """
         Player display components
@@ -126,6 +127,9 @@ class PlayerDisplay(pygame.sprite.Sprite):
     def set_sub_text(self, text: str):
         self.sub_text_str = text
         self.redraw_component(ComponentCodes.SUB_TEXT)
+
+    def update_money(self):
+        self.redraw_component(ComponentCodes.MONEY_TEXT)
 
     def update(self, dt):
         self.image.fill((0, 0, 0, 0))

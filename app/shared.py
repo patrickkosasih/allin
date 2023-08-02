@@ -5,6 +5,11 @@ import random
 
 
 class FontSave:
+    """
+    The `FontSave` class makes creating font objects much easier by having a global font object that is shared
+    throughout the program.
+    """
+
     DEFAULT_FONT_PATH = "assets/fonts/coolvetica condensed rg.ttf"
 
     font_dict = {}
@@ -20,6 +25,13 @@ class FontSave:
             percent_size,
             pygame.font.Font(FontSave.DEFAULT_FONT_PATH, int(h_percent_to_px(percent_size)))
         )
+
+
+class Layer:
+    BACKGROUND = 0
+    TABLE = 1
+    CARD = 2
+    PLAYER = 3
 
 
 def w_percent_to_px(x: float) -> float:

@@ -8,7 +8,7 @@ from app.shared import *
 class Scene:
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
-        self.all_sprites = pygame.sprite.Group()
+        self.all_sprites = pygame.sprite.LayeredUpdates()
 
     def update(self, dt):
         self.display_surface.fill("#123456")
