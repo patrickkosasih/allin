@@ -55,20 +55,18 @@ class GameScene(Scene):
 
 
     def on_any_action(self, action_result: ActionResult):
+        action_str = action_result.message.capitalize()
+        if action_result.bet_amount > 0:
+            action_str += f" ${action_result.bet_amount:,}"
+
+        self.players.sprites()[action_result.player_index].set_sub_text_anim(action_str)
+        self.players.sprites()[action_result.player_index].update_money()
+
         if action_result.code == ActionResult.NEW_ROUND:
-            self.next_round()
+            app_timer.Timer(0.5, self.next_round)
 
         elif action_result.code == ActionResult.DEAL_END:
-            self.showdown()
-
-        else:
-            action_str = action_result.message.capitalize()
-            if action_result.bet_amount > 0:
-                action_str += f" ${action_result.bet_amount:,}"
-
-            self.players.sprites()[action_result.player_index].set_sub_text(action_str)
-
-        self.players.sprites()[action_result.player_index].update_money()
+            app_timer.Timer(2, self.showdown)
 
     def on_turn(self):
         # print("Your turn")
@@ -114,20 +112,23 @@ class GameScene(Scene):
 
     def action_button_press(self, action_type: str):
         action_type = action_type.upper()
-        new_amount = 0
 
         if action_type in ("RAISE", "BET"):
             # Raising and betting is currently done by inputting the new betting amount to the command line.
             # In the future, a slider GUI for betting will be implemented.
-            new_amount = tkinter.simpledialog.askinteger("Bet / Raise", "Input new betting amount")
+            def prompt():
+                new_amount = tkinter.simpledialog.askinteger("Bet / Raise", "Input new betting amount")
+                if not new_amount:
+                    return
 
-            if not new_amount:
-                return
+                self.game.the_player.action(rules.game_flow.Actions.RAISE, new_amount)
+
+            threading.Thread(target=prompt).start()
 
         if action_type not in rules.game_flow.Actions.__dict__:
             raise ValueError(f"invalid action: {action_type}")
 
-        self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type], new_amount)
+        self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type])
 
     def deal_cards(self):
         for player_display in self.players.sprites():
@@ -148,7 +149,7 @@ class GameScene(Scene):
 
     def next_round(self):
         for player in self.players.sprites():
-            player.set_sub_text("")
+            player.set_sub_text_anim("")
 
         for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
             card_data = self.game.deal.community_cards[i]
@@ -167,7 +168,7 @@ class GameScene(Scene):
             # Update sub text to hand ranking
             ranking_int = player_hand.hand_ranking.ranking_type
             ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
-            player_display.set_sub_text(ranking_text)
+            player_display.set_sub_text_anim(ranking_text)
 
             # Update money text
             player_display.update_money()
@@ -202,7 +203,7 @@ class GameScene(Scene):
         # Empty the `pocket_cards` groups and reset sub texts of every player
         for player in self.players:
             player.pocket_cards.empty()
-            player.set_sub_text("")
+            player.set_sub_text_anim("")
 
         # Empty sprite groups
         self.all_pocket_cards.empty()
