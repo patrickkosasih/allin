@@ -58,11 +58,11 @@ class Player:
     def action(self, action_type: int, new_amount=0) -> ActionResult or None:
         """
         Calls the `self.game.deal.action()` method along with its arguments, but only if it's currently this player's
-        turn.
+        turn and the deal is not over.
 
         :return: An `ActionResult` object; `None` if it's not this player's turn.
         """
-        if self.game.deal.get_current_player().player_data is self:
+        if self.game.deal.get_current_player().player_data is self and not self.game.deal.winners:
             action_result = self.game.deal.action(action_type, new_amount)
             return action_result
         else:
@@ -161,6 +161,7 @@ class Deal:
         self.players = [PlayerHand(deal=self, player_data=player) for player in game.players]
         # A list of `PlayerHand` instances based on the `PlayerData` list of the `PokerGame`.
         self.winners = []
+        # A list of `PlayerHand` objects who won the deal. If the deal is still ongoing then the list is empty.
 
         self.pot = 0
         self.bet_amount = 0

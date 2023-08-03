@@ -1,6 +1,5 @@
 from typing import Callable
-import time
-import threading
+from app import app_timer
 
 from rules.game_flow import *
 
@@ -25,11 +24,8 @@ class ThePlayer(Player):
 
 class Bot(Player):
     def on_turn(self):
-        threading.Thread(target=self.action_delay, daemon=True).start()
-
-    def action_delay(self, delay=0.5):
-        time.sleep(delay)
-        self.action(Actions.CALL)
+        # Run self.action after 0.5 seconds
+        app_timer.Timer(0.5, self.action, (Actions.CALL,))
 
 
 class SingleplayerGame(PokerGame):

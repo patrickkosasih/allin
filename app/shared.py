@@ -2,6 +2,7 @@ import pygame
 import pygame.gfxdraw
 import colorsys
 import random
+import time
 
 
 class FontSave:
@@ -30,8 +31,9 @@ class FontSave:
 class Layer:
     BACKGROUND = 0
     TABLE = 1
-    CARD = 2
-    PLAYER = 3
+    WINNER_CROWN = 2
+    CARD = 3
+    PLAYER = 4
 
 
 def w_percent_to_px(x: float) -> float:
@@ -117,3 +119,18 @@ def rand_color() -> tuple:
     Generates a random color in an (R, G, B) tuple format.
     """
     return tuple(random.randrange(256) for _ in range(3))
+
+
+def func_timer(func):
+    """
+    A decorator function that measures the time taken to run a function
+    """
+    def wrapper(*args, **kwargs):
+        time_before = time.perf_counter()
+        ret = func(*args, **kwargs)  # Call function
+        time_taken = time.perf_counter() - time_before
+
+        print(f"{func.__name__} took {time_taken} seconds to run")
+        return ret
+
+    return wrapper

@@ -1,5 +1,5 @@
 import pygame.sprite
-
+import threading
 import tkinter.simpledialog
 
 from rules.game_flow import ActionResult
@@ -8,6 +8,7 @@ import rules.singleplayer
 from app.scenes.scene import Scene
 from app.shared import *
 from app import widgets
+from app import app_timer
 
 
 class GameScene(Scene):
@@ -30,6 +31,8 @@ class GameScene(Scene):
         self.players = pygame.sprite.Group()
         self.init_players()
 
+        self.winner_crowns = pygame.sprite.Group()
+
         """
         Action buttons
         """
@@ -45,7 +48,7 @@ class GameScene(Scene):
         """
         Cards
         """
-        self.pocket_cards = pygame.sprite.Group()
+        self.all_pocket_cards = pygame.sprite.Group()
         self.community_cards = pygame.sprite.Group()
 
         self.deal_cards()
@@ -68,7 +71,8 @@ class GameScene(Scene):
         self.players.sprites()[action_result.player_index].update_money()
 
     def on_turn(self):
-        print("Your turn")
+        # print("Your turn")
+        pass
 
     def init_players(self):
         player_angle = 360 / len(self.game.players)  # The angle between players in degrees
@@ -132,8 +136,11 @@ class GameScene(Scene):
                 x += w_percent_to_px(1) * (1 if i else -1)
 
                 card = widgets.card.Card((x, y))
+
+                # Pocket cards are added to 3 different sprite groups.
                 self.all_sprites.add(card)
-                self.pocket_cards.add(card)
+                self.all_pocket_cards.add(card)
+                player_display.pocket_cards.add(card)
 
                 if player_display.player_data is self.game.the_player:
                     card.card_data = player_display.player_data.player_hand.pocket_cards[i]
@@ -155,10 +162,66 @@ class GameScene(Scene):
 
     def showdown(self):
         for player_display in self.players.sprites():
-            ranking_int = player_display.player_data.player_hand.hand_ranking.ranking_type
-            ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
+            player_hand = player_display.player_data.player_hand
 
+            # Update sub text to hand ranking
+            ranking_int = player_hand.hand_ranking.ranking_type
+            ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
             player_display.set_sub_text(ranking_text)
+
+            # Update money text
+            player_display.update_money()
+
+            # Show cards
+            for i, card in enumerate(player_display.pocket_cards.sprites()):
+                card.card_data = player_hand.pocket_cards[i]
+                card.show_front()
+
+            # If the player is a winner, create a winner crown.
+            if player_hand in self.game.deal.winners:
+                winner_crown = widgets.winner_crown.WinnerCrown(player_display)
+                self.all_sprites.add(winner_crown)
+                self.winner_crowns.add(winner_crown)
+
+        app_timer.Timer(4, self.new_deal)
+
+    def new_deal(self):
+        """
+        Reset the sprites of cards and winner crowns, and then start a new deal.
+        """
+
+        """
+        Clear cards and winner crowns
+        """
+        reset_sprites = self.all_pocket_cards.sprites() + self.community_cards.sprites() + self.winner_crowns.sprites()
+
+        # Remove sprites from the all_sprites group
+        for sprite in reset_sprites:
+            self.all_sprites.remove(sprite)
+
+        # Empty the `pocket_cards` groups and reset sub texts of every player
+        for player in self.players:
+            player.pocket_cards.empty()
+            player.set_sub_text("")
+
+        # Empty sprite groups
+        self.all_pocket_cards.empty()
+        self.community_cards.empty()
+        self.winner_crowns.empty()
+
+        """
+        New deal
+        """
+        self.game.new_deal()
+
+        if len(self.players.sprites()) != len(self.game.players):
+            for player in self.players.sprites():
+                self.all_sprites.remove(player)
+
+            self.players.empty()
+            self.init_players()
+
+        self.deal_cards()
 
     def update(self, dt):
         super().update(dt)

@@ -4,7 +4,6 @@ import pygame
 import rules.game_flow
 import rules.basic
 from app.shared import *
-from testing import func_timer
 
 
 DEFAULT_HEAD_COLOR = 95, 201, 123
@@ -43,6 +42,12 @@ class PlayerDisplay(pygame.sprite.Sprite):
     II. Sub
         1. Sub base
         2. Sub text
+
+    Apart from the components above, there are sprites that are placed based on the position of a player display, but
+    are actually not part of the player display sprite:
+
+    1. Two pocket cards
+    2. Winner crown
     """
 
     def __init__(self, pos, dimensions, player_data: rules.game_flow.Player):
@@ -57,6 +62,9 @@ class PlayerDisplay(pygame.sprite.Sprite):
         self.components = {}
         self.component_group = pygame.sprite.Group()
 
+        self.pocket_cards = pygame.sprite.Group()
+        # Note: Pocket cards are separate from player displays.
+
         """
         Data fields
         """
@@ -64,7 +72,6 @@ class PlayerDisplay(pygame.sprite.Sprite):
         self.sub_text_str = ""
 
         self.init_components()
-
 
     def init_components(self):
         """

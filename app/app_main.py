@@ -2,6 +2,7 @@ import pygame
 
 from app.scenes.game_scene import GameScene
 from app.shared import FontSave
+from app import app_timer
 
 
 WINDOWED_DIMENSIONS = 1280, 720
@@ -23,12 +24,17 @@ class App:
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(60) / 1000
+            """
+            The main loop
+            """
+
+            dt = self.clock.tick(FPS) / 1000
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
 
+            app_timer.update_timers(dt)
             self.scene.update(dt)
             pygame.display.update()
 
