@@ -184,6 +184,8 @@ class Deal:
         Player turn initialization and blinds
         """
         self.current_turn = self.get_next_turn(n=1, turn=self.game.dealer)
+        self.blinds = self.current_turn, self.get_next_turn(1)
+
         self.action(Actions.BET, self.game.sb_amount, blinds=True)
         self.action(Actions.BET, self.game.sb_amount * 2, blinds=True)
 

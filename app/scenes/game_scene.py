@@ -123,7 +123,7 @@ class GameScene(Scene):
 
                 self.game.the_player.action(rules.game_flow.Actions.RAISE, new_amount)
 
-            threading.Thread(target=prompt).start()
+            threading.Thread(target=prompt, daemon=True).start()
 
         if action_type not in rules.game_flow.Actions.__dict__:
             raise ValueError(f"invalid action: {action_type}")
