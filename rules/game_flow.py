@@ -19,18 +19,35 @@ class Actions:
     RAISE = 2
 
 
-@dataclass
 class ActionResult:
-    # Action codes
-    ILLEGAL = 0
-    ANY_ACTION = 1
-    NEW_ROUND = 2
-    SKIP_ROUND = 3
-    DEAL_END = 4
+    """
+    The `ActionResult` class contains return codes for the `action` method of `Deal`.
+    """
+    SUCCESS = 0
+    LESS_THAN_MIN_BET = 1
+    LESS_THAN_MIN_RAISE = 2
+    DEAL_ENDED = 3
+
+
+@dataclass
+class GameEvent:
+    """
+    A game event is used to pass information from an ongoing game/deal to the `receive_event` method of a `Player`
+    object. The information can then be used to update the GUI, call the action method of a bot, and more.
+    """
+
+    # Event codes
+    ANY_ACTION = 0
+    DEAL_START = 1
+    ROUND_FINISH = 2
+    NEW_ROUND = 3
+    SKIP_ROUND = 4
+    DEAL_END = 5
 
     # Class fields
     code: int
-    player_index: int
+    prev_player: int
+    next_player: int
     message: str
     bet_amount: int = 0
 
@@ -55,7 +72,7 @@ class Player:
         self.name = name
         self.money = money
 
-    def action(self, action_type: int, new_amount=0) -> ActionResult or None:
+    def action(self, action_type: int, new_amount=0) -> GameEvent or None:
         """
         Calls the `self.game.deal.action()` method along with its arguments, but only if it's currently this player's
         turn and the deal is not over.
@@ -74,15 +91,9 @@ class Player:
     
     The empty methods below act as an interface for subclasses of this class.
     """
-    def on_any_action(self, action_result: ActionResult):
+    def receive_event(self, game_event: GameEvent):
         """
         Calls every time any player makes an action.
-        """
-        pass
-
-    def on_turn(self):
-        """
-        Calls when the new turn after an action is this player.
         """
         pass
 
@@ -130,7 +141,6 @@ class PlayerHand:
 
         if amount_to_pay >= self.player_data.money:
             # ALL IN
-            self.last_action = "all-in"
             self.all_in = True
 
             amount_to_pay = self.player_data.money
@@ -169,6 +179,9 @@ class Deal:
         self.community_cards = []
         self.deck = generate_deck()
 
+        self.current_turn = -1
+        self.blinds = ()
+
         """
         Deal cards to players
         """
@@ -178,7 +191,12 @@ class Deal:
         self.deck = self.deck[n_dealed_cards:]
 
         for i, player in enumerate(self.players):
-            player.pocket_cards = dealed_cards[i * 2 : i * 2 + 2]
+            player.pocket_cards = dealed_cards[i * 2: i * 2 + 2]
+
+    def start_deal(self):
+        """
+        Start the current deal. Only called once on the start of a deal.
+        """
 
         """
         Player turn initialization and blinds
@@ -189,9 +207,7 @@ class Deal:
         self.action(Actions.BET, self.game.sb_amount, blinds=True)
         self.action(Actions.BET, self.game.sb_amount * 2, blinds=True)
 
-        self.get_current_player().player_data.on_turn()
-
-    def action(self, action_type: int, new_amount=0, blinds=False) -> ActionResult:
+    def action(self, action_type: int, new_amount=0, blinds=False) -> int:
         """
         Takes an action for the current turn player. There are 3 types of actions:
         1. Fold
@@ -205,7 +221,7 @@ class Deal:
 
         :param blinds: Used for automatically betting the small and big blinds on the beginning of a deal.
 
-        :return: An instance of `ActionResult`.
+        :return: An action result integer code.
         """
 
         if type(action_type) is not int:
@@ -213,59 +229,51 @@ class Deal:
         elif action_type not in range(3):
             raise ValueError(f"action type must be 0, 1, or 2 (got: {action_type})")
         elif self.winners:
-            raise StopIteration("this deal has already been concluded")
+            return ActionResult.DEAL_ENDED
 
         player: PlayerHand = self.get_current_player()
 
-        action_result = ActionResult(code=ActionResult.ANY_ACTION,
-                                     player_index=self.players.index(player),
+        action_broadcast = GameEvent(code=GameEvent.ANY_ACTION,
+                                     prev_player=self.current_turn,
+                                     next_player=self.get_next_turn(),
                                      message="")
-        # `action_result` is the return value of this method.
 
+        """
+        Do the action
+        """
+        # region Do the action
         match action_type:
             case Actions.FOLD:   # Fold
                 player.folded = True
-                action_result.message = "fold"
-                action_result.bet_amount = player.bet_amount
+                action_broadcast.message = "fold"
+                action_broadcast.bet_amount = player.bet_amount
 
                 # If everyone except one player folds, then that player wins.
                 if sum(not player.folded for player in self.players) == 1:
                     self.showdown()
-                    action_result.code = ActionResult.DEAL_END
+                    action_broadcast.code = GameEvent.DEAL_END
 
 
             case Actions.CALL:   # Check/call
                 # Set action text
                 if self.bet_amount > 0:
-                    action_result.message = "call"
+                    action_broadcast.message = "call"
                 else:
-                    action_result.message = "check"
+                    action_broadcast.message = "check"
 
                 player.bet(self.bet_amount)
                 player.called = True
-                action_result.bet_amount = self.bet_amount
+                action_broadcast.bet_amount = self.bet_amount
 
             case Actions.RAISE:  # Bet/raise
-                illegal_bet = True
-
-                if not blinds and new_amount < 2 * self.game.sb_amount:
-                    action_result.message = "LESS_THAN_MIN_BET"
+                if not blinds and new_amount < 2 * self.game.min_bet:
+                    return ActionResult.LESS_THAN_MIN_BET
 
                 elif new_amount <= self.bet_amount:
-                    action_result.message = "LESS_THAN_CURRENT_BET"
+                    return ActionResult.LESS_THAN_MIN_RAISE
 
                 elif new_amount > player.player_data.money + player.bet_amount:
                     new_amount = player.player_data.money + player.bet_amount  # ALL-IN
-                    illegal_bet = False
-
-                else:
-                    illegal_bet = False
-
-                # Return early when the new bet amount is illegal
-                if illegal_bet:
-                    action_result.code = ActionResult.ILLEGAL
-                    action_result.bet_amount = new_amount
-                    return action_result
 
                 # Everyone except the betting/raising player must call again
                 for x in self.players:
@@ -273,41 +281,40 @@ class Deal:
 
                 # Set action text
                 if self.bet_amount > 0 and not blinds:
-                    action_result.message = "raise"
+                    action_broadcast.message = "raise"
                 else:
-                    action_result.message = "bet"
+                    action_broadcast.message = "bet"
 
                 self.bet_amount = new_amount
                 player.bet(new_amount, blinds)
-                action_result.bet_amount = new_amount
+
+                action_broadcast.bet_amount = player.bet_amount
+        # endregion
 
         if player.all_in:
-            action_result.message = "all-in"
+            action_broadcast.message = "all-in"
 
-        player.last_action = action_result.message
+        player.last_action = action_broadcast.message
 
+        """
+        After the action
+        
+        1. If everyone who hasn't folded has called or is all in, then the round is finished.
+        2. Otherwise, cycle the current turn to the next player.
+        """
         if all(player.called or player.all_in for player in self.players if not player.folded):
-            # Next round
-            self.next_round()
-
-            if self.winners:
-                action_result.code = ActionResult.DEAL_END
-            else:
-                action_result.code = ActionResult.NEW_ROUND
+            action_broadcast.code = GameEvent.ROUND_FINISH
+            action_broadcast.next_player = -1
 
         else:
-            # Next turn
             self.current_turn = self.get_next_turn()
 
-        # Broadcast the action result to all players.
-        for x in self.players:
-            x.player_data.on_any_action(action_result)
+        """
+        Broadcast the game event
+        """
+        self.broadcast(action_broadcast)
 
-        if not blinds and not self.winners:
-            # Call the `on_turn` method of the next player.
-            self.get_current_player().player_data.on_turn()
-
-        return action_result
+        return ActionResult.SUCCESS
 
     def next_round(self):
         """
@@ -316,9 +323,18 @@ class Deal:
         :return:
         """
 
+        if self.winners:
+            return
+
+        """
+        Reset bet amount and turn
+        """
         self.bet_amount = 0
         self.current_turn = self.get_next_turn(1, turn=self.game.dealer)
 
+        """
+        Reveal community cards or showdown
+        """
         if len(self.community_cards) < 5:
             draw_n_cards = 3 if len(self.community_cards) == 0 else 1
             for _ in range(draw_n_cards):
@@ -326,11 +342,25 @@ class Deal:
         else:
             self.showdown()
 
+        """
+        Reset player hands
+        """
         for player in self.players:
             player.hand_ranking = HandRanking(self.community_cards + player.pocket_cards)
             player.bet_amount = 0
             player.last_action = "folded" if player.folded else ("all-in" if player.all_in else "")
             player.called = False
+
+        """
+        Broadcast game event
+        """
+        if sum(not player.all_in for player in self.players if not player.folded) <= 1:
+            # If everyone who are still in are all-in (except 1 player or less), then the next betting round is skipped.
+            self.broadcast(GameEvent(GameEvent.SKIP_ROUND, -1, -1, ""))
+
+        else:
+            # Broadcast new round event
+            self.broadcast(GameEvent(GameEvent.NEW_ROUND, -1, self.current_turn, ""))
 
     def showdown(self):
         """
@@ -344,6 +374,15 @@ class Deal:
 
         for winner in self.winners:
             winner.player_data.money += self.pot // len(self.winners)
+
+        self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
+
+    def broadcast(self, broadcast: GameEvent) -> None:
+        """
+        Broadcast a `GameEvent` to all `Player` objects by calling their `receive_event` methods.
+        """
+        for player_hand in self.players:
+            player_hand.player_data.receive_event(broadcast)
 
     def get_next_turn(self, n=1, turn=-1) -> int:
         """
@@ -395,9 +434,10 @@ class PokerGame:
         # Note: In the future players may join in the middle of an ongoing match and the `n_players` parameter won't
         # be necessary.
         self.players = []
-
         self.dealer = 0  # The index of `self.players` who becomes the dealer of the current deal.
+
         self.sb_amount = 25  # Small blinds amount. Big blinds = 2 * Small blinds.
+        self.min_bet = 2 * self.sb_amount
 
         self.deal: Deal or None = None
 
@@ -405,6 +445,13 @@ class PokerGame:
             self.auto_start_game(n_players)
 
     def new_deal(self, cycle_dealer=True):
+        """
+        Start a new deal. Players who are out of money are removed, and the dealer is cycled to the next player.
+
+        :param cycle_dealer: Defaults to True. If set to True then the dealer is cycled to the next player.
+        :return: True if a new deal is started; False otherwise, due to insufficient player count.
+        """
+
         self.players = [player for player in self.players if player.money > 0]  # Remove bankrupt players
 
         if cycle_dealer:

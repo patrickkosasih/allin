@@ -2,7 +2,7 @@ import pygame.sprite
 import threading
 import tkinter.simpledialog
 
-from rules.game_flow import ActionResult
+from rules.game_flow import GameEvent
 import rules.singleplayer
 
 from app.scenes.scene import Scene
@@ -15,7 +15,7 @@ class GameScene(Scene):
     def __init__(self):
         super().__init__()
 
-        self.game = rules.singleplayer.SingleplayerGame(6, self.on_any_action, self.on_turn)
+        self.game = rules.singleplayer.SingleplayerGame(6, self.receive_event)
 
         self.fps_counter = widgets.fps_counter.FPSCounter()
         self.all_sprites.add(self.fps_counter)
@@ -48,39 +48,49 @@ class GameScene(Scene):
         """
         Cards
         """
-        self.all_pocket_cards = pygame.sprite.Group()
         self.community_cards = pygame.sprite.Group()
 
         self.deal_cards()
+        self.game.deal.start_deal()
 
 
-    def on_any_action(self, action_result: ActionResult):
-        action_str = action_result.message.capitalize()
-        if action_result.bet_amount > 0:
-            action_str += f" ${action_result.bet_amount:,}"
+    def receive_event(self, event: GameEvent):
+        """
+        The method that is called everytime an action or event happens.
+        """
+        # print(event)
 
-        self.players.sprites()[action_result.player_index].set_sub_text_anim(action_str)
-        self.players.sprites()[action_result.player_index].update_money()
+        """
+        Update the subtext on a player action
+        """
+        if event.prev_player >= 0:
+            action_str = event.message.capitalize()
 
-        if action_result.code == ActionResult.NEW_ROUND:
-            app_timer.Timer(0.5, self.next_round)
+            if event.bet_amount > 0:
+                action_str += f" ${event.bet_amount:,}"
 
-        elif action_result.code == ActionResult.DEAL_END:
-            app_timer.Timer(2, self.showdown)
+            self.players.sprites()[event.prev_player].set_sub_text_anim(action_str)
+            self.players.sprites()[event.prev_player].update_money()
 
-    def on_turn(self):
-        # print("Your turn")
-        pass
+        """
+        Round finish and deal end
+        """
+        match event.code:
+            case GameEvent.ROUND_FINISH | GameEvent.SKIP_ROUND:
+                app_timer.Timer(1, self.next_round)
+
+            case GameEvent.DEAL_END:
+                app_timer.Timer(1.5, self.showdown)
 
     def init_players(self):
         player_angle = 360 / len(self.game.players)  # The angle between players in degrees
 
         for i, player_data in enumerate(self.game.players):
-            player = widgets.player_display.PlayerDisplay(self.table.get_edge_coords(i * player_angle + 90, (1.25, 1.2)),
-                                                          percent_to_px(15, 12.5),
-                                                          player_data)
-            self.players.add(player)
-            self.all_sprites.add(player)
+            player_display = widgets.player_display.PlayerDisplay(self.table.get_edge_coords(i * player_angle + 90, (1.25, 1.2)),
+                                                                  percent_to_px(15, 12.5),
+                                                                  player_data)
+            self.players.add(player_display)
+            self.all_sprites.add(player_display)
 
     def init_action_buttons(self):
         """
@@ -140,7 +150,6 @@ class GameScene(Scene):
 
                 # Pocket cards are added to 3 different sprite groups.
                 self.all_sprites.add(card)
-                self.all_pocket_cards.add(card)
                 player_display.pocket_cards.add(card)
 
                 if player_display.player_data is self.game.the_player:
@@ -150,6 +159,8 @@ class GameScene(Scene):
     def next_round(self):
         for player in self.players.sprites():
             player.set_sub_text_anim("")
+
+        self.game.deal.next_round()
 
         for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
             card_data = self.game.deal.community_cards[i]
@@ -194,26 +205,27 @@ class GameScene(Scene):
         """
         Clear cards and winner crowns
         """
-        reset_sprites = self.all_pocket_cards.sprites() + self.community_cards.sprites() + self.winner_crowns.sprites()
-
-        # Remove sprites from the all_sprites group
-        for sprite in reset_sprites:
+        # Remove community cards and winner crown from the all_sprites group
+        for sprite in self.community_cards.sprites() + self.winner_crowns.sprites():
             self.all_sprites.remove(sprite)
 
         # Empty the `pocket_cards` groups and reset sub texts of every player
-        for player in self.players:
+        for player in self.players.sprites():
+            for x in player.pocket_cards.sprites():
+                self.all_sprites.remove(x)
+
             player.pocket_cards.empty()
+
             player.set_sub_text_anim("")
 
         # Empty sprite groups
-        self.all_pocket_cards.empty()
         self.community_cards.empty()
         self.winner_crowns.empty()
 
         """
         New deal
         """
-        self.game.new_deal()
+        is_new_deal = self.game.new_deal()
 
         if len(self.players.sprites()) != len(self.game.players):
             for player in self.players.sprites():
@@ -223,6 +235,9 @@ class GameScene(Scene):
             self.init_players()
 
         self.deal_cards()
+
+        if is_new_deal:
+            self.game.deal.start_deal()
 
     def update(self, dt):
         super().update(dt)

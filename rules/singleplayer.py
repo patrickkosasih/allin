@@ -1,3 +1,10 @@
+"""
+rules/singleplayer.py
+
+The singleplayer module is used to interface the game flow engine from the main app on singleplayer games.
+"""
+
+
 from typing import Callable
 from app import app_timer
 
@@ -9,28 +16,23 @@ class ThePlayer(Player):
         super().__init__(game, name, money)
         self.game = game
 
-    def on_any_action(self, action_result: ActionResult):
+    def receive_event(self, game_event: GameEvent):
         """
         Calls every time any player makes an action.
         """
-        self.game.call_on_any_action(action_result)
-
-    def on_turn(self):
-        """
-        Calls when the new turn after an action is this player.
-        """
-        self.game.call_on_turn()
+        self.game.call_on_any_action(game_event)
 
 
 class Bot(Player):
-    def on_turn(self):
+    def receive_event(self, broadcast: GameEvent):
         # Run self.action after 0.5 seconds
-        app_timer.Timer(0.5, self.action, (Actions.CALL,))
+        if broadcast.next_player == self.game.players.index(self):
+            app_timer.Timer(0.5, self.action, (Actions.CALL,))
 
 
 class SingleplayerGame(PokerGame):
     def __init__(self, n_players: int,
-                 call_on_any_action: Callable[[ActionResult], None], call_on_turn: Callable[[None], None],
+                 call_on_any_action: Callable[[GameEvent], None],
                  auto_start=False):
         super().__init__()
 
@@ -40,7 +42,6 @@ class SingleplayerGame(PokerGame):
         self.players: list[Player] = [self.the_player] + self.bots
 
         self.call_on_any_action = call_on_any_action
-        self.call_on_turn = call_on_turn
 
         if auto_start:
             self.new_deal()
