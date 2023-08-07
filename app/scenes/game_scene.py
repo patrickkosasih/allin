@@ -1,7 +1,9 @@
 import pygame.sprite
 import threading
 import tkinter.simpledialog
+import random
 
+from app.animations.move import MoveAnimation
 from rules.game_flow import GameEvent
 import rules.singleplayer
 
@@ -9,6 +11,24 @@ from app.scenes.scene import Scene
 from app.shared import *
 from app import widgets
 from app import app_timer
+
+
+COMM_CARD_ROTATIONS = (198, 126, 270, 54, -18)
+"""`COMM_CARD_ROTATIONS` defines the rotation for the animation's starting position of the n-th community card."""
+
+
+def player_rotation(i: int, n_players: int) -> float:
+    """
+    Returns the player rotation for the given player index and number of players.
+
+    A player rotation defines the position of a player display in the table. The returned player rotation is usually
+    converted into a (x, y) position using the `Table.get_edge_coords` method.
+
+    :param i: The index of the player.
+    :param n_players: Total number of players.
+    :return: The player rotation in degrees.
+    """
+    return i * (360 / n_players) + 90
 
 
 class GameScene(Scene):
@@ -51,7 +71,7 @@ class GameScene(Scene):
         self.community_cards = pygame.sprite.Group()
 
         self.deal_cards()
-        self.game.deal.start_deal()
+        app_timer.Timer(2, self.game.deal.start_deal)
 
 
     def receive_event(self, event: GameEvent):
@@ -83,12 +103,12 @@ class GameScene(Scene):
                 app_timer.Timer(1.5, self.showdown)
 
     def init_players(self):
-        player_angle = 360 / len(self.game.players)  # The angle between players in degrees
-
         for i, player_data in enumerate(self.game.players):
-            player_display = widgets.player_display.PlayerDisplay(self.table.get_edge_coords(i * player_angle + 90, (1.25, 1.2)),
-                                                                  percent_to_px(15, 12.5),
-                                                                  player_data)
+            player_display = widgets.player_display.PlayerDisplay(
+                self.table.get_edge_coords(player_rotation(i, len(self.game.players)), (1.25, 1.2)),
+                percent_to_px(15, 12.5),
+                player_data
+            )
             self.players.add(player_display)
             self.all_sprites.add(player_display)
 
@@ -141,19 +161,24 @@ class GameScene(Scene):
         self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type])
 
     def deal_cards(self):
-        for player_display in self.players.sprites():
-            for i in range(2):  # Every player has 2 pocket cards
+        for i, player_display in enumerate(self.players.sprites()):
+            for j in range(2):  # Every player has 2 pocket cards
                 x, y = player_display.rect.midtop
-                x += w_percent_to_px(1) * (1 if i else -1)
+                x += w_percent_to_px(1) * (1 if j else -1)
 
-                card = widgets.card.Card((x, y))
+                angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
+                start_pos = self.table.get_edge_coords(angle, (2.5, 2.5))
 
-                # Pocket cards are added to 3 different sprite groups.
+                card = widgets.card.Card(start_pos)
+                animation = MoveAnimation(random.uniform(1.75, 2), card, None, (x, y))
+                self.anim_group.add(animation)
+
+                # Pocket cards are added to 2 different sprite groups.
                 self.all_sprites.add(card)
                 player_display.pocket_cards.add(card)
 
                 if player_display.player_data is self.game.the_player:
-                    card.card_data = player_display.player_data.player_hand.pocket_cards[i]
+                    card.card_data = player_display.player_data.player_hand.pocket_cards[j]
                     card.show_front()
 
     def next_round(self):
@@ -164,10 +189,15 @@ class GameScene(Scene):
 
         for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
             card_data = self.game.deal.community_cards[i]
+
+            start_pos = self.table.get_edge_coords(COMM_CARD_ROTATIONS[i] + random.uniform(-5, 5), (3, 3))
             pos = percent_to_px(50 + 6.5 * (i - 2), 50)
 
-            card = widgets.card.Card(pos, card_data)
-            card.show_front()
+            card = widgets.card.Card(start_pos, card_data)
+            # card.show_front()
+
+            animation = MoveAnimation(random.uniform(2, 2.5), card, start_pos, pos, call_on_finish=card.show_front)
+            self.anim_group.add(animation)
 
             self.all_sprites.add(card)
             self.community_cards.add(card)
@@ -203,24 +233,35 @@ class GameScene(Scene):
         """
 
         """
-        Clear cards and winner crowns
+        Delete winner crowns
         """
-        # Remove community cards and winner crown from the all_sprites group
-        for sprite in self.community_cards.sprites() + self.winner_crowns.sprites():
+        for sprite in self.winner_crowns.sprites():
             self.all_sprites.remove(sprite)
 
-        # Empty the `pocket_cards` groups and reset sub texts of every player
-        for player in self.players.sprites():
-            for x in player.pocket_cards.sprites():
-                self.all_sprites.remove(x)
-
-            player.pocket_cards.empty()
-
-            player.set_sub_text_anim("")
-
-        # Empty sprite groups
-        self.community_cards.empty()
         self.winner_crowns.empty()
+
+        """
+        Clear cards
+        """
+        # Pocket cards
+        for i, player in enumerate(self.players.sprites()):
+            for card in player.pocket_cards.sprites():
+                # self.all_sprites.remove(card)
+                card_end_pos = self.table.get_edge_coords(
+                    player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2), (3, 3)
+                )
+                animation = MoveAnimation(random.uniform(1.5, 2), card, None, card_end_pos)
+                self.anim_group.add(animation)
+
+            player.set_sub_text_anim("")  # Reset sub text
+
+        # Community cards
+        for card, rot in zip(self.community_cards.sprites(), COMM_CARD_ROTATIONS):
+            card_end_pos = self.table.get_edge_coords(rot + random.uniform(-5, 5), (3, 3))
+            animation = MoveAnimation(random.uniform(2, 2.5), card, None, card_end_pos)
+            self.anim_group.add(animation)
+
+        app_timer.Timer(2.5, self.delete_cards)
 
         """
         New deal
@@ -234,10 +275,21 @@ class GameScene(Scene):
             self.players.empty()
             self.init_players()
 
-        self.deal_cards()
-
         if is_new_deal:
-            self.game.deal.start_deal()
+            app_timer.Timer(3, self.deal_cards)
+            app_timer.Timer(5, self.game.deal.start_deal)
+
+    def delete_cards(self):
+        for player in self.players.sprites():
+            for card in player.pocket_cards.sprites():
+                self.all_sprites.remove(card)
+
+            player.pocket_cards.empty()
+
+        for card in self.community_cards:
+            self.all_sprites.remove(card)
+
+        self.community_cards.empty()
 
     def update(self, dt):
         super().update(dt)

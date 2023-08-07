@@ -26,7 +26,8 @@ class ActionResult:
     SUCCESS = 0
     LESS_THAN_MIN_BET = 1
     LESS_THAN_MIN_RAISE = 2
-    DEAL_ENDED = 3
+    ROUND_ALREADY_ENDED = 3
+    DEAL_ALREADY_ENDED = 4
 
 
 @dataclass
@@ -85,15 +86,9 @@ class Player:
         else:
             return None
 
-
-    """
-    Empty methods
-    
-    The empty methods below act as an interface for subclasses of this class.
-    """
     def receive_event(self, game_event: GameEvent):
         """
-        Calls every time any player makes an action.
+        Semi-abstract method: Calls every time any player makes an action.
         """
         pass
 
@@ -182,6 +177,8 @@ class Deal:
         self.current_turn = -1
         self.blinds = ()
 
+        self.round_finished = False
+
         """
         Deal cards to players
         """
@@ -228,8 +225,10 @@ class Deal:
             raise TypeError("action type must be an int")
         elif action_type not in range(3):
             raise ValueError(f"action type must be 0, 1, or 2 (got: {action_type})")
+        elif self.round_finished:
+            return ActionResult.ROUND_ALREADY_ENDED
         elif self.winners:
-            return ActionResult.DEAL_ENDED
+            return ActionResult.DEAL_ALREADY_ENDED
 
         player: PlayerHand = self.get_current_player()
 
@@ -305,6 +304,7 @@ class Deal:
         if all(player.called or player.all_in for player in self.players if not player.folded):
             action_broadcast.code = GameEvent.ROUND_FINISH
             action_broadcast.next_player = -1
+            self.round_finished = True
 
         else:
             self.current_turn = self.get_next_turn()
@@ -327,10 +327,11 @@ class Deal:
             return
 
         """
-        Reset bet amount and turn
+        Reset fields
         """
         self.bet_amount = 0
         self.current_turn = self.get_next_turn(1, turn=self.game.dealer)
+        self.round_finished = False
 
         """
         Reveal community cards or showdown
@@ -356,6 +357,7 @@ class Deal:
         """
         if sum(not player.all_in for player in self.players if not player.folded) <= 1:
             # If everyone who are still in are all-in (except 1 player or less), then the next betting round is skipped.
+            self.round_finished = True
             self.broadcast(GameEvent(GameEvent.SKIP_ROUND, -1, -1, ""))
 
         else:
@@ -467,3 +469,4 @@ class PokerGame:
     def auto_start_game(self, n_players):
         self.players = [Player(self, f"Player {i + 1}", 1000) for i in range(n_players)]
         self.new_deal()
+        self.deal.start_deal()

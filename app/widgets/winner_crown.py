@@ -67,7 +67,6 @@ class WinnerCrown(pygame.sprite.Sprite):
         """
         2. Crown
         """
-        m = Vector2(0, - w_percent_to_px(1))
         crown_pos = Vector2(self.player.components[ComponentCodes.PROFILE_PIC].rect.midtop) + d_pos
 
         self.crown.image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/crown.png"),
@@ -79,10 +78,10 @@ class WinnerCrown(pygame.sprite.Sprite):
         """
         3. Winner text
         """
-        text_pos = Vector2(self.player.components[ComponentCodes.SUB_BASE].rect.midbottom) + d_pos
+        text_pos = Vector2(self.rect.midbottom) - Vector2(self.rect.topleft)
 
         self.text.image = FontSave.get_font(4).render("Winner!", True, TEXT_COLOR)
-        self.text.rect = self.text.image.get_rect(midtop=text_pos)
+        self.text.rect = self.text.image.get_rect(midbottom=text_pos)
 
         self.component_group.add(self.text)
 

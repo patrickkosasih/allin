@@ -18,9 +18,9 @@ class VarSlider(Animation):
     """
 
     def __init__(self, duration, start_val: float, end_val: float,
-                 interpolation: Callable[[float], float] = DEFAULT_INTERPOLATION,
+                 interpolation: InterpolationFunc = DEFAULT_INTERPOLATION,
                  setter_func: Callable[[float], None] = NONE_FUNC,
-                 finish_func: Callable = NONE_FUNC):
+                 **kwargs):
         """
         :param duration: The duration of the animation.
         :param start_val: The starting value.
@@ -28,10 +28,9 @@ class VarSlider(Animation):
         :param interpolation: The interpolation function that converts the phase into the interpolated phase.
         :param setter_func: The function that is called after every update with the current value passed in as an
         argument.
-        :param finish_func: The function that is called after the animation has finished.
         """
 
-        super().__init__(duration)
+        super().__init__(duration, **kwargs)
 
         self.start_val = start_val
         self.end_val = end_val
@@ -39,7 +38,6 @@ class VarSlider(Animation):
 
         self.interpolation = interpolation
         self.setter_func = setter_func
-        self.finish_func = finish_func
 
     def update_anim(self):
         interpol_phase = self.interpolation(self.phase)
@@ -48,4 +46,3 @@ class VarSlider(Animation):
 
     def finish(self):
         self.update_anim()
-        self.finish_func()
