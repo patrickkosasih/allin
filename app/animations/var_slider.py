@@ -5,7 +5,6 @@ from app.animations.interpolations import *
 
 
 NONE_FUNC = lambda x=None: None
-DEFAULT_INTERPOLATION = lambda x: ease_in_out(x, power=3)
 
 
 class VarSlider(Animation):
@@ -18,7 +17,6 @@ class VarSlider(Animation):
     """
 
     def __init__(self, duration, start_val: float, end_val: float,
-                 interpolation: InterpolationFunc = DEFAULT_INTERPOLATION,
                  setter_func: Callable[[float], None] = NONE_FUNC,
                  **kwargs):
         """
@@ -36,12 +34,10 @@ class VarSlider(Animation):
         self.end_val = end_val
         self.current_val = start_val
 
-        self.interpolation = interpolation
         self.setter_func = setter_func
 
     def update_anim(self):
-        interpol_phase = self.interpolation(self.phase)
-        self.current_val = self.start_val + (self.end_val - self.start_val) * interpol_phase
+        self.current_val = self.start_val + self.interpol_phase * (self.end_val - self.start_val)
         self.setter_func(self.current_val)
 
     def finish(self):

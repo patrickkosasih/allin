@@ -6,7 +6,7 @@ from app.shared import *
 
 from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
-from app.animations.interpolations import *
+from app.animations.interpolations import ease_in_out
 
 DEFAULT_HEAD_COLOR = 95, 201, 123
 DEFAULT_SUB_COLOR = 32, 46, 38
