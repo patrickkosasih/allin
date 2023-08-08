@@ -1,9 +1,11 @@
 import pygame
 
 import rules.basic
+from app.animations.anim_group import AnimGroup
 from app.shared import Layer
+from app.animations.card_flip import CardFlipAnimation
 
-SUIT_SPRITES = {
+SUIT_SPRITE_PATHS = {
     "S": "assets/sprites/card/spades.png",
     "H": "assets/sprites/card/hearts.png",
     "D": "assets/sprites/card/diamonds.png",
@@ -12,13 +14,24 @@ SUIT_SPRITES = {
 
 
 class Card(pygame.sprite.Sprite):
+    """
+    The card sprite represents a single card, whether it's a pocket card or a community card.
+
+    The `Card` class has some global attributes, which means some properties of a card share the same global variable.
+    """
+
     global_height = 0
+    global_width = 0
+
     card_base = None
     card_back = None
+
     font = None
 
     def __init__(self, pos: tuple, card_data: rules.basic.Card or None = None):
         """
+        Initialize the card. Before initializing a card, the global size of the card class must be defined by calling
+        the static `set_size` method.
 
         :param pos:
         :param card_data:
@@ -41,10 +54,13 @@ class Card(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=pos)
         self.layer = Layer.CARD
 
+        self.anim_group = AnimGroup()
+
         """
         Data field
         """
         self.card_data = card_data
+        self.is_revealed = False
 
     def draw_card_front(self):
         """
@@ -53,6 +69,10 @@ class Card(pygame.sprite.Sprite):
         2. Suit icon (top left corner)
         3. Suit icon (the big one)
         """
+
+        if not self.card_data:
+            raise AttributeError("cannot draw card if card data is not yet set")
+
         margin = 0.08 * self.card_front.get_width()
 
         """
@@ -69,7 +89,7 @@ class Card(pygame.sprite.Sprite):
         """
         2. Top left corner suit
         """
-        unscaled_suit = pygame.image.load(SUIT_SPRITES[self.card_data.suit])
+        unscaled_suit = pygame.image.load(SUIT_SPRITE_PATHS[self.card_data.suit])
         corner_suit_size = 0.2 * self.card_front.get_width()
 
         corner_suit = pygame.transform.smoothscale(unscaled_suit, 2 * (corner_suit_size,))
@@ -86,12 +106,18 @@ class Card(pygame.sprite.Sprite):
         big_suit_rect = big_suit.get_rect(bottomright=big_suit_pos)
         self.card_front.blit(big_suit, big_suit_rect)
 
-    def show_front(self):
-        if not self.card_data:
-            raise AttributeError("card data is not yet set")
+    def reveal(self, duration=0.4):
+        """
+        Reveal the front side of the card with a card flip animation.
+        """
+        if duration <= 0:
+            self.draw_card_front()
+            self.image = self.card_front
+            self.is_revealed = True
 
-        self.draw_card_front()
-        self.image = self.card_front
+        else:
+            animation = CardFlipAnimation(duration, self)
+            self.anim_group.add(animation)
 
     @staticmethod
     def set_size(height):
@@ -116,5 +142,11 @@ class Card(pygame.sprite.Sprite):
 
         Card.card_base = pygame.transform.smoothscale(unscaled_base, (width, height))
         Card.card_back = pygame.transform.smoothscale(unscaled_back, (width, height))
+
         Card.global_height = height
+        Card.global_width = width
+
         Card.font = pygame.font.Font("assets/fonts/Archive-Regular.ttf", int(0.2 * height))
+
+    def update(self, dt):
+        self.anim_group.update(dt)

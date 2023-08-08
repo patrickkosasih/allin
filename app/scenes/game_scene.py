@@ -179,7 +179,7 @@ class GameScene(Scene):
 
                 if player_display.player_data is self.game.the_player:
                     card.card_data = player_display.player_data.player_hand.pocket_cards[j]
-                    card.show_front()
+                    animation.call_on_finish = card.reveal
 
     def next_round(self):
         for player in self.players.sprites():
@@ -196,7 +196,7 @@ class GameScene(Scene):
             card = widgets.card.Card(start_pos, card_data)
             # card.show_front()
 
-            animation = MoveAnimation(random.uniform(2, 2.5), card, start_pos, pos, call_on_finish=card.show_front)
+            animation = MoveAnimation(random.uniform(2, 2.5), card, start_pos, pos, call_on_finish=card.reveal)
             self.anim_group.add(animation)
 
             self.all_sprites.add(card)
@@ -215,9 +215,10 @@ class GameScene(Scene):
             player_display.update_money()
 
             # Show cards
-            for i, card in enumerate(player_display.pocket_cards.sprites()):
-                card.card_data = player_hand.pocket_cards[i]
-                card.show_front()
+            if player_display.player_data is not self.game.the_player:
+                for i, card in enumerate(player_display.pocket_cards.sprites()):
+                    card.card_data = player_hand.pocket_cards[i]
+                    card.reveal(random.uniform(0.5, 1))
 
             # If the player is a winner, create a winner crown.
             if player_hand in self.game.deal.winners:

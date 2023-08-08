@@ -24,5 +24,5 @@ def ease_in_out(x: float, power: float = 2.0) -> float:
         return 1 - (2 - 2 * x) ** power / 2
 
 
-def back_and_forth(x: float, power: float = 1.0) -> float:
-    return (-4 * x * (x - 1)) ** power
+def ease_out(x: float, power: float = 2.0) -> float:
+    return (-x * (x - 2)) ** (1 / power)
