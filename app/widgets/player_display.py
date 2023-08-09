@@ -6,7 +6,7 @@ from app.shared import *
 
 from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
-from app.animations.interpolations import ease_in_out
+from app.animations.interpolations import ease_out
 
 DEFAULT_HEAD_COLOR = 95, 201, 123
 DEFAULT_SUB_COLOR = 32, 46, 38
@@ -72,12 +72,14 @@ class PlayerDisplay(pygame.sprite.Sprite):
         """
         Data fields
         """
-        self.player_data = player_data
+        self.player_data: rules.game_flow.Player = player_data
 
         self.sub_text_str = ""
-        self.sub_pos = 0
+        self.sub_pos: float = 0
         """`sub_pos` determines the current position of the sub. 0 being retracted (hidden behind the head), and 1 being
         extended (placed right below the head)."""
+
+        self.money_text_val: int = self.player_data.money
 
         self.init_components()
 
@@ -122,7 +124,7 @@ class PlayerDisplay(pygame.sprite.Sprite):
                 component.rect = component.image.get_rect(center=((w + h_head / 2) / 2, 0.25 * h_head))
 
             case ComponentCodes.MONEY_TEXT:
-                component.image = FontSave.get_font(3.5).render(f"${self.player_data.money:,}", True, DEFAULT_TEXT_COLOR)
+                component.image = FontSave.get_font(3.5).render(f"${self.money_text_val:,}", True, DEFAULT_TEXT_COLOR)
                 component.rect = component.image.get_rect(center=((w + h_head / 2) / 2, 0.75 * h_head))
 
             case ComponentCodes.PROFILE_PIC:
@@ -177,8 +179,23 @@ class PlayerDisplay(pygame.sprite.Sprite):
         self.redraw_component(ComponentCodes.SUB_BASE)
         self.redraw_component(ComponentCodes.SUB_TEXT)
 
-    def update_money(self):
+    def set_money_text(self, money: int or float):
+        self.money_text_val = int(money)
         self.redraw_component(ComponentCodes.MONEY_TEXT)
+
+    def update_money(self, anim=True):
+        old_money, new_money = self.money_text_val, self.player_data.money
+
+        duration = min(abs(old_money - new_money) * 0.0005, 0.75)
+
+        if duration > 0 and anim:
+            animation = VarSlider(1, old_money, new_money, setter_func=self.set_money_text,
+                                  interpolation=lambda x: ease_out(x, 3))
+            self.anim_group.add(animation)
+
+        else:
+            self.set_money_text(new_money)
+
 
     def update(self, dt):
         self.anim_group.update(dt)

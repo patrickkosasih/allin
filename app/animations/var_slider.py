@@ -41,4 +41,5 @@ class VarSlider(Animation):
         self.setter_func(self.current_val)
 
     def finish(self):
-        self.update_anim()
+        self.current_val = self.end_val
+        self.setter_func(self.current_val)
