@@ -3,7 +3,6 @@ import threading
 import tkinter.simpledialog
 import random
 
-from app.animations.move import MoveAnimation
 from rules.game_flow import GameEvent
 import rules.singleplayer
 
@@ -11,6 +10,9 @@ from app.scenes.scene import Scene
 from app.shared import *
 from app import widgets
 from app import app_timer
+
+from app.animations.move import MoveAnimation
+from app.animations.var_slider import VarSlider
 
 
 COMM_CARD_ROTATIONS = (198, 126, 270, 54, -18)
@@ -37,10 +39,13 @@ class GameScene(Scene):
 
         self.game = rules.singleplayer.SingleplayerGame(6, self.receive_event)
 
+        """
+        Miscellaneous GUI
+        """
         self.fps_counter = widgets.fps_counter.FPSCounter()
         self.all_sprites.add(self.fps_counter)
 
-        widgets.card.Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
+        self.flash_fac = 0
 
         """
         Table and players
@@ -63,14 +68,15 @@ class GameScene(Scene):
         }
         self.init_action_buttons()
 
+        """
+        Cards and game initialization
+        """
         self.game.new_deal(cycle_dealer=False)
 
-        """
-        Cards
-        """
+        widgets.card.Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
         self.community_cards = pygame.sprite.Group()
-
         self.deal_cards()
+
         app_timer.Timer(2, self.game.deal.start_deal)
 
 
@@ -196,37 +202,86 @@ class GameScene(Scene):
             card = widgets.card.Card(start_pos, card_data)
             # card.show_front()
 
-            animation = MoveAnimation(random.uniform(2, 2.5), card, start_pos, pos, call_on_finish=card.reveal)
+            animation = MoveAnimation(2 + i / 8, card, start_pos, pos, call_on_finish=card.reveal)
             self.anim_group.add(animation)
 
             self.all_sprites.add(card)
             self.community_cards.add(card)
 
     def showdown(self):
+        """
+        Perform a showdown and reveal the winner(s) of the current deal.
+        """
+
+        """
+        Show all pocket cards
+        """
         for player_display in self.players.sprites():
-            player_hand = player_display.player_data.player_hand
-
-            # Update sub text to hand ranking
-            ranking_int = player_hand.hand_ranking.ranking_type
-            ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
-            player_display.set_sub_text_anim(ranking_text)
-
-            # Update money text
-            player_display.update_money()
-
-            # Show cards
             if player_display.player_data is not self.game.the_player:
                 for i, card in enumerate(player_display.pocket_cards.sprites()):
-                    card.card_data = player_hand.pocket_cards[i]
+                    card.card_data = player_display.player_data.player_hand.pocket_cards[i]
                     card.reveal(random.uniform(0.5, 1))
 
-            # If the player is a winner, create a winner crown.
-            if player_hand in self.game.deal.winners:
-                winner_crown = widgets.winner_crown.WinnerCrown(player_display)
-                self.all_sprites.add(winner_crown)
-                self.winner_crowns.add(winner_crown)
+        """
+        Get a sorted list of player indexes sorted from the lowest hand ranking to the winners.
+        """
+        get_score = lambda x: x[1].player_data.player_hand.hand_ranking.overall_score
+        # A lambda function that gets the player's overall score of an (index, player display) tuple.
 
-        app_timer.Timer(4, self.new_deal)
+        is_not_folded = lambda x: not x.player_data.player_hand.folded
+        # A lambda function that returns True if the player (`x: PlayerDisplay`) is not folded.
+
+        sorted_players = [i for i, player in sorted(enumerate(self.players), key=get_score) if is_not_folded(player)]
+        # A list of player indexes who hasn't folded sorted by the hand ranking.
+
+        """
+        Start revealing the hand rankings
+        """
+        app_timer.Timer(1, self.reveal_rankings, args=(sorted_players,))
+
+        """
+        Start a new deal in 8 seconds
+        """
+        app_timer.Timer(8, self.new_deal)
+
+    def reveal_rankings(self, sorted_players, i=0):
+        """
+        Reveal the hand rankings of each player one by one in order from the lowest ranking.
+
+        :param sorted_players: The list of player indexes sorted by the hand ranking.
+        :param i: The index of sorted_players to show. This method recursively calls itself (using a timer with a delay)
+        with `i + 1` as the new argument.
+        """
+        if i >= len(sorted_players):
+            def set_flash_fac(flash_fac):
+                self.flash_fac = int(flash_fac)
+
+            animation = VarSlider(1.5, 50, 0, setter_func=set_flash_fac)
+            self.anim_group.add(animation)
+            return
+
+        player_display = self.players.sprites()[sorted_players[i]]
+        player_hand = player_display.player_data.player_hand
+
+        # Update sub text to hand ranking
+        ranking_int = player_hand.hand_ranking.ranking_type
+        ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
+        player_display.set_sub_text_anim(ranking_text)
+
+        # Update money text
+        player_display.update_money()
+
+        # If the player is a winner, create a winner crown.
+        if player_hand in self.game.deal.winners:
+            winner_crown = widgets.winner_crown.WinnerCrown(player_display)
+            self.all_sprites.add(winner_crown)
+            self.winner_crowns.add(winner_crown)
+
+            self.reveal_rankings(sorted_players, i + 1)
+
+        else:
+            next_player_delay = 1 / (len(sorted_players) - len(self.game.deal.winners) - i + 1)
+            app_timer.Timer(next_player_delay, self.reveal_rankings, args=(sorted_players, i + 1))
 
     def new_deal(self):
         """
@@ -234,12 +289,10 @@ class GameScene(Scene):
         """
 
         """
-        Delete winner crowns
+        Clear winner crowns
         """
-        for sprite in self.winner_crowns.sprites():
-            self.all_sprites.remove(sprite)
-
-        self.winner_crowns.empty()
+        for winner_crown in self.winner_crowns.sprites():
+            winner_crown.hide()
 
         """
         Clear cards
@@ -262,7 +315,7 @@ class GameScene(Scene):
             animation = MoveAnimation(random.uniform(2, 2.5), card, None, card_end_pos)
             self.anim_group.add(animation)
 
-        app_timer.Timer(2.5, self.delete_cards)
+        app_timer.Timer(2.5, self.delete_on_new_deal)
 
         """
         New deal
@@ -280,17 +333,26 @@ class GameScene(Scene):
             app_timer.Timer(3, self.deal_cards)
             app_timer.Timer(5, self.game.deal.start_deal)
 
-    def delete_cards(self):
+    def delete_on_new_deal(self):
+        """
+        When starting a new deal, remove all pocket cards, community cards, and winner crowns from the `all_sprites`
+        sprite group and other sprite groups.
+        """
+
         for player in self.players.sprites():
             for card in player.pocket_cards.sprites():
                 self.all_sprites.remove(card)
 
             player.pocket_cards.empty()
 
-        for card in self.community_cards:
-            self.all_sprites.remove(card)
+        for sprite in self.community_cards.sprites() + self.winner_crowns.sprites():
+            self.all_sprites.remove(sprite)
 
         self.community_cards.empty()
+        self.winner_crowns.empty()
 
     def update(self, dt):
         super().update(dt)
+
+        if self.flash_fac > 0:
+            self.display_surface.fill(3 * (self.flash_fac,), special_flags=pygame.BLEND_RGB_ADD)
