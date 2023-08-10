@@ -1,10 +1,8 @@
 """
 rules/game_flow.py
 
-The module that controls the flow of a poker game.
-
-This module contains classes and methods that handle the flow of a poker game, so that every player action follows the
-rules of Texas Hold'em poker.
+The module that controls the flow of a poker game. This module contains classes and methods that handle the flow of a
+poker game, so that every player action follows the rules of Texas Hold'em poker.
 """
 from dataclasses import dataclass
 
@@ -28,6 +26,7 @@ class ActionResult:
     LESS_THAN_MIN_RAISE = 2
     ROUND_ALREADY_ENDED = 3
     DEAL_ALREADY_ENDED = 4
+    DEAL_NOT_STARTED_YET = 5
 
 
 @dataclass
@@ -42,8 +41,9 @@ class GameEvent:
     DEAL_START = 1
     ROUND_FINISH = 2
     NEW_ROUND = 3
-    SKIP_ROUND = 4
-    DEAL_END = 5
+    START_NEW_ROUND = 4
+    SKIP_ROUND = 5
+    DEAL_END = 6
 
     # Class fields
     code: int
@@ -159,6 +159,13 @@ class Deal:
     """
 
     def __init__(self, game: "PokerGame"):
+        """
+        Initialize the fields of a deal, notably the `PlayerHand` objects and their pocket cards. After initializing the
+        deal, the `start_deal` is separately called to start the deal.
+
+        :param game: The parent `PokerGame` object
+        """
+
         if len(game.players) < 2:
             raise ValueError("there must be at least 2 players to start a deal")
 
@@ -178,6 +185,7 @@ class Deal:
         self.blinds = ()
 
         self.round_finished = False
+        self.deal_started = False
 
         """
         Deal cards to players
@@ -195,6 +203,8 @@ class Deal:
         Start the current deal. Only called once on the start of a deal.
         """
 
+        self.deal_started = True
+
         """
         Player turn initialization and blinds
         """
@@ -203,6 +213,7 @@ class Deal:
 
         self.action(Actions.BET, self.game.sb_amount, blinds=True)
         self.action(Actions.BET, self.game.sb_amount * 2, blinds=True)
+
 
     def action(self, action_type: int, new_amount=0, blinds=False) -> int:
         """
@@ -229,6 +240,8 @@ class Deal:
             return ActionResult.ROUND_ALREADY_ENDED
         elif self.winners:
             return ActionResult.DEAL_ALREADY_ENDED
+        elif not self.deal_started:
+            return ActionResult.DEAL_NOT_STARTED_YET
 
         player: PlayerHand = self.get_current_player()
 
@@ -298,7 +311,8 @@ class Deal:
         """
         After the action
         
-        1. If everyone who hasn't folded has called or is all in, then the round is finished.
+        1. If everyone who hasn't folded has called or is all in, then the deal advances to the next betting round.
+           Advancing to the next betting round is done separately by calling the `start_new_round` method
         2. Otherwise, cycle the current turn to the next player.
         """
         if all(player.called or player.all_in for player in self.players if not player.folded):
@@ -318,7 +332,7 @@ class Deal:
 
     def next_round(self):
         """
-        When everyone who is still in has bet the same amount, the game advances to the next betting round.
+        Advance to the next betting round by resetting the round and revealing the next community card.
 
         :return:
         """
@@ -352,6 +366,16 @@ class Deal:
             player.last_action = "folded" if player.folded else ("all-in" if player.all_in else "")
             player.called = False
 
+        self.broadcast(GameEvent(GameEvent.NEW_ROUND, -1, -1, ""))
+
+    def start_new_round(self):
+        """
+        Start the new betting round by broadcasting the "start new round" game event to all players. This function
+        should be only called after calling the `next_round` method.
+        """
+
+        self.round_finished = False
+
         """
         Broadcast game event
         """
@@ -362,7 +386,7 @@ class Deal:
 
         else:
             # Broadcast new round event
-            self.broadcast(GameEvent(GameEvent.NEW_ROUND, -1, self.current_turn, ""))
+            self.broadcast(GameEvent(GameEvent.START_NEW_ROUND, -1, self.current_turn, ""))
 
     def showdown(self):
         """

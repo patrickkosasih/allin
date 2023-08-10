@@ -257,6 +257,8 @@ class GameScene(Scene):
             self.all_sprites.add(card)
             self.community_cards.add(card)
 
+        app_timer.Timer(2.25 + len(self.community_cards) / 8, self.game.deal.start_new_round)
+
     def showdown(self):
         """
         Perform a showdown and reveal the winner(s) of the current deal.
