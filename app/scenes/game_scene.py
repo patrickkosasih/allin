@@ -3,6 +3,7 @@ import threading
 import tkinter.simpledialog
 import random
 
+import app.widgets.player_display
 from rules.game_flow import GameEvent
 import rules.singleplayer
 
@@ -54,7 +55,7 @@ class GameScene(Scene):
         self.all_sprites.add(self.table)
 
         self.players = pygame.sprite.Group()
-        self.init_players()
+        self.reset_players()
 
         self.winner_crowns = pygame.sprite.Group()
 
@@ -75,9 +76,9 @@ class GameScene(Scene):
 
         widgets.card.Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
         self.community_cards = pygame.sprite.Group()
-        self.deal_cards()
 
-        app_timer.Timer(2, self.game.deal.start_deal)
+        app_timer.Timer(2, self.deal_cards)
+        app_timer.Timer(4, self.game.deal.start_deal)
 
 
     def receive_event(self, event: GameEvent):
@@ -108,15 +109,63 @@ class GameScene(Scene):
             case GameEvent.DEAL_END:
                 app_timer.Timer(1.5, self.showdown)
 
-    def init_players(self):
+    def reset_players(self):
+        """
+        Initialize or rearrange all the player displays. When calling this function, 3 different scenarios can happen
+        for each player display:
+
+        1. Move an existing player display
+        2. Create a new player display
+        3. Remove an existing player display
+        """
+
+        old_group = self.players.copy()
+        self.players.empty()
+
+        player_display_datas = [x.player_data for x in old_group.sprites()]
+        """A list of the player data of each player display that exists before rearranging the players."""
+
         for i, player_data in enumerate(self.game.players):
-            player_display = widgets.player_display.PlayerDisplay(
-                self.table.get_edge_coords(player_rotation(i, len(self.game.players)), (1.25, 1.2)),
-                percent_to_px(15, 12.5),
-                player_data
-            )
+            rot = player_rotation(i, len(self.game.players))
+            pos = self.table.get_edge_coords(rot, (1.25, 1.2))
+
+            player_display: widgets.player_display.PlayerDisplay
+
+            if player_data in player_display_datas:
+                """
+                1. Move player display
+                """
+                old_i = player_display_datas.index(player_data)
+                player_display = old_group.sprites()[old_i]
+
+            else:
+                """
+                2. New player display
+                """
+                start_pos = self.table.get_edge_coords(rot, (3, 3))
+
+                player_display = widgets.player_display.PlayerDisplay(start_pos, percent_to_px(15, 12.5), player_data)
+                self.all_sprites.add(player_display)
+
             self.players.add(player_display)
-            self.all_sprites.add(player_display)
+
+            animation = MoveAnimation(1.5, player_display, None, pos)
+            self.anim_group.add(animation)
+
+        for i, old_player_display in enumerate(old_group.sprites()):
+            if old_player_display not in self.players:
+                """
+                3. Remove player display
+                """
+                print(f"{old_player_display.player_data.name} removed")
+
+                rot = player_rotation(i, len(old_group))
+                pos = self.table.get_edge_coords(rot, (3, 3))
+
+                animation = MoveAnimation(1.5, old_player_display, None, pos,
+                                          call_on_finish=lambda: self.all_sprites.remove(old_player_display))
+                self.anim_group.add(animation)
+
 
     def init_action_buttons(self):
         """
@@ -173,7 +222,7 @@ class GameScene(Scene):
                 x += w_percent_to_px(1) * (1 if j else -1)
 
                 angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
-                start_pos = self.table.get_edge_coords(angle, (2.5, 2.5))
+                start_pos = self.table.get_edge_coords(angle, (2.75, 2.75))
 
                 card = widgets.card.Card(start_pos)
                 animation = MoveAnimation(random.uniform(1.75, 2), card, None, (x, y))
@@ -318,20 +367,25 @@ class GameScene(Scene):
         app_timer.Timer(2.5, self.delete_on_new_deal)
 
         """
-        New deal
+        Call the new deal method
         """
         is_new_deal = self.game.new_deal()
 
-        if len(self.players.sprites()) != len(self.game.players):
-            for player in self.players.sprites():
-                self.all_sprites.remove(player)
+        """
+        Rearrange players if the players list has changed
+        """
+        if len(self.players.sprites()) != len(self.game.players) or \
+            any(x.player_data is not y for x, y in zip(self.players.sprites(), self.game.players)):
 
-            self.players.empty()
-            self.init_players()
+            app_timer.Timer(2.5, self.reset_players)
+            rearrange_delay = 1.5
+
+        else:
+            rearrange_delay = 0
 
         if is_new_deal:
-            app_timer.Timer(3, self.deal_cards)
-            app_timer.Timer(5, self.game.deal.start_deal)
+            app_timer.Timer(3 + rearrange_delay, self.deal_cards)
+            app_timer.Timer(5 + rearrange_delay, self.game.deal.start_deal)
 
     def delete_on_new_deal(self):
         """
