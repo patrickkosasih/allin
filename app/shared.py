@@ -31,9 +31,10 @@ class FontSave:
 class Layer:
     BACKGROUND = 0
     TABLE = 1
-    WINNER_CROWN = 2
-    CARD = 3
-    PLAYER = 4
+    TABLE_TEXT = 2
+    WINNER_CROWN = 3
+    CARD = 4
+    PLAYER = 5
 
 
 def w_percent_to_px(x: float) -> float:

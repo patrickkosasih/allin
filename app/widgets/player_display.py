@@ -183,13 +183,11 @@ class PlayerDisplay(pygame.sprite.Sprite):
         self.money_text_val = int(money)
         self.redraw_component(ComponentCodes.MONEY_TEXT)
 
-    def update_money(self, anim=True):
+    def update_money(self, duration=0.5):
         old_money, new_money = self.money_text_val, self.player_data.money
 
-        duration = min(abs(old_money - new_money) * 0.0005, 0.75)
-
-        if duration > 0 and anim:
-            animation = VarSlider(1, old_money, new_money, setter_func=self.set_money_text,
+        if duration > 0:
+            animation = VarSlider(duration, old_money, new_money, setter_func=self.set_money_text,
                                   interpolation=lambda x: ease_out(x, 3))
             self.anim_group.add(animation)
 

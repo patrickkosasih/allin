@@ -186,6 +186,7 @@ class Deal:
 
         self.round_finished = False
         self.deal_started = False
+        self.skip_next_rounds = False
 
         """
         Deal cards to players
@@ -356,6 +357,7 @@ class Deal:
                 self.community_cards.append(self.deck.pop(0))
         else:
             self.showdown()
+            return
 
         """
         Reset player hands
@@ -366,7 +368,17 @@ class Deal:
             player.last_action = "folded" if player.folded else ("all-in" if player.all_in else "")
             player.called = False
 
-        self.broadcast(GameEvent(GameEvent.NEW_ROUND, -1, -1, ""))
+        """
+        Broadcast game event
+        """
+        if sum(not player.all_in for player in self.players if not player.folded) <= 1:
+            # If everyone who are still in are all-in (except 1 player or less), then the next betting round is skipped.
+            self.skip_next_rounds = True
+            self.broadcast(GameEvent(GameEvent.SKIP_ROUND, -1, -1, ""))
+
+        else:
+            # Broadcast new round event
+            self.broadcast(GameEvent(GameEvent.NEW_ROUND, -1, -1, ""))
 
     def start_new_round(self):
         """
@@ -374,18 +386,8 @@ class Deal:
         should be only called after calling the `next_round` method.
         """
 
-        self.round_finished = False
-
-        """
-        Broadcast game event
-        """
-        if sum(not player.all_in for player in self.players if not player.folded) <= 1:
-            # If everyone who are still in are all-in (except 1 player or less), then the next betting round is skipped.
-            self.round_finished = True
-            self.broadcast(GameEvent(GameEvent.SKIP_ROUND, -1, -1, ""))
-
-        else:
-            # Broadcast new round event
+        if not self.skip_next_rounds and not self.winners:
+            self.round_finished = False
             self.broadcast(GameEvent(GameEvent.START_NEW_ROUND, -1, self.current_turn, ""))
 
     def showdown(self):

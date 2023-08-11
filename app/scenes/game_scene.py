@@ -60,6 +60,17 @@ class GameScene(Scene):
         self.winner_crowns = pygame.sprite.Group()
 
         """
+        Table texts
+        """
+        self.pot_text = widgets.table_texts.PotText(percent_to_px(50, 37.5), percent_to_px(12.5, 5))
+        self.all_sprites.add(self.pot_text)
+        self.pot_text.set_visible(False, duration=0)
+
+        self.ranking_text = widgets.table_texts.RankingText(percent_to_px(50, 62.5), percent_to_px(17.5, 5))
+        self.all_sprites.add(self.ranking_text)
+        self.ranking_text.set_visible(False, duration=0)
+
+        """
         Action buttons
         """
         self.action_buttons = {
@@ -78,6 +89,7 @@ class GameScene(Scene):
         self.community_cards = pygame.sprite.Group()
 
         app_timer.Timer(2, self.deal_cards)
+        app_timer.Timer(3, self.pot_text.set_visible, (True,))
         app_timer.Timer(4, self.game.deal.start_deal)
 
 
@@ -95,6 +107,7 @@ class GameScene(Scene):
 
             if event.bet_amount > 0:
                 action_str += f" ${event.bet_amount:,}"
+                self.pot_text.set_text_anim(self.game.deal.pot)
 
             self.players.sprites()[event.prev_player].set_sub_text_anim(action_str)
             self.players.sprites()[event.prev_player].update_money()
@@ -103,11 +116,17 @@ class GameScene(Scene):
         Round finish and deal end
         """
         match event.code:
-            case GameEvent.ROUND_FINISH | GameEvent.SKIP_ROUND:
-                app_timer.Timer(1, self.next_round)
+            case GameEvent.ROUND_FINISH:
+                app_timer.Timer(1, self.game.deal.next_round)
+
+            case GameEvent.NEW_ROUND:
+                self.next_round()
+
+            case GameEvent.SKIP_ROUND:
+                app_timer.Timer(1.5, self.next_round, (True,))
 
             case GameEvent.DEAL_END:
-                app_timer.Timer(1.5, self.showdown)
+                app_timer.Timer(1, self.showdown)
 
     def reset_players(self):
         """
@@ -236,11 +255,18 @@ class GameScene(Scene):
                     card.card_data = player_display.player_data.player_hand.pocket_cards[j]
                     animation.call_on_finish = card.reveal
 
-    def next_round(self):
+    def next_round(self, skip_round=False):
+        """
+        The method that is called when the deal advances to the next round (a NEW_ROUND game event is received).
+
+        :param skip_round:
+        """
+
+        if self.game.deal.winners:
+            return
+
         for player in self.players.sprites():
             player.set_sub_text_anim("")
-
-        self.game.deal.next_round()
 
         for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
             card_data = self.game.deal.community_cards[i]
@@ -257,12 +283,26 @@ class GameScene(Scene):
             self.all_sprites.add(card)
             self.community_cards.add(card)
 
-        app_timer.Timer(2.25 + len(self.community_cards) / 8, self.game.deal.start_new_round)
+        anim_delay = 2 + len(self.community_cards) / 8
+        ranking_int = self.game.the_player.player_hand.hand_ranking.ranking_type
+        ranking_str = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
+
+        app_timer.Timer(anim_delay, self.ranking_text.set_text_anim, (ranking_str,))
+
+        if len(self.game.deal.community_cards) == 3:
+            app_timer.Timer(2, self.ranking_text.set_visible, (True,))
+
+        if not skip_round:
+            app_timer.Timer(anim_delay + 0.25, self.game.deal.start_new_round)
 
     def showdown(self):
         """
         Perform a showdown and reveal the winner(s) of the current deal.
         """
+
+        self.ranking_text.set_visible(False)
+        for player in self.players.sprites():
+            player.set_sub_text_anim("")
 
         """
         Show all pocket cards
@@ -271,7 +311,7 @@ class GameScene(Scene):
             if player_display.player_data is not self.game.the_player:
                 for i, card in enumerate(player_display.pocket_cards.sprites()):
                     card.card_data = player_display.player_data.player_hand.pocket_cards[i]
-                    card.reveal(random.uniform(0.5, 1))
+                    card.reveal(random.uniform(1, 1.5))
 
         """
         Get a sorted list of player indexes sorted from the lowest hand ranking to the winners.
@@ -288,7 +328,7 @@ class GameScene(Scene):
         """
         Start revealing the hand rankings
         """
-        app_timer.Timer(1, self.reveal_rankings, args=(sorted_players,))
+        app_timer.Timer(2, self.reveal_rankings, args=(sorted_players,))
 
         """
         Start a new deal in 8 seconds
@@ -304,6 +344,10 @@ class GameScene(Scene):
         with `i + 1` as the new argument.
         """
         if i >= len(sorted_players):
+            """
+            Flash the screen when revealing the winner
+            """
+
             def set_flash_fac(flash_fac):
                 self.flash_fac = int(flash_fac)
 
@@ -319,15 +363,23 @@ class GameScene(Scene):
         ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
         player_display.set_sub_text_anim(ranking_text)
 
-        # Update money text
-        player_display.update_money()
 
-        # If the player is a winner, create a winner crown.
+
         if player_hand in self.game.deal.winners:
+            """
+            Reveal the winner
+            """
+            # Create a winner crown
             winner_crown = widgets.winner_crown.WinnerCrown(player_display)
             self.all_sprites.add(winner_crown)
             self.winner_crowns.add(winner_crown)
 
+            # Update player money text and pot text
+            player_display.update_money()
+            self.pot_text.set_text_anim(0)
+
+            # Call `reveal_rankings` again without delay to reveal other winners if there are any.
+            # Calling the function when the new `i` is out of range creates the screen flash effect.
             self.reveal_rankings(sorted_players, i + 1)
 
         else:
@@ -338,6 +390,9 @@ class GameScene(Scene):
         """
         Reset the sprites of cards and winner crowns, and then start a new deal.
         """
+
+        self.pot_text.set_visible(False)
+        self.ranking_text.set_text("")
 
         """
         Clear winner crowns
@@ -387,6 +442,7 @@ class GameScene(Scene):
 
         if is_new_deal:
             app_timer.Timer(3 + rearrange_delay, self.deal_cards)
+            app_timer.Timer(4 + rearrange_delay, self.pot_text.set_visible, (True,))
             app_timer.Timer(5 + rearrange_delay, self.game.deal.start_deal)
 
     def delete_on_new_deal(self):
