@@ -28,6 +28,12 @@ class Animation(ABC):
 
         self.call_on_finish = call_on_finish
 
+        if duration == 0:
+            self.finish()
+            self.call_on_finish()
+            self.phase = 1
+            self.finished = True
+
     def update(self, dt):
         if self.finished:
             return

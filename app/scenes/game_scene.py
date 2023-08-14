@@ -1,9 +1,6 @@
 import pygame.sprite
-import threading
-import tkinter.simpledialog
 import random
 
-import app.widgets.player_display
 from rules.game_flow import GameEvent
 import rules.singleplayer
 
@@ -12,6 +9,7 @@ from app.shared import *
 from app import widgets
 from app import app_timer
 
+from app.animations.anim_group import AnimGroup
 from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
 
@@ -73,11 +71,12 @@ class GameScene(Scene):
         """
         Action buttons
         """
-        self.action_buttons = {
-            "fold": None,
-            "call": None,
-            "raise": None
-        }
+        self.action_buttons = pygame.sprite.Group()
+
+        self.fold_button = None
+        self.call_button = None
+        self.raise_button = None
+
         self.init_action_buttons()
 
         """
@@ -105,12 +104,23 @@ class GameScene(Scene):
         if event.prev_player >= 0:
             action_str = event.message.capitalize()
 
-            if event.bet_amount > 0:
+            if event.bet_amount > 0 and event.message != "fold":
                 action_str += f" ${event.bet_amount:,}"
                 self.pot_text.set_text_anim(self.game.deal.pot)
 
             self.players.sprites()[event.prev_player].set_sub_text_anim(action_str)
             self.players.sprites()[event.prev_player].update_money()
+
+        """
+        Show/hide action buttons
+        """
+        if event.next_player == self.game.players.index(self.game.the_player):
+            for x in self.action_buttons:
+                x.update_bet_amount(self.game.deal.bet_amount)
+            self.hide_action_buttons(False)
+
+        elif event.prev_player == self.game.players.index(self.game.the_player):
+            self.hide_action_buttons(True)
 
         """
         Round finish and deal end
@@ -123,7 +133,7 @@ class GameScene(Scene):
                 self.next_round()
 
             case GameEvent.SKIP_ROUND:
-                app_timer.Timer(1.5, self.next_round, (True,))
+                self.next_round(skip_round=True)
 
             case GameEvent.DEAL_END:
                 app_timer.Timer(1, self.showdown)
@@ -157,6 +167,8 @@ class GameScene(Scene):
                 old_i = player_display_datas.index(player_data)
                 player_display = old_group.sprites()[old_i]
 
+                # FIXME: There's a bug where the player display disappears after getting moved/rearranged.
+
             else:
                 """
                 2. New player display
@@ -185,54 +197,39 @@ class GameScene(Scene):
                                           call_on_finish=lambda: self.all_sprites.remove(old_player_display))
                 self.anim_group.add(animation)
 
-
     def init_action_buttons(self):
         """
         Initialize the three action buttons.
         """
-        colors = {
-            "fold": (184, 51, 51),
-            "call": (24, 142, 163),
-            "raise": (168, 149, 24)
-        }
 
         """
         Measurements
         """
-        w, h = percent_to_px(15, 6.5)  # Button dimensions
+        dimensions = w, h = percent_to_px(15, 6.5)  # Button dimensions
         w_scr, h_scr = pygame.display.get_window_size()  # Window dimensions
         m = h / 3  # Margin between button and the edges (bottom and right).
+
         x, y = w_scr - w / 2 - m, h_scr - h / 2 - m  # First button position
+        y_list = [y - i * (h + m) for i in range(3)]  # List of y positions
 
-        for action in self.action_buttons.keys():
-            button = widgets.button.Button(pos=(x, y), dimensions=(w, h), color=colors[action],
-                                           command=lambda a=action: self.action_button_press(a),
-                                           text=action.capitalize(), text_color="white")
+        positions = [(x, y) for y in y_list]  # List of all button positions
 
-            self.action_buttons[action] = button
-            self.all_sprites.add(button)
+        self.fold_button = widgets.action_buttons.FoldButton(positions[0], dimensions, self.game.the_player)
+        self.call_button = widgets.action_buttons.CallButton(positions[1], dimensions, self.game.the_player)
+        self.raise_button = widgets.action_buttons.RaiseButton(positions[2], dimensions, self.game.the_player)
 
-            y -= h + m
+        for x in (self.fold_button, self.call_button, self.raise_button):
+            self.action_buttons.add(x)
+            self.all_sprites.add(x)
+            x.set_hidden(True, 0.0)
 
-    def action_button_press(self, action_type: str):
-        action_type = action_type.upper()
+    def hide_action_buttons(self, hidden: bool):
+        for i, x in enumerate(self.action_buttons):
+            x.set_hidden(hidden, duration=0.4 + 0.05 * i)
 
-        if action_type in ("RAISE", "BET"):
-            # Raising and betting is currently done by inputting the new betting amount to the command line.
-            # In the future, a slider GUI for betting will be implemented.
-            def prompt():
-                new_amount = tkinter.simpledialog.askinteger("Bet / Raise", "Input new betting amount")
-                if not new_amount:
-                    return
-
-                self.game.the_player.action(rules.game_flow.Actions.RAISE, new_amount)
-
-            threading.Thread(target=prompt, daemon=True).start()
-
-        if action_type not in rules.game_flow.Actions.__dict__:
-            raise ValueError(f"invalid action: {action_type}")
-
-        self.game.the_player.action(rules.game_flow.Actions.__dict__[action_type])
+    def show_bet_slider(self, shown: bool):
+        # TODO: Make a bet/raise slider.
+        pass
 
     def deal_cards(self):
         for i, player_display in enumerate(self.players.sprites()):
@@ -292,8 +289,10 @@ class GameScene(Scene):
         if len(self.game.deal.community_cards) == 3:
             app_timer.Timer(2, self.ranking_text.set_visible, (True,))
 
-        if not skip_round:
-            app_timer.Timer(anim_delay + 0.25, self.game.deal.start_new_round)
+        if skip_round:
+            app_timer.Timer(anim_delay, self.game.deal.next_round)  # Skip round
+        else:
+            app_timer.Timer(anim_delay + 0.25, self.game.deal.start_new_round)  # Start new round
 
     def showdown(self):
         """
@@ -345,14 +344,16 @@ class GameScene(Scene):
         """
         if i >= len(sorted_players):
             """
-            Flash the screen when revealing the winner
+            Flash the screen and set the pot text to 0 when revealing the winner
             """
-
             def set_flash_fac(flash_fac):
                 self.flash_fac = int(flash_fac)
 
             animation = VarSlider(1.5, 50, 0, setter_func=set_flash_fac)
             self.anim_group.add(animation)
+
+            self.pot_text.set_text_anim(0)
+
             return
 
         player_display = self.players.sprites()[sorted_players[i]]
@@ -374,9 +375,8 @@ class GameScene(Scene):
             self.all_sprites.add(winner_crown)
             self.winner_crowns.add(winner_crown)
 
-            # Update player money text and pot text
+            # Update player money text
             player_display.update_money()
-            self.pot_text.set_text_anim(0)
 
             # Call `reveal_rankings` again without delay to reveal other winners if there are any.
             # Calling the function when the new `i` is out of range creates the screen flash effect.
@@ -440,6 +440,17 @@ class GameScene(Scene):
         else:
             rearrange_delay = 0
 
+        """
+        Reset action buttons
+        """
+        for x in (self.fold_button, self.call_button, self.raise_button):
+            x.set_hidden(True, 0.0)
+
+        self.call_button.all_in = False
+
+        """
+        Start a new deal after a delay
+        """
         if is_new_deal:
             app_timer.Timer(3 + rearrange_delay, self.deal_cards)
             app_timer.Timer(4 + rearrange_delay, self.pot_text.set_visible, (True,))

@@ -6,8 +6,9 @@ The singleplayer module is used to interface the game flow engine from the main 
 
 
 from typing import Callable
-from app import app_timer
+import random
 
+from app import app_timer
 from rules.game_flow import *
 
 
@@ -24,10 +25,42 @@ class ThePlayer(Player):
 
 
 class Bot(Player):
-    def receive_event(self, broadcast: GameEvent):
+    def receive_event(self, event: GameEvent):
         # Run self.action after 0.5 seconds
-        if broadcast.next_player == self.game.players.index(self):
-            app_timer.Timer(0.5, self.action, (Actions.CALL,))
+        if event.next_player == self.game.players.index(self):
+            app_timer.Timer(0.5, self.decide_action, (event,))
+
+    def decide_action(self, event):
+        """
+        A low level AI that makes a decision based on only random numbers and the bet amount.
+        """
+
+        x = random.randrange(100)
+
+        # all in testing stuff
+        # if self.name == "Bot 3":
+        #     self.action(Actions.RAISE, 1000)
+
+        if x < 25:
+            bet_result = self.action(Actions.RAISE, self.player_hand.bet_amount + 25 * random.randint(1, 4))
+
+            if bet_result:
+                self.action(Actions.CALL)
+
+        elif x == 69:
+            self.action(Actions.RAISE, 72727272727)
+
+        else:
+            if event.bet_amount > 0:
+                y = random.randrange(100)
+
+                if y < 5000 / event.bet_amount:
+                    self.action(Actions.CALL)
+                else:
+                    self.action(Actions.FOLD)
+
+            else:
+                self.action(Actions.CALL)
 
 
 class SingleplayerGame(PokerGame):
