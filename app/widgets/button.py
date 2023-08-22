@@ -17,6 +17,8 @@ class Button(pygame.sprite.Sprite):
         self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
         self.rect = self.image.get_rect(center=pos)
 
+        self.global_rect = self.rect.copy()
+
         self.command = command if command else lambda: None
 
         """
@@ -98,7 +100,7 @@ class Button(pygame.sprite.Sprite):
         """
         Update button states
         """
-        self.hover = self.rect.collidepoint(mouse_x, mouse_y)
+        self.hover = self.global_rect.collidepoint(mouse_x, mouse_y)
         self.mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
 
         """

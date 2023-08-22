@@ -1,5 +1,6 @@
-import pygame
 import pygame.gfxdraw
+from pygame.math import Vector2
+
 import colorsys
 import random
 import time

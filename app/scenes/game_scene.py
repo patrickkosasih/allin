@@ -9,7 +9,6 @@ from app.shared import *
 from app import widgets
 from app import app_timer
 
-from app.animations.anim_group import AnimGroup
 from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
 
@@ -32,6 +31,7 @@ def player_rotation(i: int, n_players: int) -> float:
     return i * (360 / n_players) + 90
 
 
+## noinspection PyUnresolvedReferences,PyTypeChecker
 class GameScene(Scene):
     def __init__(self):
         super().__init__()
@@ -69,13 +69,15 @@ class GameScene(Scene):
         self.ranking_text.set_visible(False, duration=0)
 
         """
-        Action buttons
+        Action buttons and bet prompt
         """
         self.action_buttons = pygame.sprite.Group()
 
         self.fold_button = None
         self.call_button = None
         self.raise_button = None
+
+        self.bet_prompt = None
 
         self.init_action_buttons()
 
@@ -168,6 +170,7 @@ class GameScene(Scene):
                 player_display = old_group.sprites()[old_i]
 
                 # FIXME: There's a bug where the player display disappears after getting moved/rearranged.
+                # A thing I noticed is that the player display that disappears is somehow always the last on the list.
 
             else:
                 """
@@ -214,6 +217,9 @@ class GameScene(Scene):
 
         positions = [(x, y) for y in y_list]  # List of all button positions
 
+        """
+        Action buttons
+        """
         self.fold_button = widgets.action_buttons.FoldButton(positions[0], dimensions, self.game.the_player)
         self.call_button = widgets.action_buttons.CallButton(positions[1], dimensions, self.game.the_player)
         self.raise_button = widgets.action_buttons.RaiseButton(positions[2], dimensions, self.game.the_player)
@@ -223,11 +229,21 @@ class GameScene(Scene):
             self.all_sprites.add(x)
             x.set_hidden(True, 0.0)
 
+        """
+        Bet prompt
+        """
+        wbp, hbp = w_percent_to_px(30), 2 * h + m  # Width and height of bet prompt
+
+        self.bet_prompt = widgets.bet_prompt.BetPrompt((w_scr - wbp/2 - m, h_scr - hbp/2 - m),
+                                                       (wbp, hbp), self.game.the_player)
+        self.all_sprites.add(self.bet_prompt)
+
+
     def hide_action_buttons(self, hidden: bool):
         for i, x in enumerate(self.action_buttons):
             x.set_hidden(hidden, duration=0.4 + 0.05 * i)
 
-    def show_bet_slider(self, shown: bool):
+    def show_bet_prompt(self, shown: bool):
         # TODO: Make a bet/raise slider.
         pass
 
