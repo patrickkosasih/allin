@@ -1,5 +1,6 @@
-import pygame
 import pygame.gfxdraw
+from pygame import Vector2
+
 import colorsys
 import random
 import time
@@ -35,6 +36,8 @@ class Layer:
     WINNER_CROWN = 3
     CARD = 4
     PLAYER = 5
+    BLINDS_BUTTON = 6
+    DEALER_BUTTON = 7
 
 
 def w_percent_to_px(x: float) -> float:

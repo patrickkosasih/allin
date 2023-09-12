@@ -1,17 +1,22 @@
-import pygame.sprite
-import random
+import pygame
 
 from rules.game_flow import GameEvent
 import rules.singleplayer
 
+from app import widgets
+from app.widgets.action_buttons import FoldButton, RaiseButton, CallButton
+from app.widgets.dealer_button import DealerButton
+from app.widgets.winner_crown import WinnerCrown
+from app.widgets.player_display import ComponentCodes, PlayerDisplay
+
 from app.scenes.scene import Scene
 from app.shared import *
-from app import widgets
 from app import app_timer
 
-from app.animations.anim_group import AnimGroup
 from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
+from app.animations.fade import FadeAlpha
+from app.animations.interpolations import ease_out
 
 
 COMM_CARD_ROTATIONS = (198, 126, 270, 54, -18)
@@ -53,7 +58,6 @@ class GameScene(Scene):
         self.all_sprites.add(self.table)
 
         self.players = pygame.sprite.Group()
-        self.reset_players()
 
         self.winner_crowns = pygame.sprite.Group()
 
@@ -80,12 +84,21 @@ class GameScene(Scene):
         self.init_action_buttons()
 
         """
+        Dealer and blinds buttons
+        """
+        self.dealer_button = None
+        self.sb_button = None
+        self.bb_button = None
+
+        """
         Cards and game initialization
         """
         self.game.new_deal(cycle_dealer=False)
 
         widgets.card.Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
         self.community_cards = pygame.sprite.Group()
+
+        self.reset_players()
 
         app_timer.Timer(2, self.deal_cards)
         app_timer.Timer(3, self.pot_text.set_visible, (True,))
@@ -148,6 +161,8 @@ class GameScene(Scene):
         3. Remove an existing player display
         """
 
+        self.hide_dealer_button()
+
         old_group = self.players.copy()
         self.players.empty()
 
@@ -158,7 +173,7 @@ class GameScene(Scene):
             rot = player_rotation(i, len(self.game.players))
             pos = self.table.get_edge_coords(rot, (1.25, 1.2))
 
-            player_display: widgets.player_display.PlayerDisplay
+            player_display: PlayerDisplay
 
             if player_data in player_display_datas:
                 """
@@ -167,15 +182,13 @@ class GameScene(Scene):
                 old_i = player_display_datas.index(player_data)
                 player_display = old_group.sprites()[old_i]
 
-                # FIXME: There's a bug where the player display disappears after getting moved/rearranged.
-
             else:
                 """
                 2. New player display
                 """
                 start_pos = self.table.get_edge_coords(rot, (3, 3))
 
-                player_display = widgets.player_display.PlayerDisplay(start_pos, percent_to_px(15, 12.5), player_data)
+                player_display = PlayerDisplay(start_pos, percent_to_px(15, 12.5), player_data)
                 self.all_sprites.add(player_display)
 
             self.players.add(player_display)
@@ -194,7 +207,7 @@ class GameScene(Scene):
                 pos = self.table.get_edge_coords(rot, (3, 3))
 
                 animation = MoveAnimation(1.5, old_player_display, None, pos,
-                                          call_on_finish=lambda: self.all_sprites.remove(old_player_display))
+                                          call_on_finish=lambda x=old_player_display: self.all_sprites.remove(x))
                 self.anim_group.add(animation)
 
     def init_action_buttons(self):
@@ -214,9 +227,9 @@ class GameScene(Scene):
 
         positions = [(x, y) for y in y_list]  # List of all button positions
 
-        self.fold_button = widgets.action_buttons.FoldButton(positions[0], dimensions, self.game.the_player)
-        self.call_button = widgets.action_buttons.CallButton(positions[1], dimensions, self.game.the_player)
-        self.raise_button = widgets.action_buttons.RaiseButton(positions[2], dimensions, self.game.the_player)
+        self.fold_button = FoldButton(positions[0], dimensions, self.game.the_player)
+        self.call_button = CallButton(positions[1], dimensions, self.game.the_player)
+        self.raise_button = RaiseButton(positions[2], dimensions, self.game.the_player)
 
         for x in (self.fold_button, self.call_button, self.raise_button):
             self.action_buttons.add(x)
@@ -232,6 +245,11 @@ class GameScene(Scene):
         pass
 
     def deal_cards(self):
+        """
+        Deals the pocket cards to all players and also moves the dealer button.
+        """
+        self.move_dealer_button()
+
         for i, player_display in enumerate(self.players.sprites()):
             for j in range(2):  # Every player has 2 pocket cards
                 x, y = player_display.rect.midtop
@@ -288,6 +306,7 @@ class GameScene(Scene):
 
         if len(self.game.deal.community_cards) == 3:
             app_timer.Timer(2, self.ranking_text.set_visible, (True,))
+            self.hide_blinds_button()
 
         if skip_round:
             app_timer.Timer(anim_delay, self.game.deal.next_round)  # Skip round
@@ -371,7 +390,7 @@ class GameScene(Scene):
             Reveal the winner
             """
             # Create a winner crown
-            winner_crown = widgets.winner_crown.WinnerCrown(player_display)
+            winner_crown = WinnerCrown(player_display)
             self.all_sprites.add(winner_crown)
             self.winner_crowns.add(winner_crown)
 
@@ -473,6 +492,79 @@ class GameScene(Scene):
 
         self.community_cards.empty()
         self.winner_crowns.empty()
+
+    def move_dealer_button(self):
+        """
+        Move the dealer button to the player display of the current dealer. If there is currently no dealer button on
+        the screen, then a new dealer button is made and moved from outside the screen.
+        """
+
+        if not self.dealer_button:
+            start_pos = self.table.get_edge_coords(player_rotation(self.game.dealer, len(self.game.players)), (3, 3))
+            self.dealer_button = DealerButton(start_pos, h_percent_to_px(3.5))
+            self.all_sprites.add(self.dealer_button)
+
+        dealer: PlayerDisplay = self.players.sprites()[self.game.dealer]
+        new_pos = Vector2(dealer.rect.topleft) + Vector2(dealer.components[ComponentCodes.HEAD_BASE].rect.midright)
+
+        animation = MoveAnimation(1, self.dealer_button, None, new_pos, call_on_finish=self.new_blinds_button)
+        self.anim_group.add(animation)
+
+    def hide_dealer_button(self):
+        """
+        Hide the dealer button when the player displays get rearranged.
+        """
+
+        if not self.dealer_button:
+            return
+
+        def delete():
+            self.all_sprites.remove(self.dealer_button)
+            self.dealer_button = None
+
+        animation = FadeAlpha(0.5, self.dealer_button, 255, 0, call_on_finish=delete)
+        self.anim_group.add(animation)
+
+    def new_blinds_button(self):
+        """
+        Create two blinds button (SB and BB) and move it to the respective player displays.
+        """
+
+        start_pos = self.dealer_button.rect.center
+
+        # Initialize new buttons
+        self.sb_button = DealerButton(start_pos, h_percent_to_px(3.5), "SB")
+        self.bb_button = DealerButton(start_pos, h_percent_to_px(3.5), "BB")
+        self.all_sprites.add(self.sb_button)
+        self.all_sprites.add(self.bb_button)
+
+        # Move SB button
+        sb_player: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[0]]
+        sb_pos = Vector2(sb_player.rect.topleft) + Vector2(sb_player.components[ComponentCodes.HEAD_BASE].rect.midright)
+        sb_animation = MoveAnimation(0.75, self.sb_button, None, sb_pos)
+        self.anim_group.add(sb_animation)
+
+        # Move BB button
+        bb_player: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[1]]
+        bb_pos = Vector2(bb_player.rect.topleft) + Vector2(bb_player.components[ComponentCodes.HEAD_BASE].rect.midright)
+        bb_animation = MoveAnimation(0.75, self.bb_button, None, bb_pos)
+        self.anim_group.add(bb_animation)
+
+    def hide_blinds_button(self):
+        """
+        Hide the blinds buttons (SB and BB) by adding alpha fade animations.
+        """
+
+        def delete():
+            self.all_sprites.remove(self.sb_button)
+            self.all_sprites.remove(self.bb_button)
+            self.sb_button = None
+            self.bb_button = None
+
+        sb_animation = FadeAlpha(0.25, self.sb_button, 255, 0)
+        bb_animation = FadeAlpha(0.25, self.bb_button, 255, 0, call_on_finish=delete)
+        self.anim_group.add(sb_animation)
+        self.anim_group.add(bb_animation)
 
     def update(self, dt):
         super().update(dt)

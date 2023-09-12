@@ -181,8 +181,8 @@ class Deal:
         self.community_cards = []
         self.deck = generate_deck()
 
-        self.current_turn = -1
-        self.blinds = ()
+        self.current_turn = self.get_next_turn(n=1, turn=self.game.dealer) if len(self.players) > 2 else self.game.dealer
+        self.blinds = (self.current_turn, self.get_next_turn(1))
 
         self.round_finished = False
         self.deal_started = False
@@ -209,9 +209,6 @@ class Deal:
         """
         Player turn initialization and blinds
         """
-        self.current_turn = self.get_next_turn(n=1, turn=self.game.dealer)
-        self.blinds = self.current_turn, self.get_next_turn(1)
-
         self.action(Actions.BET, self.game.sb_amount, blinds=True)
         self.action(Actions.BET, self.game.sb_amount * 2, blinds=True)
 

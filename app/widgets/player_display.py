@@ -94,6 +94,9 @@ class PlayerDisplay(pygame.sprite.Sprite):
             self.redraw_component(i)
             self.component_group.add(self.components[i])
 
+        self.image.fill((0, 0, 0, 0))
+        self.component_group.draw(self.image)
+
     def redraw_component(self, component_code: int):
         if not 0 <= component_code <= 5:
             raise ValueError(f"component_code must be a constant from the Component class, got: {component_code}")
@@ -196,6 +199,8 @@ class PlayerDisplay(pygame.sprite.Sprite):
 
 
     def update(self, dt):
-        self.anim_group.update(dt)
-        self.image.fill((0, 0, 0, 0))
-        self.component_group.draw(self.image)
+        if self.anim_group.animations:
+            # Only update image if there is an animation.
+            self.anim_group.update(dt)
+            self.image.fill((0, 0, 0, 0))
+            self.component_group.draw(self.image)
