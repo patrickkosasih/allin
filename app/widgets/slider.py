@@ -90,6 +90,12 @@ class Slider(pygame.sprite.Sprite):
     def set_color(self):
         pass
 
+    def on_change(self):
+        """
+        A function that is called everytime the value is changed.
+        """
+        pass
+
     def update(self, dt):
         """"""
 
@@ -113,6 +119,7 @@ class Slider(pygame.sprite.Sprite):
         """
         if self.selected:
             self.set_thumb_pos(mouse_x - self.rect.left - self.global_rect.x)
+            self.on_change()
 
         self.image.fill((0, 0, 0, 0))
         self.component_group.draw(self.image)

@@ -1,7 +1,7 @@
 import pygame
 
+import app.shared
 from app.scenes.game_scene import GameScene
-from app.shared import FontSave
 from app import app_timer
 
 
@@ -14,6 +14,7 @@ class App:
         pygame.init()
 
         pygame.display.set_caption("Allin")
+        pygame.key.set_repeat(750, 100)
 
         # self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)

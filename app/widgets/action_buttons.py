@@ -116,19 +116,16 @@ class CallButton(ActionButton):
 
 
 class RaiseButton(ActionButton):
-    def __init__(self, pos, dimensions, player: Player):
+    def __init__(self, pos, dimensions, player: Player,
+                 show_prompt_func: Callable[[bool], None] = lambda: None):
         super().__init__(pos, dimensions, player, color=COLORS["raise"], text_str="Raise")
 
+        self.bet_prompt_shown = False
+        self.show_prompt_func = show_prompt_func
+
     def on_click(self):
-        # TODO: Make a bet/raise slider and replace the code below with hide/show bet sliders.
-        threading.Thread(target=self.prompt, daemon=True).start()
-
-    def prompt(self):
-        new_amount = tkinter.simpledialog.askinteger("Bet / Raise", "Input new betting amount")
-        if not new_amount:
-            return
-
-        self.player.action(Actions.RAISE, new_amount)
+        self.bet_prompt_shown = not self.bet_prompt_shown
+        self.show_prompt_func(self.bet_prompt_shown)
 
     def update_bet_amount(self, new_bet_amount: int):
         if new_bet_amount > 0:

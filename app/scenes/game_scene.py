@@ -93,7 +93,6 @@ class GameScene(Scene):
         app_timer.Timer(3, self.pot_text.set_visible, (True,))
         app_timer.Timer(4, self.game.deal.start_deal)
 
-
     def receive_event(self, event: GameEvent):
         """
         The method that is called everytime an action or event happens.
@@ -222,7 +221,8 @@ class GameScene(Scene):
         """
         self.fold_button = widgets.action_buttons.FoldButton(positions[0], dimensions, self.game.the_player)
         self.call_button = widgets.action_buttons.CallButton(positions[1], dimensions, self.game.the_player)
-        self.raise_button = widgets.action_buttons.RaiseButton(positions[2], dimensions, self.game.the_player)
+        self.raise_button = widgets.action_buttons.RaiseButton(positions[2], dimensions, self.game.the_player,
+                                                               show_prompt_func=self.show_bet_prompt)
 
         for x in (self.fold_button, self.call_button, self.raise_button):
             self.action_buttons.add(x)
@@ -235,17 +235,17 @@ class GameScene(Scene):
         wbp, hbp = w_percent_to_px(30), 2 * h + m  # Width and height of bet prompt
 
         self.bet_prompt = widgets.bet_prompt.BetPrompt((w_scr - wbp/2 - m, h_scr - hbp/2 - m),
-                                                       (wbp, hbp), self.game.the_player)
+                                                       (wbp, hbp), self, self.game.the_player)
         self.all_sprites.add(self.bet_prompt)
-
 
     def hide_action_buttons(self, hidden: bool):
         for i, x in enumerate(self.action_buttons):
             x.set_hidden(hidden, duration=0.4 + 0.05 * i)
 
     def show_bet_prompt(self, shown: bool):
-        # TODO: Make a bet/raise slider.
-        pass
+        if shown:
+            self.bet_prompt.slider.update_range()
+            self.bet_prompt.confirm_button.update_bet_text()
 
     def deal_cards(self):
         for i, player_display in enumerate(self.players.sprites()):
