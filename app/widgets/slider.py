@@ -71,7 +71,7 @@ class Slider(pygame.sprite.Sprite):
 
             k = (value - self.min_value) / (self.max_value - self.min_value)
             x = k * (max_x - min_x) + min_x
-            self.set_thumb_pos(x - self.global_rect.x, False)
+            self.set_thumb_pos(x, False)
 
     def set_thumb_pos(self, x, update_value=True):
         h = self.rect.h
@@ -107,7 +107,7 @@ class Slider(pygame.sprite.Sprite):
         hover = self.global_rect.collidepoint(mouse_x, mouse_y)
         mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
 
-        if hover and mouse_down and self.prev_mouse_down != mouse_down:
+        if hover and mouse_down and not self.prev_mouse_down:
             self.selected = True
         elif not mouse_down:
             self.selected = False

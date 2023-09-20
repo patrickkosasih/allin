@@ -19,14 +19,19 @@ class Button(pygame.sprite.Sprite):
 
         self.global_rect = self.rect.copy()
 
+        """
+        General button attributes
+        """
         self.command = command if command else lambda: None
+        self.disabled = False
 
         """
-        Button states
+        Mouse states
         """
         self.hover = False
         self.mouse_down = False
         self.prev_mouse_down = False
+        self.selected = False
 
         """
         Button appearance
@@ -81,6 +86,14 @@ class Button(pygame.sprite.Sprite):
         self.icon.image = pygame.transform.smoothscale(icon, 2 * (size * self.rect.height,))
         self.icon.rect = self.icon.image.get_rect(center=2 * (self.rect.height / 2,))
 
+    def set_color(self, color=None, b_color=None):
+        if color:
+            self.color = color
+        if b_color:
+            self.b_color = b_color
+
+        self.draw_base()
+
     def brighten(self, brightness):
         """
         Fill the image with the BLEND_ADD or BLEND_SUB special flag to brighten/darken the button.
@@ -104,13 +117,16 @@ class Button(pygame.sprite.Sprite):
         self.mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
 
         """
-        Detect button press
-        
-        Mouse is no longer pressed and the cursor is still on the button.
+        Update button states and detect button press
         """
-        if not self.mouse_down and self.mouse_down != self.prev_mouse_down and self.hover:
+        if self.hover and not self.mouse_down and self.prev_mouse_down and self.selected:
             # Button press
             self.command()
+
+        if self.hover and self.mouse_down and not self.prev_mouse_down:
+            self.selected = True
+        elif not self.mouse_down:
+            self.selected = False
 
         self.prev_mouse_down = self.mouse_down
 
@@ -122,9 +138,8 @@ class Button(pygame.sprite.Sprite):
         self.image.fill((0, 0, 0, 0))
         self.component_group.draw(self.image)
 
-        if self.hover:
+        if self.hover and not self.disabled:
             if self.mouse_down:
                 self.brighten(-30)
             else:
                 self.brighten(30)
-

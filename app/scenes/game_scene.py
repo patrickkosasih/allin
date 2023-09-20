@@ -1,6 +1,7 @@
-import pygame.sprite
-import random
+import pygame
+from typing import Optional
 
+from app.widgets.bet_prompt import BetPrompt
 from rules.game_flow import GameEvent
 import rules.singleplayer
 
@@ -77,7 +78,7 @@ class GameScene(Scene):
         self.call_button = None
         self.raise_button = None
 
-        self.bet_prompt = None
+        self.bet_prompt: Optional[BetPrompt] = None
 
         self.init_action_buttons()
 
@@ -118,10 +119,10 @@ class GameScene(Scene):
         if event.next_player == self.game.players.index(self.game.the_player):
             for x in self.action_buttons:
                 x.update_bet_amount(self.game.deal.bet_amount)
-            self.hide_action_buttons(False)
+            self.show_action_buttons(True)
 
         elif event.prev_player == self.game.players.index(self.game.the_player):
-            self.hide_action_buttons(True)
+            self.show_action_buttons(False)
 
         """
         Round finish and deal end
@@ -201,7 +202,7 @@ class GameScene(Scene):
 
     def init_action_buttons(self):
         """
-        Initialize the three action buttons.
+        Initialize the three action buttons and the bet prompt.
         """
 
         """
@@ -221,31 +222,32 @@ class GameScene(Scene):
         """
         self.fold_button = widgets.action_buttons.FoldButton(positions[0], dimensions, self.game.the_player)
         self.call_button = widgets.action_buttons.CallButton(positions[1], dimensions, self.game.the_player)
-        self.raise_button = widgets.action_buttons.RaiseButton(positions[2], dimensions, self.game.the_player,
-                                                               show_prompt_func=self.show_bet_prompt)
+        self.raise_button = widgets.action_buttons.RaiseButton(positions[2], dimensions, self.game.the_player, self)
 
         for x in (self.fold_button, self.call_button, self.raise_button):
             self.action_buttons.add(x)
             self.all_sprites.add(x)
-            x.set_hidden(True, 0.0)
+            x.set_shown(False, 0.0)
 
         """
         Bet prompt
         """
         wbp, hbp = w_percent_to_px(30), 2 * h + m  # Width and height of bet prompt
 
-        self.bet_prompt = widgets.bet_prompt.BetPrompt((w_scr - wbp/2 - m, h_scr - hbp/2 - m),
-                                                       (wbp, hbp), self, self.game.the_player)
+        self.bet_prompt = BetPrompt((w_scr - wbp/2 - m, h_scr - hbp/2 - m),
+                                    (wbp, hbp), self, self.game.the_player)
         self.all_sprites.add(self.bet_prompt)
+        self.bet_prompt.set_shown(False, 0.0)
 
-    def hide_action_buttons(self, hidden: bool):
+    def show_action_buttons(self, shown: bool):
         for i, x in enumerate(self.action_buttons):
-            x.set_hidden(hidden, duration=0.4 + 0.05 * i)
+            x.set_shown(shown, duration=0.4 + 0.05 * i)
 
     def show_bet_prompt(self, shown: bool):
-        if shown:
-            self.bet_prompt.slider.update_range()
-            self.bet_prompt.confirm_button.update_bet_text()
+        self.bet_prompt.set_shown(shown)
+
+        for x in (self.call_button, self.fold_button):
+            x.set_shown(not shown, duration=0.3)
 
     def deal_cards(self):
         for i, player_display in enumerate(self.players.sprites()):
@@ -460,7 +462,7 @@ class GameScene(Scene):
         Reset action buttons
         """
         for x in (self.fold_button, self.call_button, self.raise_button):
-            x.set_hidden(True, 0.0)
+            x.set_shown(False, 0.0)
 
         self.call_button.all_in = False
 

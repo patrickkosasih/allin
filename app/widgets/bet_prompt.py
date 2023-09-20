@@ -1,5 +1,8 @@
 import pygame.sprite
 
+from app.animations.anim_group import AnimGroup
+from app.animations.interpolations import ease_in, ease_out
+from app.animations.move import MoveAnimation
 from app.widgets.action_buttons import COLORS
 from app.widgets.button import Button
 from app.widgets.slider import Slider
@@ -53,15 +56,51 @@ class BetPrompt(pygame.sprite.Sprite):
         self.component_group.add(self.edit_button)
         # endregion
 
+        """
+        Show/hide related attributes
+        """
+        self.shown = False
+        self.anim_group = AnimGroup()
+
+        self.original_pos = pos
+        self.hidden_pos = Vector2(pos) + Vector2(0, 1.2 * self.rect.height)
+
     def set_bet(self, bet):
         self.bet_amount = bet
         self.confirm_button.update_bet_text()
 
-    def update(self, dt):
-        self.component_group.update(dt)
+    def set_shown(self, shown: bool, duration=0.4):
+        self.shown = shown
 
-        self.image.fill((0, 0, 0, 0))
-        self.component_group.draw(self.image)
+        if shown:
+            self.slider.update_range()
+            self.confirm_button.update_bet_text()
+
+        if duration > 0:
+            animation = MoveAnimation(duration, self, None, self.original_pos if shown else self.hidden_pos,
+                                      interpolation=ease_out if shown else ease_in)
+            self.anim_group.add(animation)
+
+        else:
+            self.rect = self.image.get_rect(center=self.original_pos if shown else self.hidden_pos)
+
+    def set_edit_mode(self, edit_mode):
+        self.edit_mode = edit_mode
+
+        if edit_mode:
+            self.edit_button.set_icon(pygame.image.load("assets/sprites/action icons/cancel.png"), 0.9)
+        else:
+            self.edit_button.set_icon(pygame.image.load("assets/sprites/action icons/edit bet.png"))
+            self.confirm_button.blink = False
+            self.confirm_button.update_bet_text()
+
+    def update(self, dt):
+        if self.shown or self.anim_group.animations:
+            self.anim_group.update(dt)
+            self.component_group.update(dt)
+
+            self.image.fill((0, 0, 0, 0))
+            self.component_group.draw(self.image)
 
 
 class BetSlider(Slider):
@@ -78,13 +117,16 @@ class BetSlider(Slider):
 
         self.min_value = 2 * current_bet if current_bet else min_bet
         self.max_value = self.prompt.player.money
-        self.set_value(min(self.min_value, max(self.max_value, self.prompt.bet_amount)),
+        self.set_value(max(self.min_value, min(self.max_value, self.prompt.bet_amount)),
                        update_thumb_pos=True)
+        self.on_change()
 
 
 class BetConfirmButton(Button):
     def __init__(self, pos, dimensions, prompt: BetPrompt, **kwargs):
-        super().__init__(pos, dimensions, color=COLORS["raise"], text_str="", **kwargs)
+        super().__init__(pos, dimensions, color=COLORS["raise"], text_str="", command=self.on_click,
+                         icon=pygame.image.load("assets/sprites/action icons/confirm bet.png"), icon_size=0.9,
+                         **kwargs)
 
         self.prompt = prompt
         self.blink_timer = 0
@@ -92,6 +134,7 @@ class BetConfirmButton(Button):
 
     def on_click(self):
         self.prompt.player.action(Actions.BET, self.prompt.bet_amount)
+        self.prompt.set_shown(False)
 
     def update_bet_text(self):
         self.set_text(f"${self.prompt.bet_amount:,}{'|' if self.blink else ''}")
@@ -116,9 +159,6 @@ class BetConfirmButton(Button):
         if self.prompt.edit_mode:
             self.edit_mode_update(dt)
 
-        elif self.blink:
-            self.update_bet_text()
-
         super().update(dt)
 
 
@@ -126,7 +166,7 @@ class BetEditButton(Button):
     def __init__(self, pos, radius, prompt: BetPrompt):
         super().__init__(pos, (2 * radius, 2 * radius),
                          command=self.on_click,
-                         color=hsv_factor(COLORS["raise"], sf=1.1, vf=0.8),
+                         color=hsv_factor(COLORS["raise"], sf=0.9, vf=1.2),
                          icon=pygame.image.load("assets/sprites/action icons/edit bet.png"))
 
         self.prompt = prompt
@@ -143,9 +183,9 @@ class BetEditButton(Button):
         pygame.gfxdraw.filled_circle(self.base.image, r, r, r, self.color)
 
     def on_click(self):
-        self.prompt.edit_mode = not self.prompt.edit_mode
+        self.prompt.set_edit_mode(not self.prompt.edit_mode)
 
     def update(self, dt):
         super().update(dt)
-        if pygame.mouse.get_pressed()[0] and not self.hover:
-            self.prompt.edit_mode = False
+        if pygame.mouse.get_pressed()[0] and not self.selected:
+            self.prompt.set_edit_mode(False)
