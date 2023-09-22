@@ -69,7 +69,7 @@ class Slider(pygame.sprite.Sprite):
             m = h / 3 + h / 8
             min_x, max_x = m, self.rect.w - m
 
-            k = (value - self.min_value) / (self.max_value - self.min_value)
+            k = (value - self.min_value) / (self.max_value - self.min_value) if self.max_value != self.min_value else 0
             x = k * (max_x - min_x) + min_x
             self.set_thumb_pos(x, False)
 

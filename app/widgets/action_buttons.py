@@ -54,21 +54,19 @@ class ActionButton(Button, ABC):
         pass
 
 
-class FoldButton(ActionButton):
-    def __init__(self, pos, dimensions, player: Player):
-        super().__init__(pos, dimensions, player, color=COLORS["fold"], text_str="Fold",
-                         icon=pygame.image.load("assets/sprites/action icons/fold.png"), icon_size=0.8)
+class SideTextedButton(Button):
+    """
+    The side texted button is a button with an additional "side text" on the right hand side of the button. This side
+    text is used to display the amount of money the player needs to spend to make a call or raise. The side text also
+    has a special rainbow effect when an action results in all in.
 
-    def on_click(self):
-        self.player.action(Actions.FOLD)
+    There are currently two subclasses of SideTextedButton:
+    1. CallButton: also a subclass of ActionButton
+    2. BetConfirmButton
+    """
 
-    def update_bet_amount(self, new_bet_amount: int):
-        pass
-
-
-class CallButton(ActionButton):
-    def __init__(self, pos, dimensions, player: Player):
-        super().__init__(pos, dimensions, player, color=COLORS["call"], text_str="Call")
+    def __init__(self, pos, dimensions, **kwargs):
+        super().__init__(pos, dimensions, **kwargs)
 
         self.side_text = pygame.sprite.Sprite(self.component_group)
         self.set_side_text_money(0)
@@ -76,26 +74,8 @@ class CallButton(ActionButton):
         self.all_in = False
         self.rainbow_fac = 0
 
-    def on_click(self):
-        self.player.action(Actions.CALL)
-
-    def update_bet_amount(self, new_bet_amount: int):
-        amount_to_pay = new_bet_amount - self.player.player_hand.bet_amount
-
-        if amount_to_pay > 0:
-            self.set_text("Call")
-            self.set_icon(pygame.image.load("assets/sprites/action icons/call.png"), 0.9)
-        else:
-            self.set_text("Check")
-            self.set_icon(pygame.image.load("assets/sprites/action icons/check.png"), 0.8)
-
-        if amount_to_pay >= self.player.money:
-            self.all_in = True
-
-        self.set_side_text_money(amount_to_pay)
-
-    def set_side_text_money(self, amount_to_pay):
-        side_text_str = f"-${amount_to_pay:,}" if amount_to_pay > 0 else ""
+    def set_side_text_money(self, amount):
+        side_text_str = f"-${amount:,}" if amount > 0 else ""
         self.set_side_text(side_text_str, (247, 218, 136))
 
     def set_side_text(self, side_text_str: str, color: tuple):
@@ -119,7 +99,45 @@ class CallButton(ActionButton):
         super().update(dt)
 
 
+class FoldButton(ActionButton):
+    def __init__(self, pos, dimensions, player: Player):
+        super().__init__(pos, dimensions, player, color=COLORS["fold"], text_str="Fold",
+                         icon=pygame.image.load("assets/sprites/action icons/fold.png"), icon_size=0.8)
+
+    def on_click(self):
+        self.player.action(Actions.FOLD)
+
+    def update_bet_amount(self, new_bet_amount: int):
+        pass
+
+
+class CallButton(ActionButton, SideTextedButton):
+    def __init__(self, pos, dimensions, player: Player):
+        super().__init__(pos, dimensions, player, color=COLORS["call"], text_str="Call")
+
+    def on_click(self):
+        self.player.action(Actions.CALL)
+
+    def update_bet_amount(self, new_bet_amount: int):
+        amount_to_pay = new_bet_amount - self.player.player_hand.bet_amount
+
+        if amount_to_pay > 0:
+            self.set_text("Call")
+            self.set_icon(pygame.image.load("assets/sprites/action icons/call.png"), 0.9)
+        else:
+            self.set_text("Check")
+            self.set_icon(pygame.image.load("assets/sprites/action icons/check.png"), 0.8)
+
+        self.all_in = amount_to_pay >= self.player.money
+
+        self.set_side_text_money(amount_to_pay)
+
+
 class RaiseButton(ActionButton):
+    """
+    The bet/raise button toggles the bet prompt to be shown or hidden.
+    """
+
     def __init__(self, pos, dimensions, player: Player, game_scene):
         super().__init__(pos, dimensions, player, color=COLORS["raise"], text_str="Raise")
         self.game_scene = game_scene
