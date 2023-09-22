@@ -1,7 +1,7 @@
 import pygame
 
+import app.shared
 from app.scenes.game_scene import GameScene
-from app.shared import FontSave
 from app import app_timer
 
 
@@ -14,6 +14,7 @@ class App:
         pygame.init()
 
         pygame.display.set_caption("Allin")
+        pygame.key.set_repeat(500, 50)
 
         # self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -33,6 +34,9 @@ class App:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+
+                if event.type == pygame.KEYDOWN:
+                    app.shared.KeyBroadcaster.broadcast(event)
 
             app_timer.update_timers(dt)
             self.scene.update(dt)

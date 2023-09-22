@@ -276,10 +276,10 @@ class Deal:
                 action_broadcast.bet_amount = self.bet_amount
 
             case Actions.RAISE:  # Bet/raise
-                if not blinds and new_amount < 2 * self.game.min_bet:
+                if not blinds and new_amount < self.game.min_bet:
                     return ActionResult.LESS_THAN_MIN_BET
 
-                elif new_amount <= self.bet_amount:
+                elif new_amount < 2 * self.bet_amount:
                     return ActionResult.LESS_THAN_MIN_RAISE
 
                 elif new_amount > player.player_data.money + player.bet_amount:

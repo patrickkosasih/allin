@@ -6,4 +6,6 @@ from . import fps_counter
 from . import winner_crown
 from . import table_texts
 from . import action_buttons
+from . import slider
+from . import bet_prompt
 from . import dealer_button

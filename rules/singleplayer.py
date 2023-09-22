@@ -36,6 +36,7 @@ class Bot(Player):
         """
 
         x = random.randrange(100)
+        y = random.randrange(100)
 
         # all in testing stuff
         # if self.name == "Bot 3":
@@ -44,16 +45,14 @@ class Bot(Player):
         if x < 25:
             bet_result = self.action(Actions.RAISE, self.player_hand.bet_amount + 25 * random.randint(1, 4))
 
-            if bet_result:
+            if bet_result:  # If bet not successful
                 self.action(Actions.CALL)
 
-        elif x == 69:
+        elif x == 69 and 9 < y <= 69:
             self.action(Actions.RAISE, 72727272727)
 
         else:
             if event.bet_amount > 0:
-                y = random.randrange(100)
-
                 if y < 5000 / event.bet_amount:
                     self.action(Actions.CALL)
                 else:
