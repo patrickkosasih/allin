@@ -1,23 +1,23 @@
 import pygame
 
-from app.widgets.bet_prompt import BetPrompt
 from rules.game_flow import GameEvent
 import rules.singleplayer
-
-from app import widgets
-from app.widgets.action_buttons import FoldButton, RaiseButton, CallButton
-from app.widgets.dealer_button import DealerButton
-from app.widgets.winner_crown import WinnerCrown
-from app.widgets.player_display import ComponentCodes, PlayerDisplay
 
 from app.scenes.scene import Scene
 from app.shared import *
 from app import app_timer
 
+from app import widgets
+from app.widgets.game.card import Card
+from app.widgets.game.action_buttons import FoldButton, RaiseButton, CallButton
+from app.widgets.game.dealer_button import DealerButton
+from app.widgets.game.winner_crown import WinnerCrown
+from app.widgets.game.player_display import ComponentCodes, PlayerDisplay
+from app.widgets.game.bet_prompt import BetPrompt
+
 from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
 from app.animations.fade import FadeAlpha
-from app.animations.interpolations import ease_out
 
 
 COMM_CARD_ROTATIONS = (198, 126, 270, 54, -18)
@@ -56,7 +56,7 @@ class GameScene(Scene):
         """
         Table and players
         """
-        self.table = widgets.table.Table(percent_to_px(50, 50), percent_to_px(55, 55))
+        self.table = widgets.game.table.Table(percent_to_px(50, 50), percent_to_px(55, 55))
         self.all_sprites.add(self.table)
 
         self.players = pygame.sprite.Group()
@@ -66,11 +66,11 @@ class GameScene(Scene):
         """
         Table texts
         """
-        self.pot_text = widgets.table_texts.PotText(percent_to_px(50, 37.5), percent_to_px(12.5, 5))
+        self.pot_text = widgets.game.table_texts.PotText(percent_to_px(50, 37.5), percent_to_px(12.5, 5))
         self.all_sprites.add(self.pot_text)
         self.pot_text.set_visible(False, duration=0)
 
-        self.ranking_text = widgets.table_texts.RankingText(percent_to_px(50, 62.5), percent_to_px(17.5, 5))
+        self.ranking_text = widgets.game.table_texts.RankingText(percent_to_px(50, 62.5), percent_to_px(17.5, 5))
         self.all_sprites.add(self.ranking_text)
         self.ranking_text.set_visible(False, duration=0)
 
@@ -99,7 +99,7 @@ class GameScene(Scene):
         """
         self.game.new_deal(cycle_dealer=False)
 
-        widgets.card.Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
+        Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
         self.community_cards = pygame.sprite.Group()
 
         self.reset_players()
@@ -204,7 +204,6 @@ class GameScene(Scene):
                 """
                 3. Remove player display
                 """
-                print(f"{old_player_display.player_data.name} removed")
 
                 rot = player_rotation(i, len(old_group))
                 pos = self.table.get_edge_coords(rot, (3, 3))
@@ -232,7 +231,7 @@ class GameScene(Scene):
 
         self.fold_button = FoldButton(positions[0], dimensions, self.game.the_player)
         self.call_button = CallButton(positions[1], dimensions, self.game.the_player)
-        self.raise_button = RaiseButton(positions[2], dimensions, self.game.the_player)
+        self.raise_button = RaiseButton(positions[2], dimensions, self.game.the_player, self)
 
         for x in (self.fold_button, self.call_button, self.raise_button):
             self.action_buttons.add(x)
@@ -273,7 +272,7 @@ class GameScene(Scene):
                 angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
                 start_pos = self.table.get_edge_coords(angle, (2.75, 2.75))
 
-                card = widgets.card.Card(start_pos)
+                card = Card(start_pos)
                 animation = MoveAnimation(random.uniform(1.75, 2), card, None, (x, y))
                 self.anim_group.add(animation)
 
@@ -296,7 +295,7 @@ class GameScene(Scene):
             return
 
         for player in self.players.sprites():
-            player.set_sub_text_anim("")
+            player.set_sub_text_anim("All in" if player.player_data.player_hand.all_in else "")
 
         for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
             card_data = self.game.deal.community_cards[i]
@@ -304,7 +303,7 @@ class GameScene(Scene):
             start_pos = self.table.get_edge_coords(COMM_CARD_ROTATIONS[i] + random.uniform(-5, 5), (3, 3))
             pos = percent_to_px(50 + 6.5 * (i - 2), 50)
 
-            card = widgets.card.Card(start_pos, card_data)
+            card = Card(start_pos, card_data)
             # card.show_front()
 
             animation = MoveAnimation(2 + i / 8, card, start_pos, pos, call_on_finish=card.reveal)

@@ -154,7 +154,10 @@ class PlayerDisplay(pygame.sprite.Sprite):
 
         extended = self.sub_pos >= 0.5
 
-        if new_text and extended:  # Old text -> New text
+        if new_text == self.sub_text_str:  # Old text == New text
+            return
+
+        elif new_text and extended:  # Old text -> New text
             animation = VarSlider(duration=0.1, start_val=1, end_val=0, setter_func=self.set_sub_pos,
                                   call_on_finish=lambda: self.set_sub_text_anim(new_text))
 

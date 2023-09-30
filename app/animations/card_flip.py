@@ -1,7 +1,7 @@
 # Type hints
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from app.widgets.card import Card
+    from app.widgets.game.card import Card
 
 import pygame.transform
 from app.animations.animation import Animation
@@ -38,4 +38,4 @@ class CardFlipAnimation(Animation):
 
 
     def finish(self) -> None:
-        pass
+        self.card.image = self.card.card_front

@@ -1,10 +1,9 @@
 import pygame
-from pygame.math import Vector2
 
 from app.animations.anim_group import AnimGroup
 from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
-from app.widgets.player_display import ComponentCodes, PlayerDisplay
+from app.widgets.game.player_display import ComponentCodes, PlayerDisplay
 from app.shared import *
 
 

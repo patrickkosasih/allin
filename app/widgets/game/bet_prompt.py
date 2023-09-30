@@ -3,7 +3,7 @@ import pygame.sprite
 from app.animations.anim_group import AnimGroup
 from app.animations.interpolations import ease_in, ease_out
 from app.animations.move import MoveAnimation
-from app.widgets.action_buttons import COLORS, SideTextedButton
+from app.widgets.game.action_buttons import COLORS, SideTextedButton
 from app.widgets.button import Button
 from app.widgets.slider import Slider
 from app.shared import *
