@@ -139,6 +139,12 @@ class GameScene(Scene):
             self.show_action_buttons(False)
 
         """
+        Fold
+        """
+        if event.message == "fold":
+            self.fold_cards(event.prev_player)
+
+        """
         Round finish and deal end
         """
         match event.code:
@@ -184,7 +190,7 @@ class GameScene(Scene):
                 """
                 old_i = player_display_datas.index(player_data)
                 player_display = old_group.sprites()[old_i]
-                
+
             else:
                 """
                 2. New player display
@@ -284,6 +290,27 @@ class GameScene(Scene):
                     card.card_data = player_display.player_data.player_hand.pocket_cards[j]
                     animation.call_on_finish = card.reveal
 
+    def fold_cards(self, i: int):
+        """
+        Discard the pocket cards of the specified player when that player folds.
+        """
+        player = self.players.sprites()[i]
+
+        for card in player.pocket_cards:
+            if player.player_data is self.game.the_player:
+                animation = FadeAlpha(0.25, card, -1, 128)
+                self.anim_group.add(animation)
+
+                if self.ranking_text.visible:
+                    self.ranking_text.set_text_anim(self.ranking_text.text_str + " (Folded)")
+
+            else:
+                angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
+                pos = self.table.get_edge_coords(angle, (2.75, 2.75))
+
+                animation = MoveAnimation(random.uniform(1, 1.5), card, None, pos)
+                self.anim_group.add(animation)
+
     def next_round(self, skip_round=False):
         """
         The method that is called when the deal advances to the next round (a NEW_ROUND game event is received).
@@ -315,6 +342,9 @@ class GameScene(Scene):
         anim_delay = 2 + len(self.community_cards) / 8
         ranking_int = self.game.the_player.player_hand.hand_ranking.ranking_type
         ranking_str = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
+
+        if self.game.the_player.player_hand.folded:
+            ranking_str += " (Folded)"
 
         app_timer.Timer(anim_delay, self.ranking_text.set_text_anim, (ranking_str,))
 
@@ -426,6 +456,7 @@ class GameScene(Scene):
 
         self.pot_text.set_visible(False)
         self.ranking_text.set_text("")
+        self.hide_blinds_button()
 
         """
         Clear winner crowns
@@ -568,6 +599,8 @@ class GameScene(Scene):
         """
         Hide the blinds buttons (SB and BB) by adding alpha fade animations.
         """
+        if not self.sb_button or not self.bb_button:
+            return
 
         def delete():
             self.all_sprites.remove(self.sb_button)

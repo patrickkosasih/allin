@@ -154,7 +154,7 @@ class PlayerDisplay(pygame.sprite.Sprite):
 
         extended = self.sub_pos >= 0.5
 
-        if new_text == self.sub_text_str:  # Old text == New text
+        if new_text == self.sub_text_str and extended:  # Old text == New text
             return
 
         elif new_text and extended:  # Old text -> New text
