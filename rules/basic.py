@@ -248,7 +248,7 @@ class HandRanking:
         sorted_ranks = sorted(rank_count.keys())  # A sorted list of all the available ranks
 
         if 14 in sorted_ranks:
-            sorted_ranks.append(1)  # Aces can either be in the lowest or the highest card on a straight
+            sorted_ranks.insert(0, 1)  # Aces can either be in the lowest or the highest card on a straight
 
         if len(sorted_ranks) >= 5:
             consecutives = [sorted_ranks[0]]
@@ -272,6 +272,11 @@ class HandRanking:
                     """
                     if len(consecutives) >= 6:
                         consecutives.pop(0)
+
+                    if consecutives[0] == 1:
+                        # If the first card of the straight is an ace (the lowest possible straight) then change the
+                        # rank integer from 1 back to 14
+                        consecutives[0] = 14
 
                     # Determine the suit(s) of each rank in the straight sequence.
                     straight_suits = {rank: [] for rank in consecutives}

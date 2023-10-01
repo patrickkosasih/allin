@@ -1,11 +1,12 @@
-import random
 import pygame
 
 import rules.game_flow
 import rules.basic
 from app.shared import *
-from testing import func_timer
 
+from app.animations.anim_group import AnimGroup
+from app.animations.var_slider import VarSlider
+from app.animations.interpolations import ease_out
 
 DEFAULT_HEAD_COLOR = 95, 201, 123
 DEFAULT_SUB_COLOR = 32, 46, 38
@@ -43,6 +44,12 @@ class PlayerDisplay(pygame.sprite.Sprite):
     II. Sub
         1. Sub base
         2. Sub text
+
+    Apart from the components above, there are sprites that are placed based on the position of a player display, but
+    are actually not part of the player display sprite:
+
+    1. Two pocket cards
+    2. Winner crown
     """
 
     def __init__(self, pos, dimensions, player_data: rules.game_flow.Player):
@@ -51,20 +58,30 @@ class PlayerDisplay(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=pos)
         self.layer = Layer.PLAYER
 
+        self.anim_group = AnimGroup()
+
         """
         Player display components
         """
         self.components = {}
         self.component_group = pygame.sprite.Group()
 
+        self.pocket_cards = pygame.sprite.Group()
+        # Note: Pocket cards are separate from player displays.
+
         """
         Data fields
         """
-        self.player_data = player_data
+        self.player_data: rules.game_flow.Player = player_data
+
         self.sub_text_str = ""
+        self.sub_pos: float = 0
+        """`sub_pos` determines the current position of the sub. 0 being retracted (hidden behind the head), and 1 being
+        extended (placed right below the head)."""
+
+        self.money_text_val: int = self.player_data.money
 
         self.init_components()
-
 
     def init_components(self):
         """
@@ -76,6 +93,9 @@ class PlayerDisplay(pygame.sprite.Sprite):
             self.components[i] = pygame.sprite.Sprite()
             self.redraw_component(i)
             self.component_group.add(self.components[i])
+
+        self.image.fill((0, 0, 0, 0))
+        self.component_group.draw(self.image)
 
     def redraw_component(self, component_code: int):
         if not 0 <= component_code <= 5:
@@ -107,7 +127,7 @@ class PlayerDisplay(pygame.sprite.Sprite):
                 component.rect = component.image.get_rect(center=((w + h_head / 2) / 2, 0.25 * h_head))
 
             case ComponentCodes.MONEY_TEXT:
-                component.image = FontSave.get_font(3.5).render(f"${self.player_data.money:,}", True, DEFAULT_TEXT_COLOR)
+                component.image = FontSave.get_font(3.5).render(f"${self.money_text_val:,}", True, DEFAULT_TEXT_COLOR)
                 component.rect = component.image.get_rect(center=((w + h_head / 2) / 2, 0.75 * h_head))
 
             case ComponentCodes.PROFILE_PIC:
@@ -121,16 +141,69 @@ class PlayerDisplay(pygame.sprite.Sprite):
                 pygame.gfxdraw.aacircle(component.image, r, r, r, color)
                 pygame.gfxdraw.filled_circle(component.image, r, r, r, color)
 
+        # Sub base and sub text positioning
         if component_code in (ComponentCodes.SUB_BASE, ComponentCodes.SUB_TEXT):
-            component.rect = component.image.get_rect(center=(w / 2, h_head + h_sub / 2))
+            component.rect = component.image.get_rect(center=(w / 2, h_head - h_sub / 2 + self.sub_pos * h_sub))
 
-    def set_sub_text(self, text: str):
-        self.sub_text_str = text
+    def set_sub_text_anim(self, new_text: str):
+        """
+        Set the sub text with an animation.
+
+        :param new_text: The new text.
+        """
+
+        extended = self.sub_pos >= 0.5
+
+        if new_text == self.sub_text_str and extended:  # Old text == New text
+            return
+
+        elif new_text and extended:  # Old text -> New text
+            animation = VarSlider(duration=0.1, start_val=1, end_val=0, setter_func=self.set_sub_pos,
+                                  call_on_finish=lambda: self.set_sub_text_anim(new_text))
+
+        elif new_text and not extended:  # Nothing -> New text
+            self.set_sub_text(new_text)
+            animation = VarSlider(duration=0.25, start_val=0, end_val=1, setter_func=self.set_sub_pos)
+
+        elif not new_text and extended:  # Old text -> Nothing
+            animation = VarSlider(duration=0.25, start_val=1, end_val=0, setter_func=self.set_sub_pos)
+
+        else:  # Nothing -> Nothing
+            return
+
+        self.anim_group.add(animation)
+
+    def set_sub_text(self, new_text: str):
+        """
+        Directly change the sub text.
+        """
+        self.sub_text_str = new_text
         self.redraw_component(ComponentCodes.SUB_TEXT)
 
-    def update_money(self):
+    def set_sub_pos(self, sub_pos):
+        self.sub_pos = sub_pos
+        self.redraw_component(ComponentCodes.SUB_BASE)
+        self.redraw_component(ComponentCodes.SUB_TEXT)
+
+    def set_money_text(self, money: int or float):
+        self.money_text_val = int(money)
         self.redraw_component(ComponentCodes.MONEY_TEXT)
 
+    def update_money(self, duration=0.5):
+        old_money, new_money = self.money_text_val, self.player_data.money
+
+        if duration > 0:
+            animation = VarSlider(duration, old_money, new_money, setter_func=self.set_money_text,
+                                  interpolation=lambda x: ease_out(x, 3))
+            self.anim_group.add(animation)
+
+        else:
+            self.set_money_text(new_money)
+
+
     def update(self, dt):
-        self.image.fill((0, 0, 0, 0))
-        self.component_group.draw(self.image)
+        if self.anim_group.animations:
+            # Only update image if there is an animation.
+            self.anim_group.update(dt)
+            self.image.fill((0, 0, 0, 0))
+            self.component_group.draw(self.image)

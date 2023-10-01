@@ -1,7 +1,11 @@
-import pygame
 import pygame.gfxdraw
+from pygame.math import Vector2
+from pygame.event import Event
+from typing import Callable, Optional
+
 import colorsys
 import random
+import time
 
 
 class FontSave:
@@ -27,11 +31,36 @@ class FontSave:
         )
 
 
+class KeyBroadcaster:
+    """
+    The `KeyBroadcaster` class is used to broadcast a keydown event from the event loop in `app_main.py` to other
+    modules of the entire program. When there is a keydown event, every function on the `key_listeners` list is called
+    with the keydown event as its argument.
+
+    Warning: Unused key listeners are not cleared automatically and may cause memory leaks.
+    """
+
+    key_listeners: list[Callable[[Event], None]] = []
+
+    @staticmethod
+    def add_listener(func: Callable[[Event], None]):
+        KeyBroadcaster.key_listeners.append(func)
+
+    @staticmethod
+    def broadcast(event):
+        for listener in KeyBroadcaster.key_listeners:
+            listener(event)
+
+
 class Layer:
     BACKGROUND = 0
     TABLE = 1
-    CARD = 2
-    PLAYER = 3
+    TABLE_TEXT = 2
+    WINNER_CROWN = 3
+    CARD = 4
+    PLAYER = 5
+    BLINDS_BUTTON = 6
+    DEALER_BUTTON = 7
 
 
 def w_percent_to_px(x: float) -> float:
@@ -74,7 +103,7 @@ def draw_rounded_rect(surface: pygame.Surface, rect: pygame.Rect,
     Draw a bordered rounded rectangle with the height as its radius.
 
     A complete rounded rectangle consists of the outer part (for the border) and the inner part (for the fill).
-    A rounded rectangle is drawn by a rectangle and two circles, complete with anti aliasing.
+    A rounded rectangle is drawn by a rectangle and two circles, complete with antialiasing.
 
     :param surface: The Pygame surface to draw on
     :param rect: The rect that determines the position and dimensions rounded rectangle.
@@ -117,3 +146,18 @@ def rand_color() -> tuple:
     Generates a random color in an (R, G, B) tuple format.
     """
     return tuple(random.randrange(256) for _ in range(3))
+
+
+def func_timer(func):
+    """
+    A decorator function that measures the time taken to run a function
+    """
+    def wrapper(*args, **kwargs):
+        time_before = time.perf_counter()
+        ret = func(*args, **kwargs)  # Call function
+        time_taken = time.perf_counter() - time_before
+
+        print(f"{func.__name__} took {time_taken} seconds to run")
+        return ret
+
+    return wrapper

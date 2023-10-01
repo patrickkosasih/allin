@@ -1,7 +1,14 @@
-from typing import Callable
-import time
-import threading
+"""
+rules/singleplayer.py
 
+The singleplayer module is used to interface the game flow engine from the main app on singleplayer games.
+"""
+
+
+from typing import Callable
+import random
+
+from app import app_timer
 from rules.game_flow import *
 
 
@@ -10,31 +17,54 @@ class ThePlayer(Player):
         super().__init__(game, name, money)
         self.game = game
 
-    def on_any_action(self, action_result: ActionResult):
+    def receive_event(self, game_event: GameEvent):
         """
         Calls every time any player makes an action.
         """
-        self.game.call_on_any_action(action_result)
-
-    def on_turn(self):
-        """
-        Calls when the new turn after an action is this player.
-        """
-        self.game.call_on_turn()
+        self.game.call_on_any_action(game_event)
 
 
 class Bot(Player):
-    def on_turn(self):
-        threading.Thread(target=self.action_delay, daemon=True).start()
+    def receive_event(self, event: GameEvent):
+        # Run self.action after 0.5 seconds
+        if event.next_player == self.game.players.index(self):
+            app_timer.Timer(0.5, self.decide_action, (event,))
 
-    def action_delay(self, delay=0.5):
-        time.sleep(delay)
-        self.action(Actions.CALL)
+    def decide_action(self, event):
+        """
+        A low level AI that makes a decision based on only random numbers and the bet amount.
+        """
+
+        x = random.randrange(100)
+        y = random.randrange(100)
+
+        # all in testing stuff
+        # if self.name == "Bot 3":
+        #     self.action(Actions.RAISE, 1000)
+
+        if x < 25:
+            bet_result = self.action(Actions.RAISE, self.player_hand.bet_amount + 25 * random.randint(1, 4))
+
+            if bet_result:  # If bet not successful
+                self.action(Actions.CALL)
+
+        elif x == 69 and 9 < y <= 69:
+            self.action(Actions.RAISE, 72727272727)
+
+        else:
+            if event.bet_amount > 0:
+                if y < 5000 / event.bet_amount:
+                    self.action(Actions.CALL)
+                else:
+                    self.action(Actions.FOLD)
+
+            else:
+                self.action(Actions.CALL)
 
 
 class SingleplayerGame(PokerGame):
     def __init__(self, n_players: int,
-                 call_on_any_action: Callable[[ActionResult], None], call_on_turn: Callable[[None], None],
+                 call_on_any_action: Callable[[GameEvent], None],
                  auto_start=False):
         super().__init__()
 
@@ -44,7 +74,6 @@ class SingleplayerGame(PokerGame):
         self.players: list[Player] = [self.the_player] + self.bots
 
         self.call_on_any_action = call_on_any_action
-        self.call_on_turn = call_on_turn
 
         if auto_start:
             self.new_deal()

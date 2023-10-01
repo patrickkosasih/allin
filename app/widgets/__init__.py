@@ -1,5 +1,4 @@
+from . import game
 from . import button
-from . import card
-from . import table
-from . import player_display
 from . import fps_counter
+from . import slider
