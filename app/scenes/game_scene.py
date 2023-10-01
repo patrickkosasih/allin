@@ -290,9 +290,39 @@ class GameScene(Scene):
                     card.card_data = player_display.player_data.player_hand.pocket_cards[j]
                     animation.call_on_finish = card.reveal
 
+    def highlight_cards(self, showdown=False, unhighlight=False):
+        """
+        Select the cards that make up a poker hand and highlight them.
+
+        :param showdown: If True, then highlight the winning hand (the ranked cards and the kickers).
+        Otherwise, highlight the ranked cards of the client user player (the kickers are not highlighted).
+
+        :param unhighlight: If set to True then clear all the highlights.
+        """
+
+        if showdown:
+            # Showdown: Highlight the winning hand(s)
+            ranked_cards = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.ranked_cards)
+            kickers = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.kickers)
+        else:
+            # Highlight the ranked cards of "the player" (client user)
+            ranked_cards = set(self.game.the_player.player_hand.hand_ranking.ranked_cards)
+            kickers = set()
+
+        highlighted_cards = set.union(ranked_cards, kickers)
+        card_displays = self.community_cards.sprites() + [card for player_display in self.players
+                                                          for card in player_display.pocket_cards]
+
+        for card_display in card_displays:
+            if card_display.is_revealed:
+                card_display.show_highlight(card_display.card_data in highlighted_cards and not unhighlight,
+                                            ranked=card_display.card_data not in kickers)
+
     def fold_cards(self, i: int):
         """
         Discard the pocket cards of the specified player when that player folds.
+
+        :param i: The index of the player.
         """
         player = self.players.sprites()[i]
 
@@ -302,7 +332,7 @@ class GameScene(Scene):
                 self.anim_group.add(animation)
 
                 if self.ranking_text.visible:
-                    self.ranking_text.set_text_anim(self.ranking_text.text_str + " (Folded)")
+                    self.ranking_text.set_text_anim("Folded:  " + self.ranking_text.text_str)
 
             else:
                 angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
@@ -342,11 +372,11 @@ class GameScene(Scene):
         anim_delay = 2 + len(self.community_cards) / 8
         ranking_int = self.game.the_player.player_hand.hand_ranking.ranking_type
         ranking_str = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
-
         if self.game.the_player.player_hand.folded:
-            ranking_str += " (Folded)"
+            ranking_str = "Folded:  " + ranking_str
 
         app_timer.Timer(anim_delay, self.ranking_text.set_text_anim, (ranking_str,))
+        app_timer.Timer(anim_delay + 0.25, self.highlight_cards)
 
         if len(self.game.deal.community_cards) == 3:
             app_timer.Timer(2, self.ranking_text.set_visible, (True,))
@@ -363,6 +393,7 @@ class GameScene(Scene):
         """
 
         self.ranking_text.set_visible(False)
+        self.highlight_cards(unhighlight=True)
         for player in self.players.sprites():
             player.set_sub_text_anim("")
 
@@ -416,6 +447,7 @@ class GameScene(Scene):
             self.anim_group.add(animation)
 
             self.pot_text.set_text_anim(0)
+            app_timer.Timer(0.25, self.highlight_cards, (True,))
 
             return
 
@@ -457,6 +489,7 @@ class GameScene(Scene):
         self.pot_text.set_visible(False)
         self.ranking_text.set_text("")
         self.hide_blinds_button()
+        self.highlight_cards(unhighlight=True)
 
         """
         Clear winner crowns

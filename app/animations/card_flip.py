@@ -38,4 +38,4 @@ class CardFlipAnimation(Animation):
 
 
     def finish(self) -> None:
-        self.card.image = self.card.card_front
+        self.card.image = self.card.card_front.copy()
