@@ -1,13 +1,18 @@
 import pygame
 import pygame.sprite
 
-from app import widgets
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.app_main import App
+
 from app.animations.anim_group import AnimGroup
 from app.shared import *
 
 
 class Scene:
-    def __init__(self):
+    def __init__(self, app: "App"):
+        self.app = app
+
         self.display_surface = pygame.display.get_surface()
         self.all_sprites = pygame.sprite.LayeredUpdates()
         self.anim_group = AnimGroup()

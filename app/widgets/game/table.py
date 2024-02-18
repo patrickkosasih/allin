@@ -7,7 +7,7 @@ from math import sin, cos, pi
 class Table(pygame.sprite.Sprite):
     def __init__(self, pos, dimensions):
         super().__init__()
-        self.image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/table.png"), dimensions)
+        self.image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/misc/table.png"), dimensions)
         self.rect = self.image.get_rect(center=pos)
 
     def get_edge_coords(self, degrees: float, scale=(1.0, 1.0)):

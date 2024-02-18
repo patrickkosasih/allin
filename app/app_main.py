@@ -1,7 +1,11 @@
+import sys
+
 import pygame
 
 import app.shared
+from app.scenes.scene import Scene
 from app.scenes.game_scene import GameScene
+from app.scenes.main_menu import MainMenuScene
 from app import app_timer
 
 
@@ -14,6 +18,7 @@ class App:
         pygame.init()
 
         pygame.display.set_caption("Allin")
+        pygame.display.set_icon(pygame.image.load("assets/sprites/misc/icon.png"))
         pygame.key.set_repeat(500, 50)
 
         # self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
@@ -21,7 +26,8 @@ class App:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        self.scene = GameScene()
+        self.scene = MainMenuScene(self)
+        # self.scene = GameScene(self)
 
     def run(self):
         while self.running:
@@ -43,3 +49,11 @@ class App:
             pygame.display.update()
 
         pygame.quit()
+
+    def change_scene(self, scene: Scene):
+        self.scene = scene
+
+    @staticmethod
+    def quit():
+        pygame.quit()
+        sys.exit()

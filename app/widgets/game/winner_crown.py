@@ -94,7 +94,7 @@ class WinnerCrown(pygame.sprite.Sprite):
         self.crown_hidden_pos = Vector2(pfp_rect.center) + d_pos
         crown_pos = self.crown_hidden_pos - Vector2(percent_to_px(0, 7.5))
 
-        self.crown.image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/crown.png"),
+        self.crown.image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/misc/crown.png"),
                                                         2 * (w_percent_to_px(3),))
         self.crown.rect = self.crown.image.get_rect(center=self.crown_hidden_pos)
         self.component_group.add(self.crown)

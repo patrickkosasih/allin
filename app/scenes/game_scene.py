@@ -40,8 +40,8 @@ def player_rotation(i: int, n_players: int) -> float:
 
 ## noinspection PyUnresolvedReferences,PyTypeChecker
 class GameScene(Scene):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, app):
+        super().__init__(app)
 
         self.game = rules.singleplayer.SingleplayerGame(6, self.receive_event)
 
