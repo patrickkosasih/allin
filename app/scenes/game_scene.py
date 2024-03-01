@@ -226,18 +226,14 @@ class GameScene(Scene):
         """
         Measurements
         """
-        dimensions = w, h = percent_to_px(15, 6.5)  # Button dimensions
-        w_scr, h_scr = pygame.display.get_window_size()  # Window dimensions
-        m = h / 3  # Margin between button and the edges (bottom and right).
+        dimensions = w, h = (15, 6.5)  # Button dimensions (in %screen)
+        m = 2  # Margin in %screen
 
-        x, y = w_scr - w / 2 - m, h_scr - h / 2 - m  # First button position
-        y_list = [y - i * (h + m) for i in range(3)]  # List of y positions
+        rects = [(-m, (-m - i * (h + m)), w, h, "%", "br", "br") for i in range(3)]  # List of all the button rects
 
-        positions = [(x, y) for y in y_list]  # List of all button positions
-
-        self.fold_button = FoldButton(positions[0], dimensions, self.game.the_player)
-        self.call_button = CallButton(positions[1], dimensions, self.game.the_player)
-        self.raise_button = RaiseButton(positions[2], dimensions, self.game.the_player, self)
+        self.fold_button = FoldButton(*rects[0], player=self.game.the_player)
+        self.call_button = CallButton(*rects[1], player=self.game.the_player)
+        self.raise_button = RaiseButton(*rects[2], player=self.game.the_player, game_scene=self)
 
         for x in (self.fold_button, self.call_button, self.raise_button):
             self.action_buttons.add(x)
@@ -247,10 +243,10 @@ class GameScene(Scene):
         """
         Bet prompt
         """
-        wbp, hbp = w_percent_to_px(30), 2 * h + m  # Width and height of bet prompt
+        bp_dimensions = 30, 2 * h + m  # Width and height of bet prompt (in %screen)
 
-        self.bet_prompt = BetPrompt((w_scr - wbp/2 - m, h_scr - hbp/2 - m),
-                                    (wbp, hbp), self, self.game.the_player)
+        self.bet_prompt = BetPrompt(-m, -m, *bp_dimensions, "%", "br", "br",
+                                    game_scene=self, player=self.game.the_player)
         self.all_sprites.add(self.bet_prompt)
         self.bet_prompt.set_shown(False, 0.0)
 

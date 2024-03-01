@@ -7,16 +7,14 @@ from app.widgets.game.action_buttons import COLORS, SideTextedButton
 from app.widgets.button import Button
 from app.widgets.slider import Slider
 from app.shared import *
+from app.widgets.widget import Widget
 
 from rules.game_flow import Actions
 
 
-class BetPrompt(pygame.sprite.Sprite):
-    def __init__(self, pos, dimensions, game_scene, player):
-        super().__init__()
-
-        self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=pos)
+class BetPrompt(Widget):
+    def __init__(self, *rect_args, game_scene, player, **kwargs):
+        super().__init__(*rect_args, **kwargs)
 
         self.game_scene = game_scene
         self.player = player
@@ -30,31 +28,11 @@ class BetPrompt(pygame.sprite.Sprite):
         """
         Components
         """
-        # region Components
-        self.component_group = pygame.sprite.Group()
-        global_x, global_y, w, h = self.rect
+        self.slider = BetSlider(0, 0, 100, 30, "%", "mt", "mt", prompt=self)
+        self.confirm_button = BetConfirmButton(0, 0, 50, 50, "%", "br", "br", prompt=self)
+        self.edit_button = BetEditButton(-2, 0, 50 / self.rect.aspect_ratio, 50, "%", "mb", "br", prompt=self)
 
-        # Slider
-        self.slider = BetSlider((w / 2, h / 6), (w, h / 3), self)
-        self.slider.global_rect.x += global_x
-        self.slider.global_rect.y += global_y
-
-        self.component_group.add(self.slider)
-
-        # Confirm button
-        self.confirm_button = BetConfirmButton((w - w/4, h - h/4), (w/2, h/2), self)
-        self.confirm_button.global_rect.x += global_x
-        self.confirm_button.global_rect.y += global_y
-
-        self.component_group.add(self.confirm_button)
-
-        # Edit button
-        self.edit_button = BetEditButton((2/5 * w, h - h/4), h/4, self)
-        self.edit_button.global_rect.x += global_x
-        self.edit_button.global_rect.y += global_y
-
-        self.component_group.add(self.edit_button)
-        # endregion
+        self.component_group.add(self.slider, self.confirm_button, self.edit_button)
 
         """
         Show/hide related attributes
@@ -62,8 +40,8 @@ class BetPrompt(pygame.sprite.Sprite):
         self.shown = False
         self.anim_group = AnimGroup()
 
-        self.original_pos = pos
-        self.hidden_pos = Vector2(pos) + Vector2(0, 1.2 * self.rect.height)
+        self.original_pos = self.rect.center
+        self.hidden_pos = Vector2(self.original_pos) + Vector2(0, 1.2 * self.rect.height)
 
     def set_bet(self, bet):
         self.bet_amount = bet
@@ -78,11 +56,12 @@ class BetPrompt(pygame.sprite.Sprite):
 
         if duration > 0:
             animation = MoveAnimation(duration, self, None, self.original_pos if shown else self.hidden_pos,
+                                      "px", "tl", "ctr",
                                       interpolation=ease_out if shown else ease_in)
             self.anim_group.add(animation)
 
         else:
-            self.rect = self.image.get_rect(center=self.original_pos if shown else self.hidden_pos)
+            self.rect.set_pos(*(self.original_pos if shown else self.hidden_pos), "px", "tl", "ctr")
 
     def set_edit_mode(self, edit_mode):
         self.edit_mode = edit_mode
@@ -114,8 +93,8 @@ class BetPrompt(pygame.sprite.Sprite):
 
 
 class BetSlider(Slider):
-    def __init__(self, pos, dimensions, prompt: BetPrompt, **kwargs):
-        super().__init__(pos, dimensions, int_only=True, **kwargs)
+    def __init__(self, *rect, prompt: BetPrompt, **kwargs):
+        super().__init__(*rect, parent=prompt, int_only=True, **kwargs)
         self.prompt = prompt
 
     def on_change(self):
@@ -135,8 +114,9 @@ class BetSlider(Slider):
 
 
 class BetConfirmButton(SideTextedButton):
-    def __init__(self, pos, dimensions, prompt: BetPrompt, **kwargs):
-        super().__init__(pos, dimensions, color=COLORS["raise"], text_str="", command=self.on_click,
+    def __init__(self, *rect_args, prompt: BetPrompt, **kwargs):
+        super().__init__(*rect_args, parent=prompt,
+                         color=COLORS["raise"], text_str="", command=self.on_click,
                          icon=pygame.image.load("assets/sprites/action icons/confirm bet.png"), icon_size=0.8,
                          **kwargs)
 
@@ -197,8 +177,8 @@ class BetConfirmButton(SideTextedButton):
 
 
 class BetEditButton(Button):
-    def __init__(self, pos, radius, prompt: BetPrompt):
-        super().__init__(pos, (2 * radius, 2 * radius),
+    def __init__(self, *rect_args, prompt: BetPrompt):
+        super().__init__(*rect_args, parent=prompt,
                          command=self.on_click,
                          color=hsv_factor(COLORS["raise"], sf=0.9, vf=1.2),
                          icon=pygame.image.load("assets/sprites/action icons/edit bet.png"))

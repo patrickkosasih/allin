@@ -24,26 +24,24 @@ class ActionButton(Button, ABC):
     `ActionButton` is the parent abstract class for all the action buttons.
     """
 
-    def __init__(self, pos, dimensions, player: Player, **kwargs):
-        super().__init__(pos, dimensions, command=self.on_click, **kwargs)
+    def __init__(self, *rect_args, player: Player, **kwargs):
+        super().__init__(*rect_args,  command=self.on_click, **kwargs)
 
-        self.original_pos = pos
-        self.hidden_pos = pos + Vector2(1.2 * self.rect.width, 0)
+        self.original_pos = Vector2(self.rect.center)
+        self.hidden_pos = self.original_pos + Vector2(1.2 * self.rect.width, 0)
 
         self.player = player
 
     def set_shown(self, shown: bool, duration=0.5):
         new_pos = self.original_pos if shown else self.hidden_pos
-        new_rect = self.image.get_rect(center=new_pos)
 
         if duration > 0:
-            animation = MoveAnimation(duration, self, None, new_pos, interpolation=ease_out if shown else ease_in)
+            animation = MoveAnimation(duration, self, None, new_pos, "px", "tl", "ctr",
+                                      interpolation=ease_out if shown else ease_in)
             self.anim_group.add(animation)
 
         else:
-            self.rect = new_rect
-
-        self.global_rect = new_rect
+            self.set_pos(*new_pos, "px", "tl", "ctr")
 
     @abstractmethod
     def on_click(self):
@@ -65,8 +63,8 @@ class SideTextedButton(Button):
     2. BetConfirmButton
     """
 
-    def __init__(self, pos, dimensions, **kwargs):
-        super().__init__(pos, dimensions, **kwargs)
+    def __init__(self, *rect_args, **kwargs):
+        super().__init__(*rect_args,  **kwargs)
 
         self.side_text = pygame.sprite.Sprite(self.component_group)
         self.set_side_text_money(0)
@@ -100,8 +98,8 @@ class SideTextedButton(Button):
 
 
 class FoldButton(ActionButton):
-    def __init__(self, pos, dimensions, player: Player):
-        super().__init__(pos, dimensions, player, color=COLORS["fold"], text_str="Fold",
+    def __init__(self, *rect_args, player: Player):
+        super().__init__(*rect_args, player=player, color=COLORS["fold"], text_str="Fold",
                          icon=pygame.image.load("assets/sprites/action icons/fold.png"), icon_size=0.8)
 
     def on_click(self):
@@ -112,8 +110,8 @@ class FoldButton(ActionButton):
 
 
 class CallButton(ActionButton, SideTextedButton):
-    def __init__(self, pos, dimensions, player: Player):
-        super().__init__(pos, dimensions, player, color=COLORS["call"], text_str="Call")
+    def __init__(self, *rect_args, player: Player):
+        super().__init__(*rect_args, player=player, color=COLORS["call"], text_str="Call")
 
     def on_click(self):
         self.player.action(Actions.CALL)
@@ -138,8 +136,8 @@ class RaiseButton(ActionButton):
     The bet/raise button toggles the bet prompt to be shown or hidden.
     """
 
-    def __init__(self, pos, dimensions, player: Player, game_scene):
-        super().__init__(pos, dimensions, player, color=COLORS["raise"], text_str="Raise")
+    def __init__(self, *rect_args, player: Player, game_scene):
+        super().__init__(*rect_args, player=player, color=COLORS["raise"], text_str="Raise")
         self.game_scene = game_scene
 
         # Fields for toggling between show/hide bet prompt

@@ -1,19 +1,14 @@
-from typing import Callable
-
 import pygame
+
 from app.shared import *
+from app.widgets.widget import Widget
 
 
-class Slider(pygame.sprite.Sprite):
-    def __init__(self, pos, dimensions,
+class Slider(Widget):
+    def __init__(self, *rect_args,
                  min_value=0, max_value=100, default_value=0, int_only=False,
-                 update_func: Callable[[int or float], None] = lambda x: None):
-        super().__init__()
-
-        self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=pos)
-
-        self.global_rect = self.rect.copy()
+                 update_func: Callable[[int or float], None] = lambda x: None, **kwargs):
+        super().__init__(*rect_args, **kwargs)
 
         """
         Data fields
@@ -42,7 +37,7 @@ class Slider(pygame.sprite.Sprite):
         self.component_group = pygame.sprite.Group()
 
         # Measurements
-        w, h = dimensions
+        w, h = self.rect.size
         r = int(h / 3)
         d = r * 2  # Diameter = 2r
 
@@ -104,7 +99,7 @@ class Slider(pygame.sprite.Sprite):
         """
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        hover = self.global_rect.collidepoint(mouse_x, mouse_y)
+        hover = self.rect.global_rect.collidepoint(mouse_x, mouse_y)
         mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
 
         if hover and mouse_down and not self.prev_mouse_down:
@@ -118,7 +113,7 @@ class Slider(pygame.sprite.Sprite):
         Update thumb pos
         """
         if self.selected:
-            self.set_thumb_pos(mouse_x - self.rect.left - self.global_rect.x)
+            self.set_thumb_pos(mouse_x - self.rect.left - self.rect.global_rect.x)
             self.on_change()
 
         self.image.fill((0, 0, 0, 0))

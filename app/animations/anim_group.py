@@ -14,6 +14,12 @@ class AnimGroup:
     def add(self, animation: Animation):
         self.animations.append(animation)
 
+    def reset(self):
+        """
+        Remove all the animations on the animation group.
+        """
+        self.animations = []
+
     def update(self, dt):
         """
         Run the update method of all the animations of this group.

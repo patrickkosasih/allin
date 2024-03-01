@@ -4,22 +4,22 @@ import pygame.gfxdraw
 
 from app.animations.anim_group import AnimGroup
 from app.shared import *
+from app.widgets.widget import Widget
 
 
-class Button(pygame.sprite.Sprite):
+class Button(Widget):
     DEFAULT_COLOR = (43, 193, 193)
 
-    def __init__(self, pos, dimensions, color=DEFAULT_COLOR, command: Callable = None,
+    def __init__(self, *rect_args, color=DEFAULT_COLOR, command: Callable = None,
                  text_str="", text_color=(255, 255, 255), font: pygame.font.Font = None,
                  b_color=None, b_thickness=0, rrr=0,
                  icon: pygame.Surface or None = None, icon_size: float = 1.0,
-                 text_align="middle", icon_align="left", text_align_offset=0):
+                 text_align="middle", icon_align="left", text_align_offset=0, **kwargs):
 
         """
         Parameters:
 
-        :param pos: Center position of button.
-        :param dimensions: Dimensions of button.
+        :param rect: The AutoRect positioning of the button.
         :param color: Background color of button.
         :param command: The function that is run when the button is clicked.
 
@@ -40,11 +40,7 @@ class Button(pygame.sprite.Sprite):
                                   Text y pos = Original text y pos +- (Button height * Text align offset).
         """
 
-        super().__init__()
-        self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=pos)
-
-        self.global_rect = self.rect.copy()
+        super().__init__(*rect_args, **kwargs)
 
         """
         General button attributes
@@ -63,6 +59,7 @@ class Button(pygame.sprite.Sprite):
         """
         Button appearance
         """
+
         self.color = color
         self.b_color = b_color if b_color else hsv_factor(color, vf=0.75)
         self.b_thickness = b_thickness
@@ -72,11 +69,10 @@ class Button(pygame.sprite.Sprite):
         """
         Components
         """
-        self.component_group = pygame.sprite.Group()
 
         # Base
         self.base = pygame.sprite.Sprite(self.component_group)
-        self.base.image = pygame.Surface(dimensions, pygame.SRCALPHA)
+        self.base.image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
         self.base.rect = self.base.image.get_rect(topleft=(0, 0))
 
         self.draw_base()
@@ -180,7 +176,7 @@ class Button(pygame.sprite.Sprite):
         """
         Update button states
         """
-        self.hover = self.global_rect.collidepoint(mouse_x, mouse_y)
+        self.hover = self.rect.global_rect.collidepoint(mouse_x, mouse_y)
         self.mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
 
         """

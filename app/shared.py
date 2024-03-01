@@ -1,7 +1,15 @@
+"""
+app/shared.py
+
+A module that contains various shared functions used throughout the program.
+"""
+
+# When another module imports this module by `from app.shared import *`, all the imports below are imported as well.
+
 import pygame.gfxdraw
 from pygame.math import Vector2
 from pygame.event import Event
-from typing import Callable, Optional
+from typing import Callable, Optional, Iterable, Generator
 
 import colorsys
 import random
@@ -73,6 +81,10 @@ def h_percent_to_px(y: float) -> float:
 
 def percent_to_px(x: float, y: float) -> tuple[float, float]:
     return w_percent_to_px(x), h_percent_to_px(y)
+
+
+def elementwise_mult(a: Iterable, b: Iterable) -> Generator:
+    return (x * y for x, y in zip(a, b))
 
 
 def hsv_factor(rgb: tuple or str, hf=0, sf=1, vf=1) -> tuple:
