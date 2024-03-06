@@ -48,7 +48,7 @@ class GameScene(Scene):
         """
         Miscellaneous GUI
         """
-        self.fps_counter = widgets.fps_counter.FPSCounter()
+        self.fps_counter = widgets.fps_counter.FPSCounter(self, 0.5, 0.5, 15, 5, "%", "tl", "tl")
         self.all_sprites.add(self.fps_counter)
 
         self.flash_fac = 0
@@ -56,22 +56,18 @@ class GameScene(Scene):
         """
         Table and players
         """
-        self.table = widgets.game.table.Table(percent_to_px(50, 50), percent_to_px(55, 55))
-        self.all_sprites.add(self.table)
+        self.table = widgets.game.table.Table(self, 0, 0, 55, 55, "%", "ctr", "ctr")
 
         self.players = pygame.sprite.Group()
-
         self.winner_crowns = pygame.sprite.Group()
 
         """
         Table texts
         """
-        self.pot_text = widgets.game.table_texts.PotText(percent_to_px(50, 37.5), percent_to_px(12.5, 5))
-        self.all_sprites.add(self.pot_text)
+        self.pot_text = widgets.game.table_texts.PotText(self, 0, -12.5, 12.5, 5, "%", "ctr", "ctr")
         self.pot_text.set_visible(False, duration=0)
 
-        self.ranking_text = widgets.game.table_texts.RankingText(percent_to_px(50, 62.5), percent_to_px(17.5, 5))
-        self.all_sprites.add(self.ranking_text)
+        self.ranking_text = widgets.game.table_texts.RankingText(self, 0, 12.5, 17.5, 5, "%", "ctr", "ctr")
         self.ranking_text.set_visible(False, duration=0)
 
         """
@@ -197,13 +193,12 @@ class GameScene(Scene):
                 """
                 start_pos = self.table.get_edge_coords(rot, (3, 3))
 
-                player_display = PlayerDisplay(start_pos, percent_to_px(15, 12.5), player_data)
-                self.all_sprites.add(player_display)
+                player_display = PlayerDisplay(self, *start_pos, 15, 12.5, "px %", "tl", "ctr",
+                                               player_data=player_data)
 
             self.players.add(player_display)
 
-            animation = MoveAnimation(1.5, player_display, None, pos)
-            self.anim_group.add(animation)
+            player_display.move_anim(1.5, pos)
 
         for i, old_player_display in enumerate(old_group.sprites()):
             if old_player_display not in self.players:
@@ -214,9 +209,8 @@ class GameScene(Scene):
                 rot = player_rotation(i, len(old_group))
                 pos = self.table.get_edge_coords(rot, (3, 3))
 
-                animation = MoveAnimation(1.5, old_player_display, None, pos,
-                                          call_on_finish=lambda x=old_player_display: self.all_sprites.remove(x))
-                self.anim_group.add(animation)
+                old_player_display.move_anim(1.5, pos,
+                                             call_on_finish=lambda x=old_player_display: self.all_sprites.remove(x))
 
     def init_action_buttons(self):
         """
@@ -231,13 +225,12 @@ class GameScene(Scene):
 
         rects = [(-m, (-m - i * (h + m)), w, h, "%", "br", "br") for i in range(3)]  # List of all the button rects
 
-        self.fold_button = FoldButton(*rects[0], player=self.game.the_player)
-        self.call_button = CallButton(*rects[1], player=self.game.the_player)
-        self.raise_button = RaiseButton(*rects[2], player=self.game.the_player, game_scene=self)
+        self.fold_button = FoldButton(self, *rects[0], player=self.game.the_player)
+        self.call_button = CallButton(self, *rects[1], player=self.game.the_player)
+        self.raise_button = RaiseButton(self, *rects[2], player=self.game.the_player)
 
         for x in (self.fold_button, self.call_button, self.raise_button):
             self.action_buttons.add(x)
-            self.all_sprites.add(x)
             x.set_shown(False, 0.0)
 
         """
@@ -245,9 +238,8 @@ class GameScene(Scene):
         """
         bp_dimensions = 30, 2 * h + m  # Width and height of bet prompt (in %screen)
 
-        self.bet_prompt = BetPrompt(-m, -m, *bp_dimensions, "%", "br", "br",
+        self.bet_prompt = BetPrompt(self, -m, -m, *bp_dimensions, "%", "br", "br",
                                     game_scene=self, player=self.game.the_player)
-        self.all_sprites.add(self.bet_prompt)
         self.bet_prompt.set_shown(False, 0.0)
 
     def show_action_buttons(self, shown: bool):
@@ -274,9 +266,8 @@ class GameScene(Scene):
                 angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
                 start_pos = self.table.get_edge_coords(angle, (2.75, 2.75))
 
-                card = Card(start_pos)
-                animation = MoveAnimation(random.uniform(1.75, 2), card, None, (x, y))
-                self.anim_group.add(animation)
+                card = Card(self, *start_pos)
+                animation = card.move_anim(random.uniform(1.75, 2), (x, y))
 
                 # Pocket cards are added to 2 different sprite groups.
                 self.all_sprites.add(card)
@@ -354,15 +345,11 @@ class GameScene(Scene):
             card_data = self.game.deal.community_cards[i]
 
             start_pos = self.table.get_edge_coords(COMM_CARD_ROTATIONS[i] + random.uniform(-5, 5), (3, 3))
-            pos = percent_to_px(50 + 6.5 * (i - 2), 50)
+            card = Card(self, *start_pos, "px", "tl", "ctr", card_data=card_data)
 
-            card = Card(start_pos, card_data)
-            # card.show_front()
+            card.move_anim(2 + i / 8, (6.5 * (i - 2), 0), "%", "ctr", "ctr",
+                           call_on_finish=card.reveal)
 
-            animation = MoveAnimation(2 + i / 8, card, start_pos, pos, call_on_finish=card.reveal)
-            self.anim_group.add(animation)
-
-            self.all_sprites.add(card)
             self.community_cards.add(card)
 
         anim_delay = 2 + len(self.community_cards) / 8
@@ -455,15 +442,12 @@ class GameScene(Scene):
         ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
         player_display.set_sub_text_anim(ranking_text)
 
-
-
         if player_hand in self.game.deal.winners:
             """
             Reveal the winner
             """
             # Create a winner crown
-            winner_crown = WinnerCrown(player_display)
-            self.all_sprites.add(winner_crown)
+            winner_crown = WinnerCrown(self, player_display)
             self.winner_crowns.add(winner_crown)
 
             # Update player money text
@@ -503,16 +487,14 @@ class GameScene(Scene):
                 card_end_pos = self.table.get_edge_coords(
                     player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2), (3, 3)
                 )
-                animation = MoveAnimation(random.uniform(1.5, 2), card, None, card_end_pos)
-                self.anim_group.add(animation)
+                card.move_anim(random.uniform(1.5, 2), card_end_pos)
 
             player.set_sub_text_anim("")  # Reset sub text
 
         # Community cards
         for card, rot in zip(self.community_cards.sprites(), COMM_CARD_ROTATIONS):
             card_end_pos = self.table.get_edge_coords(rot + random.uniform(-5, 5), (3, 3))
-            animation = MoveAnimation(random.uniform(2, 2.5), card, None, card_end_pos)
-            self.anim_group.add(animation)
+            card.move_anim(random.uniform(2, 2.5), card_end_pos)
 
         app_timer.Timer(2.5, self.delete_on_new_deal)
 
@@ -575,14 +557,13 @@ class GameScene(Scene):
 
         if not self.dealer_button:
             start_pos = self.table.get_edge_coords(player_rotation(self.game.dealer, len(self.game.players)), (3, 3))
-            self.dealer_button = DealerButton(start_pos, h_percent_to_px(3.5))
+            self.dealer_button = DealerButton(self, *start_pos)
             self.all_sprites.add(self.dealer_button)
 
         dealer: PlayerDisplay = self.players.sprites()[self.game.dealer]
-        new_pos = Vector2(dealer.rect.topleft) + Vector2(dealer.components[ComponentCodes.HEAD_BASE].rect.midright)
+        new_pos = dealer.head_base.rect.global_rect.midright
 
-        animation = MoveAnimation(1, self.dealer_button, None, new_pos, call_on_finish=self.new_blinds_button)
-        self.anim_group.add(animation)
+        self.dealer_button.move_anim(1, new_pos, call_on_finish=self.new_blinds_button)
 
     def hide_dealer_button(self):
         """
@@ -607,22 +588,22 @@ class GameScene(Scene):
         start_pos = self.dealer_button.rect.center
 
         # Initialize new buttons
-        self.sb_button = DealerButton(start_pos, h_percent_to_px(3.5), "SB")
-        self.bb_button = DealerButton(start_pos, h_percent_to_px(3.5), "BB")
+        self.sb_button = DealerButton(self, *start_pos, "SB")
+        self.bb_button = DealerButton(self, *start_pos, "BB")
         self.all_sprites.add(self.sb_button)
         self.all_sprites.add(self.bb_button)
 
         # Move SB button
         sb_player: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[0]]
-        sb_pos = Vector2(sb_player.rect.topleft) + Vector2(sb_player.components[ComponentCodes.HEAD_BASE].rect.midright)
-        sb_animation = MoveAnimation(0.75, self.sb_button, None, sb_pos)
-        self.anim_group.add(sb_animation)
+        sb_pos = sb_player.head_base.rect.global_rect.midright
+
+        self.sb_button.move_anim(0.75, sb_pos)
 
         # Move BB button
         bb_player: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[1]]
-        bb_pos = Vector2(bb_player.rect.topleft) + Vector2(bb_player.components[ComponentCodes.HEAD_BASE].rect.midright)
-        bb_animation = MoveAnimation(0.75, self.bb_button, None, bb_pos)
-        self.anim_group.add(bb_animation)
+        bb_pos = bb_player.head_base.rect.global_rect.midright
+
+        self.bb_button.move_anim(0.75, bb_pos)
 
     def hide_blinds_button(self):
         """

@@ -23,3 +23,7 @@ class Scene:
         self.display_surface.fill("#123456")
         self.all_sprites.update(dt)
         self.all_sprites.draw(self.display_surface)
+
+    @property
+    def rect(self):
+        return pygame.Rect(0, 0, *pygame.display.get_window_size())

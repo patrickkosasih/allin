@@ -1,6 +1,16 @@
+"""
+widgets.py
+
+A module containing the essential base classes for widgets and its components. Both of them are extensions of the Pygame
+sprite class, and they use an AutoRect (an extension of the Pygame Rect class) for their positioning.
+"""
+
 import pygame
+from abc import ABC
 
 from app.animations.anim_group import AnimGroup
+from app.animations.move import MoveAnimation
+from app.scenes.scene import Scene
 from app.shared import *
 
 
@@ -9,6 +19,9 @@ class AutoRect(pygame.rect.Rect):
     An extended version of Pygame's Rect class.
     An AutoRect has a settable unit, anchor, pivot, and parent rect that would make it easier to position widgets.
     """
+
+    VALID_UNITS = ["px", "%", "px %", "% px",
+                   "px px", "% %"]
 
     ALIGNMENT_FACTORS = {           # Aliases
         "topleft": (0, 0),          "tl": (0, 0),
@@ -32,8 +45,10 @@ class AutoRect(pygame.rect.Rect):
         :param h: Height
 
         :param unit: The unit of x, y, w, and h. Possible units:
-                       px: Pixels (default).
-                       %:  A fraction of the display's dimensions in percentage.
+                       "px": Pixels (default).
+                       "%":  A fraction of the display's dimensions in percentage.
+                       "px %": px for x and y, and % for w and h.
+                       "% px": % for x and y, and px for w and h.
 
         :param anchor: The anchor/origin of the rect on the parent rect. Possible anchors: See `ALIGNMENT_FACTORS`.
                          e.g. When the anchor is set to "center", then the position's (0, 0) would be located in the
@@ -46,9 +61,13 @@ class AutoRect(pygame.rect.Rect):
         :param parent_rect: The parent rect.
         """
 
-        parent_rect = parent_rect if parent_rect else pygame.Rect(0, 0, *pygame.display.get_window_size())
+        if unit not in self.VALID_UNITS:
+            raise ValueError(f"invalid unit: {unit}")
 
-        if unit == "%":
+        parent_rect = parent_rect if parent_rect else pygame.Rect(0, 0, *pygame.display.get_window_size())
+        pos_unit, size_unit = unit.split() if len(unit.split()) == 2 else (unit, unit)
+
+        if size_unit == "%":
             w, h = elementwise_mult(parent_rect.size, (w / 100, h / 100))
 
         super().__init__(0, 0, w, h)
@@ -57,9 +76,9 @@ class AutoRect(pygame.rect.Rect):
         Extended attributes
         """
         self.parent_rect = parent_rect
-        self.global_rect = None
 
         self._unit = unit
+        self._pos_unit, self._size_unit = pos_unit, size_unit
         self._anchor = anchor
         self._pivot = pivot
 
@@ -78,12 +97,12 @@ class AutoRect(pygame.rect.Rect):
 
         :param x: X position.
         :param y: Y position.
-        :param unit: Temporarily override the rect's unit.
+        :param unit: Temporarily override the rect's pos unit. Possible units: "px" or "%".
         :param anchor: Temporarily override the rect's anchor.
         :param pivot: Temporarily override the rect's pivot.
         """
 
-        unit = unit if unit else self._unit
+        unit = unit if unit else self._pos_unit
         anchor = anchor if anchor else self._anchor
         pivot = pivot if pivot else self._pivot
 
@@ -95,15 +114,15 @@ class AutoRect(pygame.rect.Rect):
         elif unit == "%":
             self.x, self.y = elementwise_mult(self.parent_rect.size, (x / 100, y / 100))
         else:
-            raise ValueError("invalid unit: " + unit)
+            raise ValueError(f"invalid pos unit: {unit}")
 
         """
         Validate anchor and pivot 
         """
         if anchor not in AutoRect.ALIGNMENT_FACTORS:
-            raise ValueError("invalid anchor: " + anchor)
+            raise ValueError(f"invalid anchor: {anchor}")
         elif pivot not in AutoRect.ALIGNMENT_FACTORS:
-            raise ValueError("invalid pivot: " + pivot)
+            raise ValueError(f"invalid pivot: {pivot}")
 
         """
         Align the position according to the anchor and pivot
@@ -114,11 +133,6 @@ class AutoRect(pygame.rect.Rect):
         pivot_offset = Vector2(*elementwise_mult(AutoRect.ALIGNMENT_FACTORS[pivot], self.size))
 
         self.x, self.y = Vector2(self.topleft) + anchor_offset - pivot_offset
-
-        """
-        Set global rect
-        """
-        self.global_rect = self.move(*self.parent_rect.topleft)
 
     def get_pos(self, unit=None, anchor=None, pivot=None) -> Vector2:
         """
@@ -135,22 +149,42 @@ class AutoRect(pygame.rect.Rect):
         pos = Vector2(self.topleft) - anchor_offset + pivot_offset
 
         if unit == "%":
-            pos.x = pos.x * self.parent_rect.w / 100
-            pos.y = pos.y * self.parent_rect.h / 100
+            pos.x = (pos.x / self.parent_rect.w) * 100
+            pos.y = (pos.y / self.parent_rect.h) * 100
 
         return pos
+
+    def set_size(self, w, h):
+        prev_pos = self.get_pos("px")
+        self.w, self.h = w, h
+        self.set_pos(*prev_pos, "px")
+
+    def set_alignment(self, unit=None, anchor=None, pivot=None, update_pos=True):
+        prev_pos = self.get_pos("px")
+
+        if unit:    self._unit = unit
+        if anchor:  self._anchor = anchor
+        if pivot:   self._pivot = pivot
+
+        if update_pos:
+            self.set_pos(prev_pos, "px")
+
+    @property
+    def global_rect(self):
+        return self.move(*self.parent_rect.topleft)
 
     @property
     def aspect_ratio(self):
         return self.w / self.h
 
 
-class Widget(pygame.sprite.Sprite):
+class AutoSprite(pygame.sprite.Sprite, ABC):
     """
-    Base class for all widgets (GUI elements/Pygame sprites of the Allin game).
+    The AutoSprite class is the parent class of Widget and WidgetComponent that contains the attributes both of them
+    have in common.
     """
 
-    def __init__(self, *rect_args, parent: "Widget" = None, groups=()):
+    def __init__(self, parent: "Widget" or Scene, *rect_args):
         """
         Parameters:
 
@@ -161,32 +195,111 @@ class Widget(pygame.sprite.Sprite):
         :param groups: A tuple of the sprite groups the new widget is part of.
         """
 
-        super().__init__(*groups)
+        super().__init__()
 
         self._rect = AutoRect(*rect_args, parent_rect=parent.rect if parent else None)
-        self._image = pygame.Surface(self._rect.size, pygame.SRCALPHA)
+        self._image = pygame.Surface(self._rect.size, pygame.SRCALPHA)  # Protected attribute
+        self._layer = Layer.DEFAULT
 
         self.parent = parent
-        self.component_group = pygame.sprite.Group()
-        self.anim_group = AnimGroup()
 
-    def update(self, dt):
-        self.anim_group.update(dt)
-        self.component_group.update(dt)
+    def _get_move_anim(self, duration: int or float, end_pos: tuple or Vector2,
+                  unit=None, anchor=None, pivot=None, start_pos: tuple or None = None,
+                  **kwargs) -> MoveAnimation or None:
+        if duration > 0:
+            return MoveAnimation(duration, self, start_pos, end_pos, unit, anchor, pivot, **kwargs)
+        else:
+            self.set_pos(*end_pos, unit, anchor, pivot)
+            return None
+
+    """
+    Getters and setters
+    """
 
     def set_pos(self, x, y, unit=None, anchor=None, pivot=None):
         self._rect.set_pos(x, y, unit, anchor, pivot)
-        # TODO When the position of a widget is changed, update the global rect of the widget's children
-        #  (and their children, and so on).
+
+    def get_pos(self, unit=None, anchor=None, pivot=None):
+        return self._rect.get_pos(unit, anchor, pivot)
 
     @property
-    def rect(self):
+    def is_root_widget(self) -> bool:
+        return issubclass(type(self.parent), Scene)
+
+    @property
+    def rect(self) -> AutoRect:
         return self._rect
 
     @rect.setter
-    def rect(self, rect):
+    def rect(self, rect: pygame.Rect or AutoRect):
         self._rect.update(*rect)
 
     @property
-    def image(self):
+    def image(self) -> pygame.Surface:
         return self._image
+
+    @image.setter
+    def image(self, image: pygame.Surface):
+        self._image = image
+        self._rect.set_size(*image.get_size())
+
+    @property
+    def layer(self) -> int:
+        return self._layer
+
+    @layer.setter
+    def layer(self, layer: int):
+        self._layer = layer
+        self.parent.all_sprites.change_layer(self, layer)
+
+
+class Widget(AutoSprite):
+    def __init__(self, parent: "Widget" or Scene, *rect_args):
+        if not issubclass(type(parent), Scene) and not issubclass(type(parent), Widget):
+            raise TypeError("the parent must either be a scene or a widget")
+
+        super().__init__(parent, *rect_args)
+
+        if issubclass(type(parent), Scene):
+            parent.all_sprites.add(self)
+        elif issubclass(type(parent), Widget):
+            parent.children_group.add(self)
+
+        self.children_group = pygame.sprite.Group()
+        self.component_group = pygame.sprite.Group()
+
+        self.anim_group = AnimGroup()
+
+    def move_anim(self, duration: int or float, end_pos: tuple or Vector2, *args, **kwargs) -> MoveAnimation or None:
+        anim = super()._get_move_anim(duration, end_pos, *args, **kwargs)
+        if anim:
+            self.anim_group.add(anim)
+        return anim
+
+    def draw(self):
+        self.image.fill((0, 0, 0, 0))
+        self.children_group.draw(self.image)
+        self.component_group.draw(self.image)
+
+    def update(self, dt):
+        self.anim_group.update(dt)
+
+        if self.children_group.sprites() or self.component_group.sprites():
+            self.children_group.update(dt)
+            self.component_group.update(dt)
+            self.draw()
+
+
+class WidgetComponent(AutoSprite):
+    def __init__(self, parent: Widget, *rect_args):
+        if not issubclass(type(parent), Widget):
+            raise TypeError("widget components must have a widget for a parent")
+
+        super().__init__(parent, *rect_args)
+        self.parent.component_group.add(self)
+
+    def move_anim(self, duration: int or float, end_pos: tuple or Vector2, *args, **kwargs) -> MoveAnimation or None:
+        anim = super()._get_move_anim(duration, end_pos, *args, **kwargs)
+        if anim:
+            self.parent.anim_group.add(anim)
+        return anim

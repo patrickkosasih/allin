@@ -61,7 +61,8 @@ class KeyBroadcaster:
 
 
 class Layer:
-    BACKGROUND = 0
+    BACKGROUND = -1
+    DEFAULT = 0
     TABLE = 1
     TABLE_TEXT = 2
     WINNER_CROWN = 3

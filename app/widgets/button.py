@@ -4,17 +4,18 @@ import pygame.gfxdraw
 
 from app.animations.anim_group import AnimGroup
 from app.shared import *
-from app.widgets.widget import Widget
+from app.widgets.widget import Widget, WidgetComponent
 
 
 class Button(Widget):
     DEFAULT_COLOR = (43, 193, 193)
 
-    def __init__(self, *rect_args, color=DEFAULT_COLOR, command: Callable = None,
+    def __init__(self, parent, *rect_args,
+                 color=DEFAULT_COLOR, command: Callable = None,
                  text_str="", text_color=(255, 255, 255), font: pygame.font.Font = None,
                  b_color=None, b_thickness=0, rrr=0,
                  icon: pygame.Surface or None = None, icon_size: float = 1.0,
-                 text_align="middle", icon_align="left", text_align_offset=0, **kwargs):
+                 text_align="middle", icon_align="left", text_align_offset=0):
 
         """
         Parameters:
@@ -40,7 +41,7 @@ class Button(Widget):
                                   Text y pos = Original text y pos +- (Button height * Text align offset).
         """
 
-        super().__init__(*rect_args, **kwargs)
+        super().__init__(parent, *rect_args)
 
         """
         General button attributes
@@ -71,14 +72,12 @@ class Button(Widget):
         """
 
         # Base
-        self.base = pygame.sprite.Sprite(self.component_group)
-        self.base.image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        self.base.rect = self.base.image.get_rect(topleft=(0, 0))
-
+        self.base = WidgetComponent(self, 0, 0, 100, 100, "%", "ctr", "ctr")
         self.draw_base()
 
         # Text
-        self.text = pygame.sprite.Sprite(self.component_group)
+        self.text = WidgetComponent(self, 0, 0, 100, 100, "%", "ctr", "ctr")
+
         self.font = font if font else FontSave.get_font(4)
         self.text_str = text_str
         self.text_align = text_align
@@ -87,7 +86,8 @@ class Button(Widget):
         self.set_text(self.text_str)
 
         # Icon
-        self.icon = pygame.sprite.Sprite(self.component_group)
+        self.icon = WidgetComponent(self, 0, 0, 0, 0, "%", "ml", "ml")
+
         self.icon_size = icon_size
         self.icon_align = icon_align
 

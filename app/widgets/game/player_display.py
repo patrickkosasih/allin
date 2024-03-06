@@ -7,6 +7,7 @@ from app.shared import *
 from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
 from app.animations.interpolations import ease_out
+from app.widgets.widget import Widget, WidgetComponent
 
 DEFAULT_HEAD_COLOR = 95, 201, 123
 DEFAULT_SUB_COLOR = 32, 46, 38
@@ -30,7 +31,7 @@ class ComponentCodes:
     PROFILE_PIC = 5
 
 
-class PlayerDisplay(pygame.sprite.Sprite):
+class PlayerDisplay(Widget):
     """
     The `PlayerDisplay` class is the GUI representation of a player. Each player display has two main parts: the head
     and the sub. The head has 4 components, while the sub has 2 components.
@@ -52,19 +53,14 @@ class PlayerDisplay(pygame.sprite.Sprite):
     2. Winner crown
     """
 
-    def __init__(self, pos, dimensions, player_data: rules.game_flow.Player):
-        super().__init__()
-        self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=pos)
+    def __init__(self, parent, *rect_args, player_data: rules.game_flow.Player):
+        super().__init__(parent, *rect_args)
         self.layer = Layer.PLAYER
-
-        self.anim_group = AnimGroup()
 
         """
         Player display components
         """
         self.components = {}
-        self.component_group = pygame.sprite.Group()
 
         self.pocket_cards = pygame.sprite.Group()
         # Note: Pocket cards are separate from player displays.
@@ -90,7 +86,7 @@ class PlayerDisplay(pygame.sprite.Sprite):
         Each component is put into the `self.components` dict and added to the `self.component_group` sprite group.
         """
         for i in range(6):
-            self.components[i] = pygame.sprite.Sprite()
+            self.components[i] = WidgetComponent(self, 0, 0, 0, 0)
             self.redraw_component(i)
             self.component_group.add(self.components[i])
 
@@ -98,6 +94,8 @@ class PlayerDisplay(pygame.sprite.Sprite):
         self.component_group.draw(self.image)
 
     def redraw_component(self, component_code: int):
+        # TODO Code the player display's component system from scratch
+
         if not 0 <= component_code <= 5:
             raise ValueError(f"component_code must be a constant from the Component class, got: {component_code}")
 
@@ -105,7 +103,7 @@ class PlayerDisplay(pygame.sprite.Sprite):
         w_head, h_head = w, 0.7 * h
         w_sub, h_sub = 0.8 * w, 0.3 * h
 
-        component = self.components[component_code]
+        component: WidgetComponent = self.components[component_code]
 
         match component_code:
             case ComponentCodes.SUB_BASE:
@@ -207,3 +205,13 @@ class PlayerDisplay(pygame.sprite.Sprite):
             self.anim_group.update(dt)
             self.image.fill((0, 0, 0, 0))
             self.component_group.draw(self.image)
+
+    """
+    Component getters using property
+    """
+    sub_base = property(lambda self: self.components[ComponentCodes.SUB_BASE])
+    sub_text = property(lambda self: self.components[ComponentCodes.SUB_TEXT])
+    head_base = property(lambda self: self.components[ComponentCodes.HEAD_BASE])
+    name_text = property(lambda self: self.components[ComponentCodes.NAME_TEXT])
+    money_text = property(lambda self: self.components[ComponentCodes.MONEY_TEXT])
+    profile_pic = property(lambda self: self.components[ComponentCodes.PROFILE_PIC])

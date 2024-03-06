@@ -5,6 +5,7 @@ from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
 from app.shared import Layer
 from app.animations.card_flip import CardFlipAnimation
+from app.widgets.widget import Widget
 
 SUIT_SPRITE_PATHS = {
     "S": "assets/sprites/card/spades.png",
@@ -14,7 +15,7 @@ SUIT_SPRITE_PATHS = {
 }
 
 
-class Card(pygame.sprite.Sprite):
+class Card(Widget):
     """
     The card sprite represents a single card, whether it's a pocket card or a community card.
 
@@ -34,33 +35,25 @@ class Card(pygame.sprite.Sprite):
     # Shared font object
     font = None
 
-    def __init__(self, pos: tuple, card_data: rules.basic.Card or None = None):
+    def __init__(self, parent, x, y, unit="px", anchor="tl", pivot="ctr", card_data: rules.basic.Card or None = None):
         """
         Initialize the card. Before initializing a card, the global size of the card class must be defined by calling
         the static `set_size` method.
-
-        :param pos:
-        :param card_data:
         """
 
-        super().__init__()
-
-        """
-        Global scale
-        """
         if Card.global_height <= 0:
             raise ValueError("the set_size method must be called before creating a card widget")
+
+
+        super().__init__(parent, x, y, self.global_width, self.global_height, unit, anchor, pivot)
 
         """
         Sprite
         """
         self.card_front = Card.card_base.copy()
 
-        self.image = Card.card_back
-        self.rect = self.image.get_rect(center=pos)
+        self._image = Card.card_back
         self.layer = Layer.CARD
-
-        self.anim_group = AnimGroup()
 
         """
         Data fields

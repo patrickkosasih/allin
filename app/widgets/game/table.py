@@ -3,12 +3,13 @@ import pygame.gfxdraw
 
 from math import sin, cos, pi
 
+from app.widgets.widget import Widget
 
-class Table(pygame.sprite.Sprite):
-    def __init__(self, pos, dimensions):
-        super().__init__()
-        self.image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/misc/table.png"), dimensions)
-        self.rect = self.image.get_rect(center=pos)
+
+class Table(Widget):
+    def __init__(self, parent, *rect_args):
+        super().__init__(parent, *rect_args)
+        self._image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/misc/table.png"), self.rect.size)
 
     def get_edge_coords(self, degrees: float, scale=(1.0, 1.0)):
         rad = degrees / 180 * pi

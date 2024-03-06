@@ -5,14 +5,14 @@ from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
 from app.widgets.game.player_display import ComponentCodes, PlayerDisplay
 from app.shared import *
-
+from app.widgets.widget import Widget, WidgetComponent
 
 DIMENSIONS_MULT = (1.2, 1.9)
 
 TEXT_COLOR = 255, 226, 148
 
 
-class WinnerCrown(pygame.sprite.Sprite):
+class WinnerCrown(Widget):
     """
     The winner crown is a widget placed behind a player display for the player who has won the deal. A winner crown is
     not part of the player display, but is placed based on the player display's position.
@@ -23,31 +23,21 @@ class WinnerCrown(pygame.sprite.Sprite):
     3. "Winner!" text
     """
 
-    def __init__(self, player: PlayerDisplay):
-        super().__init__()
+    def __init__(self, parent, player: PlayerDisplay):
+        dimensions = elementwise_mult(player.rect.size, DIMENSIONS_MULT)
 
-        dimensions = player.rect.width * DIMENSIONS_MULT[0], player.rect.height * DIMENSIONS_MULT[1]
-
-        """
-        Sprite attributes
-        """
-        self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=player.rect.center)
+        super().__init__(parent, *player.rect.center, *dimensions, "px", "tl", "ctr")
         self.layer = Layer.WINNER_CROWN
 
-        """
-        Misc
-        """
-        self.player = player
-        self.anim_group = AnimGroup()
+        self.player: PlayerDisplay = player
 
         """
         Components
         """
-        self.component_group = pygame.sprite.Group()
-        self.highlight = pygame.sprite.Sprite()
-        self.crown = pygame.sprite.Sprite()
-        self.text = pygame.sprite.Sprite()
+        self.highlight = WidgetComponent(self, 0, 0, 0, 0)
+        self.crown = WidgetComponent(self, 0, 0, 0, 0)
+        self.text = WidgetComponent(self, 0, 0, 0, 0)
+        # TODO Revamp the positioning.
 
         """
         Hidden positions: Positions to go to when the winner crown is reset.

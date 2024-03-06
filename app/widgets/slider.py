@@ -1,14 +1,14 @@
 import pygame
 
 from app.shared import *
-from app.widgets.widget import Widget
+from app.widgets.widget import Widget, WidgetComponent
 
 
 class Slider(Widget):
-    def __init__(self, *rect_args,
+    def __init__(self, parent, *rect_args,
                  min_value=0, max_value=100, default_value=0, int_only=False,
-                 update_func: Callable[[int or float], None] = lambda x: None, **kwargs):
-        super().__init__(*rect_args, **kwargs)
+                 update_func: Callable[[int or float], None] = lambda x: None):
+        super().__init__(parent, *rect_args)
 
         """
         Data fields
@@ -42,17 +42,11 @@ class Slider(Widget):
         d = r * 2  # Diameter = 2r
 
         # Track
-        self.track = pygame.sprite.Sprite(self.component_group)
-
-        self.track.image = pygame.Surface((w - d, h / 4), pygame.SRCALPHA)
-        self.track.rect = self.track.image.get_rect(center=(w / 2, h / 2))
+        self.track = WidgetComponent(self, w / 2, h / 2, w - d, h / 4, "px", "tl", "ctr")
         draw_rounded_rect(self.track.image, self.track.image.get_rect(topleft=(0, 0)), self.track_color)
 
         # Thumb
-        self.thumb = pygame.sprite.Sprite(self.component_group)
-
-        self.thumb.image = pygame.Surface((d, d), pygame.SRCALPHA)
-        self.thumb.rect = self.thumb.image.get_rect(center=self.track.rect.center)
+        self.thumb = WidgetComponent(self, *self.track.rect.center, d, d, "px", "tl", "ctr")
         pygame.gfxdraw.aacircle(self.thumb.image, r, r, r, self.thumb_color)
         pygame.gfxdraw.filled_circle(self.thumb.image, r, r, r, self.thumb_color)
 

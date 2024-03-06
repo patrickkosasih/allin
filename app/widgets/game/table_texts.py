@@ -6,25 +6,20 @@ from app.animations.move import MoveAnimation
 from app.animations.interpolations import *
 
 from app.shared import *
+from app.widgets.widget import Widget, WidgetComponent
 
 
-class TableText(pygame.sprite.Sprite):
-    def __init__(self, pos, dimensions):
-        super().__init__()
-
-        """
-        Sprite attributes
-        """
-        self.image = pygame.Surface(dimensions, pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=pos)
+class TableText(Widget):
+    def __init__(self, parent, *rect_args):
+        super().__init__(parent, *rect_args)
         self.layer = Layer.TABLE_TEXT
 
         """
         Components
         """
         self.component_group = pygame.sprite.Group()
-        self.base = pygame.sprite.Sprite(self.component_group)
-        self.text = pygame.sprite.Sprite(self.component_group)
+        self.base = WidgetComponent(self, 0, 0, 100, 100, "%", "ctr", "ctr")
+        self.text = WidgetComponent(self, 0, 0, 100, 100, "%", "ctr", "ctr")
 
         self.text_str = ""
         self.visible = True
@@ -41,9 +36,6 @@ class TableText(pygame.sprite.Sprite):
         """
         Initialize the components of a table text widget: the base and the text.
         """
-
-        self.base.image = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
-        self.base.rect = self.base.image.get_rect(topleft=(0, 0))
 
         draw_rounded_rect(self.base.image, self.base.rect, (0, 0, 0))
         self.base.image.set_alpha(100)
@@ -74,8 +66,8 @@ class TableText(pygame.sprite.Sprite):
 
 
 class PotText(TableText):
-    def __init__(self, pos, dimensions):
-        super().__init__(pos, dimensions)
+    def __init__(self, parent, *rect_args):
+        super().__init__(parent, *rect_args)
 
         self.pot = 0
         self.set_text("$0")
@@ -98,17 +90,16 @@ class PotText(TableText):
 
 
 class RankingText(TableText):
-    def __init__(self, pos, dimensions):
-        super().__init__(pos, dimensions)
+    def __init__(self, *rect_args, **kwargs):
+        super().__init__(*rect_args, **kwargs)
 
     def set_text_anim(self, text_str: str):
         if text_str == self.text_str:
             return
 
         _, _, w, h = self.rect
-        animation = MoveAnimation(0.25, self.text, None, (w / 2, 3 * h / 2), interpolation=ease_in,
-                                  call_on_finish=lambda: self.__set_text_anim2(text_str))
-        self.anim_group.add(animation)
+        self.text.move_anim(0.25, (0, 100), "%", "ctr", "ctr",
+                            interpolation=ease_in, call_on_finish=lambda: self.__set_text_anim2(text_str))
 
     def __set_text_anim2(self, text_str: str):
         """
@@ -118,5 +109,5 @@ class RankingText(TableText):
         self.set_text(text_str, set_rect=False)
 
         _, _, w, h = self.rect
-        animation = MoveAnimation(0.25, self.text,(w / 2, -h / 2) , (w / 2, h / 2), interpolation=ease_out)
-        self.anim_group.add(animation)
+        self.text.move_anim(0.25, (0, 0), "%", "ctr", "ctr",
+                            start_pos=(0, -100), interpolation=ease_out)
