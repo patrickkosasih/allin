@@ -12,8 +12,9 @@ from app.widgets.game.card import Card
 from app.widgets.game.action_buttons import FoldButton, RaiseButton, CallButton
 from app.widgets.game.dealer_button import DealerButton
 from app.widgets.game.winner_crown import WinnerCrown
-from app.widgets.game.player_display import ComponentCodes, PlayerDisplay
+from app.widgets.game.player_display import PlayerDisplay
 from app.widgets.game.bet_prompt import BetPrompt
+from app.widgets.basic.fps_counter import FPSCounter
 
 from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
@@ -48,7 +49,7 @@ class GameScene(Scene):
         """
         Miscellaneous GUI
         """
-        self.fps_counter = widgets.fps_counter.FPSCounter(self, 0.5, 0.5, 15, 5, "%", "tl", "tl")
+        self.fps_counter = FPSCounter(self, 0.5, 0.5, 15, 5, "%", "tl", "tl")
         self.all_sprites.add(self.fps_counter)
 
         self.flash_fac = 0

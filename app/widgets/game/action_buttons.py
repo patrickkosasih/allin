@@ -3,7 +3,7 @@ import typing
 from abc import ABC, abstractmethod
 
 from app.animations.move import MoveAnimation
-from app.widgets.button import Button
+from app.widgets.basic.button import Button
 from app.animations.interpolations import *
 from app.shared import *
 from rules.game_flow import *

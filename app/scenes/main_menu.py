@@ -2,7 +2,7 @@ import pygame.image
 
 from app.scenes.game_scene import GameScene
 from app.scenes.scene import Scene
-from app.widgets.button import Button
+from app.widgets.basic.button import Button
 from app.shared import *
 
 
