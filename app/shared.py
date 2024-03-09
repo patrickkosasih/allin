@@ -39,27 +39,6 @@ class FontSave:
         )
 
 
-class KeyBroadcaster:
-    """
-    The `KeyBroadcaster` class is used to broadcast a keydown event from the event loop in `app_main.py` to other
-    modules of the entire program. When there is a keydown event, every function on the `key_listeners` list is called
-    with the keydown event as its argument.
-
-    Warning: Unused key listeners are not cleared automatically and may cause memory leaks.
-    """
-
-    key_listeners: list[Callable[[Event], None]] = []
-
-    @staticmethod
-    def add_listener(func: Callable[[Event], None]):
-        KeyBroadcaster.key_listeners.append(func)
-
-    @staticmethod
-    def broadcast(event):
-        for listener in KeyBroadcaster.key_listeners:
-            listener(event)
-
-
 class Layer:
     BACKGROUND = -1
     DEFAULT = 0

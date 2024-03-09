@@ -1,10 +1,11 @@
 import pygame
 
 from app.shared import *
+from app.widgets.listeners import MouseListener
 from app.widgets.widget import Widget, WidgetComponent
 
 
-class Slider(Widget):
+class Slider(MouseListener):
     def __init__(self, parent, *rect_args,
                  min_value=0, max_value=100, default_value=0, int_only=False,
                  update_func: Callable[[int or float], None] = lambda x: None):
@@ -24,12 +25,6 @@ class Slider(Widget):
 
         self.track_color = (100, 100, 100)
         self.thumb_color = (200, 200, 200)
-
-        """
-        Mouse data fields
-        """
-        self.prev_mouse_down = False
-        self.selected = False
 
         """
         Components
@@ -87,27 +82,13 @@ class Slider(Widget):
 
     def update(self, dt):
         """"""
-
-        """
-        Update mouse states
-        """
-        mouse_x, mouse_y = pygame.mouse.get_pos()
-
-        hover = self.rect.global_rect.collidepoint(mouse_x, mouse_y)
-        mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
-
-        if hover and mouse_down and not self.prev_mouse_down:
-            self.selected = True
-        elif not mouse_down:
-            self.selected = False
-
-        self.prev_mouse_down = mouse_down
+        super().update(dt)
 
         """
         Update thumb pos
         """
         if self.selected:
-            self.set_thumb_pos(mouse_x - self.rect.left - self.rect.global_rect.x)
+            self.set_thumb_pos(self.mouse_x - self.rect.left - self.rect.global_rect.x)
             self.on_change()
 
         self.image.fill((0, 0, 0, 0))

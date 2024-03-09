@@ -4,10 +4,11 @@ import pygame.gfxdraw
 
 from app.animations.anim_group import AnimGroup
 from app.shared import *
+from app.widgets.listeners import MouseListener
 from app.widgets.widget import Widget, WidgetComponent
 
 
-class Button(Widget):
+class Button(MouseListener):
     DEFAULT_COLOR = (43, 193, 193)
 
     def __init__(self, parent, *rect_args,
@@ -48,14 +49,6 @@ class Button(Widget):
         """
         self.command = command if command else lambda: None
         self.disabled = False
-
-        """
-        Mouse states
-        """
-        self.hover = False
-        self.mouse_down = False
-        self.prev_mouse_down = False
-        self.selected = False
 
         """
         Button appearance
@@ -171,27 +164,10 @@ class Button(Widget):
             self.image.fill(3 * (-brightness,), special_flags=pygame.BLEND_SUB)
 
     def update(self, dt):
-        mouse_x, mouse_y = pygame.mouse.get_pos()
+        super().update(dt)
 
-        """
-        Update button states
-        """
-        self.hover = self.rect.global_rect.collidepoint(mouse_x, mouse_y)
-        self.mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
-
-        """
-        Update button states and detect button press
-        """
-        if self.hover and not self.mouse_down and self.prev_mouse_down and self.selected:
-            # Button press
+        if self.click:
             self.command()
-
-        if self.hover and self.mouse_down and not self.prev_mouse_down:
-            self.selected = True
-        elif not self.mouse_down:
-            self.selected = False
-
-        self.prev_mouse_down = self.mouse_down
 
         """
         Update button apperance

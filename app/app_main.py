@@ -2,12 +2,10 @@ import sys
 
 import pygame
 
-import app.shared
 from app.scenes.scene import Scene
-from app.scenes.game_scene import GameScene
-from app.scenes.main_menu import MainMenuScene
+from app.scenes.menu.main_menu import MainMenuScene
 from app import app_timer
-
+from app.widgets.listeners import KeyboardListener
 
 WINDOWED_DIMENSIONS = 1280, 720
 FPS = 60
@@ -27,7 +25,7 @@ class App:
         self.running = True
 
         self.scene = MainMenuScene(self)
-        # self.scene = GameScene(self)
+        self.scene_stack = []
 
     def run(self):
         while self.running:
@@ -42,7 +40,7 @@ class App:
                     self.running = False
 
                 if event.type == pygame.KEYDOWN:
-                    app.shared.KeyBroadcaster.broadcast(event)
+                    KeyboardListener.broadcast(event)
 
             app_timer.update_timers(dt)
             self.scene.update(dt)
@@ -50,8 +48,14 @@ class App:
 
         pygame.quit()
 
-    def change_scene(self, scene: Scene):
+    def change_scene(self, scene: Scene, stack=True):
+        if stack:
+            self.scene_stack.append(self.scene)
+
         self.scene = scene
+
+    def back_to_prev_scene(self):
+        self.scene = self.scene_stack.pop(-1)
 
     @staticmethod
     def quit():

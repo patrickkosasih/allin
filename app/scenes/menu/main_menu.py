@@ -1,6 +1,7 @@
 import pygame.image
 
 from app.scenes.game_scene import GameScene
+from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
 from app.widgets.basic.button import Button
 from app.shared import *
@@ -36,4 +37,4 @@ class MainMenuScene(Scene):
                                   command=self.app.quit)
 
     def singleplayer_click(self):
-        self.app.change_scene(GameScene(self.app))
+        self.app.change_scene(SingleplayerMenuScene(self.app))

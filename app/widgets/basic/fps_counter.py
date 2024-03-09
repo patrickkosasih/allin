@@ -1,10 +1,11 @@
 import pygame
 
-from app.shared import FontSave, KeyBroadcaster
+from app.shared import FontSave
+from app.widgets.listeners import KeyboardListener
 from app.widgets.widget import Widget
 
 
-class FPSCounter(Widget):
+class FPSCounter(KeyboardListener, Widget):
     """
     The FPS counter shows the FPS, average delta time, and max delta time on the last second.
     Press F3 to toggle the FPS counter.
@@ -21,7 +22,6 @@ class FPSCounter(Widget):
         self.max_dt = 0
 
         self.shown = False
-        KeyBroadcaster.add_listener(self.key_down)
 
     def draw(self):
         self.image = FontSave.get_font(2).render(f"{self.fps:.0f} FPS;      "

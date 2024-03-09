@@ -7,6 +7,7 @@ from app.widgets.game.action_buttons import COLORS, SideTextedButton
 from app.widgets.basic.button import Button
 from app.widgets.basic.slider import Slider
 from app.shared import *
+from app.widgets.listeners import KeyboardListener
 from app.widgets.widget import Widget
 
 from rules.game_flow import Actions
@@ -106,7 +107,7 @@ class BetSlider(Slider):
         self.on_change()
 
 
-class BetConfirmButton(SideTextedButton):
+class BetConfirmButton(KeyboardListener, SideTextedButton):
     def __init__(self, prompt, *rect_args, **kwargs):
         super().__init__(prompt, *rect_args,
                          color=COLORS["raise"], text_str="", command=self.on_click,
@@ -118,8 +119,6 @@ class BetConfirmButton(SideTextedButton):
         self.current_bet_input = 0
         self.blink_timer = 0
         self.blink = False
-
-        KeyBroadcaster.add_listener(self.key_down)
 
     def on_click(self):
         bet_result = self.prompt.player.action(Actions.BET, self.prompt.bet_amount)
