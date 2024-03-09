@@ -13,46 +13,56 @@ class MouseListener(Widget, ABC):
     Panel. Mouse states are stored in the class' attribute, and mouse events are read and handled in the update method.
     """
 
+    all_instances: list["MouseListener"] = []
+
+    mouse_x = 0
+    mouse_y = 0
+
+    mouse_down = False
+
     def __init__(self, parent, *rect_args):
         super().__init__(parent, *rect_args)
+        MouseListener.all_instances.append(self)
 
-        self.mouse_x = 0
-        self.mouse_y = 0
-
-        self.hover = False
-        self.mouse_down = False
-        self.prev_mouse_down = False
-
-        self.click = False
         self.selected = False
 
-    def update(self, dt):
-        """"""
+    def __del__(self):
+        MouseListener.all_instances.remove(self)
 
-        """
-        Updated every tick
-        """
-        self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+    @staticmethod
+    def broadcast(event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            MouseListener.mouse_down = True
+            for listener in MouseListener.all_instances:
+                listener.on_mouse_down(event)
 
-        self.hover = self.rect.global_rect.collidepoint(self.mouse_x, self.mouse_y)
-        self.mouse_down = pygame.mouse.get_pressed()[0]  # Left mouse button
+        elif event.type == pygame.MOUSEBUTTONUP:
+            MouseListener.mouse_down = False
+            for listener in MouseListener.all_instances:
+                listener.on_mouse_up(event)
 
-        """
-        Mouse up -> Mouse down
-        """
-        if self.mouse_down and not self.prev_mouse_down:
-            self.selected = self.hover
+        elif event.type == pygame.MOUSEWHEEL:
+            for listener in MouseListener.all_instances:
+                listener.on_mouse_scroll(event)
 
-        """
-        Mouse down -> Mouse up
-        """
-        if self.prev_mouse_down and not self.mouse_down:
-            self.click = self.hover and self.selected
-            self.selected = False
-        else:
-            self.click = False
+    def on_mouse_down(self, event):
+        self.selected = self.hover
 
-        self.prev_mouse_down = self.mouse_down
+    def on_mouse_up(self, event):
+        if self.hover and self.selected:
+            self.on_click(event)
+
+        self.selected = False
+
+    def on_click(self, event):
+        pass
+
+    def on_mouse_scroll(self, event):
+        pass
+
+    @property
+    def hover(self):
+        return self.rect.global_rect.collidepoint(self.mouse_x, self.mouse_y)
 
 
 class KeyboardListener(ABC):

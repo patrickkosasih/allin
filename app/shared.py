@@ -27,15 +27,20 @@ class FontSave:
     font_dict = {}
 
     @staticmethod
-    def get_font(percent_size):
+    def get_font(size, unit="%"):
         """
         Returns a shared font object.
 
-        :param percent_size: The size of the font. Unit: % window height
+        :param size: The size of the font.
+        :param unit: The unit for size. Possible units: "%" - % height (default)
+                                                        "px" - Pixels
         """
+        if unit == "px":
+            size = size / pygame.display.get_window_size()[1] * 100
+
         return FontSave.font_dict.setdefault(
-            percent_size,
-            pygame.font.Font(FontSave.DEFAULT_FONT_PATH, int(h_percent_to_px(percent_size)))
+            size,
+            pygame.font.Font(FontSave.DEFAULT_FONT_PATH, int(h_percent_to_px(size)))
         )
 
 

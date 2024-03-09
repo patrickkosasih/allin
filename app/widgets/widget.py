@@ -177,6 +177,18 @@ class AutoRect(pygame.rect.Rect):
     def aspect_ratio(self):
         return self.w / self.h
 
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def anchor(self):
+        return self._anchor
+
+    @property
+    def pivot(self):
+        return self._pivot
+
 
 class AutoSprite(pygame.sprite.Sprite, ABC):
     """
@@ -278,8 +290,8 @@ class Widget(AutoSprite):
 
     def draw(self):
         self.image.fill((0, 0, 0, 0))
-        self.children_group.draw(self.image)
         self.component_group.draw(self.image)
+        self.children_group.draw(self.image)
 
     def update(self, dt):
         self.anim_group.update(dt)

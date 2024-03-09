@@ -163,11 +163,12 @@ class Button(MouseListener):
         else:
             self.image.fill(3 * (-brightness,), special_flags=pygame.BLEND_SUB)
 
+    def on_click(self, event):
+        if event.button == 1:
+            self.command()
+
     def update(self, dt):
         super().update(dt)
-
-        if self.click:
-            self.command()
 
         """
         Update button apperance

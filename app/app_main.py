@@ -5,7 +5,7 @@ import pygame
 from app.scenes.scene import Scene
 from app.scenes.menu.main_menu import MainMenuScene
 from app import app_timer
-from app.widgets.listeners import KeyboardListener
+from app.widgets.listeners import KeyboardListener, MouseListener
 
 WINDOWED_DIMENSIONS = 1280, 720
 FPS = 60
@@ -41,6 +41,12 @@ class App:
 
                 if event.type == pygame.KEYDOWN:
                     KeyboardListener.broadcast(event)
+
+                if event.type == pygame.MOUSEMOTION:
+                    MouseListener.mouse_x, MouseListener.mouse_y = event.pos
+
+                if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL):
+                    MouseListener.broadcast(event)
 
             app_timer.update_timers(dt)
             self.scene.update(dt)
