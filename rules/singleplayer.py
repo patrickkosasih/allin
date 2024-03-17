@@ -63,18 +63,13 @@ class Bot(Player):
 
 
 class SingleplayerGame(PokerGame):
-    def __init__(self, n_players: int,
-                 call_on_any_action: Callable[[GameEvent], None],
-                 auto_start=False):
+    def __init__(self, n_bots: int, starting_money: int, sb_amount: int):
         super().__init__()
 
-        self.the_player = ThePlayer(self, "YOU", 1000)
+        self.the_player = ThePlayer(self, "YOU", starting_money)
 
-        self.bots = [Bot(self, f"Bot {i + 1}", 1000) for i in range(n_players - 1)]
+        self.bots = [Bot(self, f"Bot {i + 1}", starting_money) for i in range(n_bots)]
         self.players: list[Player] = [self.the_player] + self.bots
 
-        self.call_on_any_action = call_on_any_action
-
-        if auto_start:
-            self.new_deal()
+        self.sb_amount = sb_amount
 

@@ -4,7 +4,7 @@ from app.animations.anim_group import AnimGroup
 from app.animations.interpolations import ease_in, ease_out
 from app.animations.move import MoveAnimation
 from app.widgets.game.action_buttons import COLORS, SideTextedButton
-from app.widgets.basic.button import Button
+from app.widgets.basic.button import Button, CircularButton
 from app.widgets.basic.slider import Slider
 from app.shared import *
 from app.widgets.listeners import KeyboardListener
@@ -31,13 +31,12 @@ class BetPrompt(Widget):
         """
         self.slider = BetSlider(self, 0, 0, 100, 30, "%", "mt", "mt")
         self.confirm_button = BetConfirmButton(self, 0, 0, 50, 50, "%", "br", "br")
-        self.edit_button = BetEditButton(self, -2, 0, 50 / self.rect.aspect_ratio, 50, "%", "mb", "br")
+        self.edit_button = BetEditButton(self, -2, 0, 25, "%", "mb", "br")
 
         """
         Show/hide related attributes
         """
         self.shown = False
-        self.anim_group = AnimGroup()
 
         self.original_pos = self.rect.center
         self.hidden_pos = Vector2(self.original_pos) + Vector2(0, 1.2 * self.rect.height)
@@ -110,7 +109,7 @@ class BetSlider(Slider):
 class BetConfirmButton(KeyboardListener, SideTextedButton):
     def __init__(self, prompt, *rect_args, **kwargs):
         super().__init__(prompt, *rect_args,
-                         color=COLORS["raise"], text_str="", command=self.on_click,
+                         color=COLORS["raise"], text_str="", command=self.command,
                          icon=pygame.image.load("assets/sprites/action icons/confirm bet.png"), icon_size=0.8,
                          **kwargs)
 
@@ -120,7 +119,7 @@ class BetConfirmButton(KeyboardListener, SideTextedButton):
         self.blink_timer = 0
         self.blink = False
 
-    def on_click(self):
+    def command(self):
         bet_result = self.prompt.player.action(Actions.BET, self.prompt.bet_amount)
         if bet_result == 0:
             self.prompt.set_shown(False)
@@ -168,27 +167,16 @@ class BetConfirmButton(KeyboardListener, SideTextedButton):
         super().update(dt)
 
 
-class BetEditButton(Button):
+class BetEditButton(CircularButton):
     def __init__(self, prompt, *rect_args):
         super().__init__(prompt, *rect_args,
-                         command=self.on_click,
+                         command=self.command,
                          color=hsv_factor(COLORS["raise"], sf=0.9, vf=1.2),
                          icon=pygame.image.load("assets/sprites/action icons/edit bet.png"))
 
         self.prompt = prompt
 
-    def draw_base(self):
-        """
-        Draw a circle for the button base instead of a rounded rectangle.
-        """
-        # Overridden from:
-        # draw_rounded_rect(self.base.image, self.base.rect, self.color, self.b_color, self.b_thickness)
-
-        r = int(self.rect.h / 2)
-        pygame.gfxdraw.aacircle(self.base.image, r, r, r, self.color)
-        pygame.gfxdraw.filled_circle(self.base.image, r, r, r, self.color)
-
-    def on_click(self):
+    def command(self):
         self.prompt.set_edit_mode(not self.prompt.edit_mode)
 
     def update(self, dt):

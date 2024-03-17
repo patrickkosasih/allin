@@ -5,6 +5,7 @@ The module that controls the flow of a poker game. This module contains classes 
 poker game, so that every player action follows the rules of Texas Hold'em poker.
 """
 from dataclasses import dataclass
+from typing import Callable
 
 from rules.basic import *
 
@@ -455,19 +456,19 @@ class PokerGame:
     there may be several deals.
     """
 
-    def __init__(self, n_players=0):
+    def __init__(self):
         # Note: In the future players may join in the middle of an ongoing match and the `n_players` parameter won't
         # be necessary.
         self.players = []
+        self.the_player = None
         self.dealer = 0  # The index of `self.players` who becomes the dealer of the current deal.
 
         self.sb_amount = 25  # Small blinds amount. Big blinds = 2 * Small blinds.
-        self.min_bet = 2 * self.sb_amount
 
         self.deal: Deal or None = None
 
-        if n_players >= 2:
-            self.auto_start_game(n_players)
+        self.call_on_any_action: Callable[[GameEvent], None] = lambda x: None
+
 
     def new_deal(self, cycle_dealer=True):
         """
@@ -489,7 +490,6 @@ class PokerGame:
         else:
             return False
 
-    def auto_start_game(self, n_players):
-        self.players = [Player(self, f"Player {i + 1}", 1000) for i in range(n_players)]
-        self.new_deal()
-        self.deal.start_deal()
+    @property
+    def min_bet(self):
+        return 2 * self.sb_amount

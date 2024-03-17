@@ -76,7 +76,7 @@ class Panel(MouseListener):
         """
         if self._scrollable:
             """
-            Scrolling mechanics
+            Set scroll vel
             """
             if self.selected:  # Mouse drag
                 self._scroll_vel = self.mouse_y - self._prev_mouse_y

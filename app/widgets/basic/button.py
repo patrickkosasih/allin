@@ -12,7 +12,7 @@ class Button(MouseListener):
     DEFAULT_COLOR = (43, 193, 193)
 
     def __init__(self, parent, *rect_args,
-                 color=DEFAULT_COLOR, command: Callable = None,
+                 color=DEFAULT_COLOR, command: Callable = None, disabled=False,
                  text_str="", text_color=(255, 255, 255), font: pygame.font.Font = None,
                  b_color=None, b_thickness=0, rrr=0,
                  icon: pygame.Surface or None = None, icon_size: float = 1.0,
@@ -48,7 +48,7 @@ class Button(MouseListener):
         General button attributes
         """
         self.command = command if command else lambda: None
-        self.disabled = False
+        self.disabled = disabled
 
         """
         Button appearance
@@ -59,6 +59,7 @@ class Button(MouseListener):
         self.b_thickness = b_thickness
         self.text_color = text_color
         self.rrr = rrr
+        self._brightness = None
 
         """
         Components
@@ -86,8 +87,7 @@ class Button(MouseListener):
 
         self.set_icon(icon, icon_size)
 
-        # Anim group
-        self.anim_group = AnimGroup()
+        self.draw()
 
     def draw_base(self):
         """
@@ -155,7 +155,7 @@ class Button(MouseListener):
         Fill the image with the BLEND_ADD or BLEND_SUB special flag to brighten/darken the button.
 
         :param brightness: The brightness factor. If the value is negative then the button is darkened. Value must be
-        between -255 to 255.
+                           between -255 to 255.
         """
         if brightness >= 0:
             self.image.fill(3 * (brightness,), special_flags=pygame.BLEND_ADD)
@@ -170,16 +170,40 @@ class Button(MouseListener):
     def update(self, dt):
         super().update(dt)
 
-        """
-        Update button apperance
-        """
-        self.anim_group.update(dt)
+        if self.disabled:
+            self.brighten(-60)
 
-        self.image.fill((0, 0, 0, 0))
-        self.component_group.draw(self.image)
+        else:
+            """
+            Update button apperance based on mouse states
+            """
+            if self.hover:
+                if self.mouse_down:
+                    self.brighten(-30)
+                else:
+                    self.brighten(30)
 
-        if self.hover and not self.disabled:
-            if self.mouse_down:
-                self.brighten(-30)
-            else:
-                self.brighten(30)
+
+class CircularButton(Button):
+    """
+    A button that has a circular base and mouse hover detection.
+    """
+
+    def __init__(self, parent, x, y, r, unit="px", anchor="tl", pivot="tl", **kwargs):
+        w, h = 2 * r, 2 * r
+        if unit == "%":
+            w /= parent.rect.aspect_ratio
+
+        super().__init__(parent, x, y, w, h, unit, anchor, pivot, **kwargs)
+
+    def draw_base(self):
+        r = int(self.rect.h / 2)
+        pygame.gfxdraw.aacircle(self.base.image, r, r, r, self.color)
+        pygame.gfxdraw.filled_circle(self.base.image, r, r, r, self.color)
+
+    @property
+    def hover(self):
+        r = self.rect.h / 2
+        d_sq = (Vector2(self.mouse_x, self.mouse_y) - Vector2(self.rect.global_rect.center)).magnitude_squared()
+        # Distance squared
+        return d_sq < r ** 2

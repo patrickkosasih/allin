@@ -145,7 +145,7 @@ class AutoRect(pygame.rect.Rect):
         pivot = pivot if pivot else self._pivot
 
         anchor_offset = Vector2(*elementwise_mult(AutoRect.ALIGNMENT_FACTORS[anchor], self.parent_rect.size))
-        pivot_offset = Vector2(*elementwise_mult(AutoRect.ALIGNMENT_FACTORS[pivot], self.size))
+        pivot_offset = Vector2(*(elementwise_mult(AutoRect.ALIGNMENT_FACTORS[pivot], self.size)))
         pos = Vector2(self.topleft) - anchor_offset + pivot_offset
 
         if unit == "%":
@@ -156,6 +156,7 @@ class AutoRect(pygame.rect.Rect):
 
     def set_size(self, w, h):
         prev_pos = self.get_pos("px")
+
         self.w, self.h = w, h
         self.set_pos(*prev_pos, "px")
 
@@ -171,7 +172,10 @@ class AutoRect(pygame.rect.Rect):
 
     @property
     def global_rect(self):
-        return self.move(*self.parent_rect.topleft)
+        if issubclass(type(self.parent_rect), AutoRect):
+            return self.move(*self.parent_rect.global_rect.topleft)
+        else:
+            return self
 
     @property
     def aspect_ratio(self):

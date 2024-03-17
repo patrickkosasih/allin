@@ -25,11 +25,13 @@ class MainMenuScene(Scene):
                                          rrr=h_percent_to_px(5), b_thickness=0, color=MAIN_MENU_BUTTON_COLOR,
                                          font=FontSave.get_font(5),
                                          icon=pygame.image.load("assets/sprites/menu icons/multiplayer.png"),
-                                         icon_size=0.6, text_align="bottom", icon_align="middle", text_align_offset=0.04)
+                                         icon_size=0.6, text_align="bottom", icon_align="middle", text_align_offset=0.04,
+                                         command=lambda: print("Multiplayer come'th soon..."))
 
         self.settings_button = Button(self, -11, 25, 20, 10, "%", "ctr", "ctr", text_str="Settings",
                                       b_thickness=0, color=MAIN_MENU_BUTTON_COLOR, font=FontSave.get_font(5),
-                                      icon=pygame.image.load("assets/sprites/menu icons/settings.png"), icon_size=0.8)
+                                      icon=pygame.image.load("assets/sprites/menu icons/settings.png"), icon_size=0.8,
+                                      command=lambda: print("Settings likewise come'th soon..."))
 
         self.quit_button = Button(self, 11, 25, 20, 10, "%", "ctr", "ctr", text_str="Quit",
                                   b_thickness=0, color=MAIN_MENU_BUTTON_COLOR, font=FontSave.get_font(5),

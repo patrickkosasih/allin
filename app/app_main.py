@@ -2,6 +2,7 @@ import sys
 
 import pygame
 
+from app.scenes.game_scene import GameScene
 from app.scenes.scene import Scene
 from app.scenes.menu.main_menu import MainMenuScene
 from app import app_timer
@@ -24,8 +25,9 @@ class App:
         self.clock = pygame.time.Clock()
         self.running = True
 
+        # self.scene = GameScene(self)
         self.scene = MainMenuScene(self)
-        self.scene_stack = []
+        self.scene_stack = []  # Probably unused idk
 
     def run(self):
         while self.running:
@@ -54,7 +56,7 @@ class App:
 
         pygame.quit()
 
-    def change_scene(self, scene: Scene, stack=True):
+    def change_scene(self, scene: Scene, stack=False):
         if stack:
             self.scene_stack.append(self.scene)
 

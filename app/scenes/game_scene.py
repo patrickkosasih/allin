@@ -1,6 +1,6 @@
 import pygame
 
-from rules.game_flow import GameEvent
+from rules.game_flow import GameEvent, PokerGame
 import rules.singleplayer
 
 from app.scenes.scene import Scene
@@ -41,10 +41,11 @@ def player_rotation(i: int, n_players: int) -> float:
 
 ## noinspection PyUnresolvedReferences,PyTypeChecker
 class GameScene(Scene):
-    def __init__(self, app):
+    def __init__(self, app, game: PokerGame):
         super().__init__(app)
 
-        self.game = rules.singleplayer.SingleplayerGame(6, self.receive_event)
+        self.game = game
+        self.game.call_on_any_action = self.receive_event
 
         """
         Miscellaneous GUI

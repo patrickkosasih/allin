@@ -24,27 +24,18 @@ class ActionButton(Button, ABC):
     """
 
     def __init__(self, parent, *rect_args, player: Player, **kwargs):
-        super().__init__(parent, *rect_args,  command=self.on_click, **kwargs)
+        super().__init__(parent, *rect_args, **kwargs)
 
         self.original_pos = Vector2(self.rect.center)
         self.hidden_pos = self.original_pos + Vector2(1.2 * self.rect.width, 0)
 
         self.player = player
 
+        self.maklu = 0
+
     def set_shown(self, shown: bool, duration=0.5):
         new_pos = self.original_pos if shown else self.hidden_pos
-
-        if duration > 0:
-            animation = MoveAnimation(duration, self, None, new_pos, "px", "tl", "ctr",
-                                      interpolation=ease_out if shown else ease_in)
-            self.anim_group.add(animation)
-
-        else:
-            self.set_pos(*new_pos, "px", "tl", "ctr")
-
-    @abstractmethod
-    def on_click(self):
-        pass
+        self.move_anim(duration, new_pos, "px", "tl", "ctr", interpolation=ease_out if shown else ease_in)
 
     @abstractmethod
     def update_bet_amount(self, new_bet_amount: int):
@@ -101,7 +92,7 @@ class FoldButton(ActionButton):
         super().__init__(parent, *rect_args, player=player, color=COLORS["fold"], text_str="Fold",
                          icon=pygame.image.load("assets/sprites/action icons/fold.png"), icon_size=0.8)
 
-    def on_click(self):
+    def on_click(self, event):
         self.player.action(Actions.FOLD)
 
     def update_bet_amount(self, new_bet_amount: int):
@@ -112,7 +103,7 @@ class CallButton(ActionButton, SideTextedButton):
     def __init__(self, parent, *rect_args, player: Player):
         super().__init__(parent, *rect_args, player=player, color=COLORS["call"], text_str="Call")
 
-    def on_click(self):
+    def on_click(self, event):
         self.player.action(Actions.CALL)
 
     def update_bet_amount(self, new_bet_amount: int):
@@ -144,7 +135,7 @@ class RaiseButton(ActionButton):
         self.original_icon = None
         self.original_text = ""
 
-    def on_click(self):
+    def on_click(self, event):
         self.game_scene.show_bet_prompt(not self.game_scene.bet_prompt.shown)
 
         if self.game_scene.bet_prompt.shown:

@@ -14,6 +14,9 @@ class MouseListener(Widget, ABC):
     """
 
     all_instances: list["MouseListener"] = []
+    # FIXME There is a bug where buttons can still get clicked even though they aren't shown on the screen anymore
+    #  (after the scene has been changed). To fix this, move the all_instances list to the Scene class instead of being
+    #  a global variable.
 
     mouse_x = 0
     mouse_y = 0
@@ -27,7 +30,8 @@ class MouseListener(Widget, ABC):
         self.selected = False
 
     def __del__(self):
-        MouseListener.all_instances.remove(self)
+        if self in MouseListener.all_instances:
+            MouseListener.all_instances.remove(self)
 
     @staticmethod
     def broadcast(event):
@@ -75,6 +79,7 @@ class KeyboardListener(ABC):
     """
 
     all_instances: list["KeyboardListener"] = []
+    # FIXME The all instances list should be a Scene attribute instead of a global variable (same as MouseListener).
 
     @staticmethod
     def broadcast(event):
@@ -89,7 +94,8 @@ class KeyboardListener(ABC):
         KeyboardListener.all_instances.append(self)
 
     def __del__(self):
-        KeyboardListener.all_instances.remove(self)
+        if self in KeyboardListener.all_instances:
+            KeyboardListener.all_instances.remove(self)
 
     @abstractmethod
     def key_down(self, event):
