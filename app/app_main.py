@@ -1,4 +1,5 @@
 import sys
+from typing import Callable
 
 import pygame
 
@@ -41,14 +42,19 @@ class App:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-                if event.type == pygame.KEYDOWN:
-                    KeyboardListener.broadcast(event)
+                if event.type in (pygame.KEYDOWN, pygame.KEYUP):
+                    self.scene.broadcast_keyboard(event)
+
+                if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL):
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        MouseListener.mouse_down = True
+                    elif event.type == pygame.MOUSEBUTTONUP:
+                        MouseListener.mouse_down = False
+
+                    self.scene.broadcast_mouse(event)
 
                 if event.type == pygame.MOUSEMOTION:
                     MouseListener.mouse_x, MouseListener.mouse_y = event.pos
-
-                if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL):
-                    MouseListener.broadcast(event)
 
             app_timer.update_timers(dt)
             self.scene.update(dt)

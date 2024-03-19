@@ -5,7 +5,7 @@ from app.widgets.listeners import KeyboardListener
 from app.widgets.widget import Widget
 
 
-class FPSCounter(KeyboardListener, Widget):
+class FPSCounter(KeyboardListener):
     """
     The FPS counter shows the FPS, average delta time, and max delta time on the last second.
     Press F3 to toggle the FPS counter.

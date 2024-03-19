@@ -238,9 +238,12 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
     def get_pos(self, unit=None, anchor=None, pivot=None):
         return self._rect.get_pos(unit, anchor, pivot)
 
-    @property
     def is_root_widget(self) -> bool:
         return issubclass(type(self.parent), Scene)
+
+    @property
+    def scene(self) -> Scene:
+        return self.parent if self.is_root_widget() else self.parent.scene
 
     @property
     def rect(self) -> AutoRect:

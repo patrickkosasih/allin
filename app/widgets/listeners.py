@@ -13,11 +13,6 @@ class MouseListener(Widget, ABC):
     Panel. Mouse states are stored in the class' attribute, and mouse events are read and handled in the update method.
     """
 
-    all_instances: list["MouseListener"] = []
-    # FIXME There is a bug where buttons can still get clicked even though they aren't shown on the screen anymore
-    #  (after the scene has been changed). To fix this, move the all_instances list to the Scene class instead of being
-    #  a global variable.
-
     mouse_x = 0
     mouse_y = 0
 
@@ -25,42 +20,43 @@ class MouseListener(Widget, ABC):
 
     def __init__(self, parent, *rect_args):
         super().__init__(parent, *rect_args)
-        MouseListener.all_instances.append(self)
+        self.scene.mouse_listeners.append(self)
 
         self.selected = False
 
     def __del__(self):
-        if self in MouseListener.all_instances:
-            MouseListener.all_instances.remove(self)
+        if self in self.scene.mouse_listeners:
+            self.scene.mouse_listeners.remove(self)
 
-    @staticmethod
-    def broadcast(event):
+    def receive_mouse_event(self, event: pygame.event.Event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            MouseListener.mouse_down = True
-            for listener in MouseListener.all_instances:
-                listener.on_mouse_down(event)
+            self.on_mouse_down(event)
 
         elif event.type == pygame.MOUSEBUTTONUP:
-            MouseListener.mouse_down = False
-            for listener in MouseListener.all_instances:
-                listener.on_mouse_up(event)
+            self.on_mouse_up(event)
 
         elif event.type == pygame.MOUSEWHEEL:
-            for listener in MouseListener.all_instances:
-                listener.on_mouse_scroll(event)
+            self.on_mouse_scroll(event)
 
+        else:
+            raise ValueError(f"the given event is not a mouse event: {event}")
+
+    # Hook method, but `super().on_mouse_down` must be called.
     def on_mouse_down(self, event):
         self.selected = self.hover
 
+    # Hook method, but `super().on_mouse_up` must be called.
     def on_mouse_up(self, event):
         if self.hover and self.selected:
             self.on_click(event)
 
         self.selected = False
 
+    # Hook method
     def on_click(self, event):
         pass
 
+    # Hook method
     def on_mouse_scroll(self, event):
         pass
 
@@ -69,7 +65,7 @@ class MouseListener(Widget, ABC):
         return self.rect.global_rect.collidepoint(self.mouse_x, self.mouse_y)
 
 
-class KeyboardListener(ABC):
+class KeyboardListener(Widget, ABC):
     """
     The `KeyboardListener` class is used to broadcast a keydown event from the event loop in `app_main.py` to other
     modules of the entire program.
@@ -78,25 +74,26 @@ class KeyboardListener(ABC):
     the said event to every instance of this class.
     """
 
-    all_instances: list["KeyboardListener"] = []
-    # FIXME The all instances list should be a Scene attribute instead of a global variable (same as MouseListener).
-
-    @staticmethod
-    def broadcast(event):
-        """
-        This method is called by the event loop in `app_main.py`.
-        """
-        for listener in KeyboardListener.all_instances:
-            listener.key_down(event)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        KeyboardListener.all_instances.append(self)
+    def __init__(self, parent, *rect_args, **kwargs):
+        super().__init__(parent, *rect_args, **kwargs)
+        self.scene.keyboard_listeners.append(self)
 
     def __del__(self):
-        if self in KeyboardListener.all_instances:
-            KeyboardListener.all_instances.remove(self)
+        if self in self.scene.keyboard_listeners:
+            self.scene.keyboard_listeners.remove(self)
 
-    @abstractmethod
+    def receive_keyboard_event(self, event: pygame.event.Event):
+        if event.type == pygame.KEYDOWN:
+            self.key_down(event)
+        elif event.type == pygame.KEYUP:
+            self.key_up(event)
+        else:
+            raise ValueError(f"the given event is not a keyboard event: {event}")
+
+    # Hook method
     def key_down(self, event):
+        pass
+
+    # Hook method
+    def key_up(self, event):
         pass

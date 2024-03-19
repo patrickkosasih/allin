@@ -87,9 +87,10 @@ class Player:
         else:
             return None
 
+    # Hook method: Can be overridden by subclasses as an interface.
     def receive_event(self, game_event: GameEvent):
         """
-        Semi-abstract method: Calls every time any player makes an action.
+        A hook method that is called every time any player makes an action.
         """
         pass
 
