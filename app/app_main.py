@@ -19,7 +19,10 @@ class App:
 
         pygame.display.set_caption("Allin")
         pygame.display.set_icon(pygame.image.load("assets/sprites/misc/icon.png"))
+
         pygame.key.set_repeat(500, 50)
+        pygame.mixer.init()
+        pygame.mixer.set_num_channels(32)
 
         # self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -71,7 +74,5 @@ class App:
     def back_to_prev_scene(self):
         self.scene = self.scene_stack.pop(-1)
 
-    @staticmethod
-    def quit():
-        pygame.quit()
-        sys.exit()
+    def quit(self):
+        self.running = False

@@ -3,6 +3,7 @@ import pygame
 import rules.basic
 from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
+from app.audio import play_sound
 from app.shared import Layer
 from app.animations.card_flip import CardFlipAnimation
 from app.widgets.widget import Widget
@@ -111,7 +112,7 @@ class Card(Widget):
         big_suit_rect = big_suit.get_rect(bottomright=big_suit_pos)
         self.card_front.blit(big_suit, big_suit_rect)
 
-    def reveal(self, duration=0.4):
+    def reveal(self, duration=0.4, sfx=True):
         """
         Reveal the front side of the card with a card flip animation.
         """
@@ -119,10 +120,12 @@ class Card(Widget):
             self.draw_card_front()
             self.image = self.card_front.copy()
             self.is_revealed = True
-
         else:
             animation = CardFlipAnimation(duration, self)
             self.anim_group.add(animation)
+
+        if sfx:
+            play_sound("assets/audio/game/card/flip.mp3")
 
     def set_highlight_alpha(self, alpha: int):
         """

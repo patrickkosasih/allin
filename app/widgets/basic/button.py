@@ -3,6 +3,7 @@ import pygame.sprite
 import pygame.gfxdraw
 
 from app.animations.anim_group import AnimGroup
+from app.audio import play_sound
 from app.shared import *
 from app.widgets.listeners import MouseListener
 from app.widgets.widget import Widget, WidgetComponent
@@ -166,6 +167,7 @@ class Button(MouseListener):
     def on_click(self, event):
         if event.button == 1:
             self.command()
+            play_sound("assets/audio/click.mp3")
 
     def update(self, dt):
         super().update(dt)

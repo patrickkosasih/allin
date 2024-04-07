@@ -24,14 +24,12 @@ class ActionButton(Button, ABC):
     """
 
     def __init__(self, parent, *rect_args, player: Player, **kwargs):
-        super().__init__(parent, *rect_args, **kwargs)
+        super().__init__(parent, *rect_args, command=self.command, **kwargs)
 
         self.original_pos = Vector2(self.rect.center)
         self.hidden_pos = self.original_pos + Vector2(1.2 * self.rect.width, 0)
 
         self.player = player
-
-        self.maklu = 0
 
     def set_shown(self, shown: bool, duration=0.5):
         new_pos = self.original_pos if shown else self.hidden_pos
@@ -39,6 +37,10 @@ class ActionButton(Button, ABC):
 
     @abstractmethod
     def update_bet_amount(self, new_bet_amount: int):
+        pass
+
+    @abstractmethod
+    def command(self):
         pass
 
 
@@ -92,7 +94,7 @@ class FoldButton(ActionButton):
         super().__init__(parent, *rect_args, player=player, color=COLORS["fold"], text_str="Fold",
                          icon=pygame.image.load("assets/sprites/action icons/fold.png"), icon_size=0.8)
 
-    def on_click(self, event):
+    def command(self):
         self.player.action(Actions.FOLD)
 
     def update_bet_amount(self, new_bet_amount: int):
@@ -103,7 +105,7 @@ class CallButton(ActionButton, SideTextedButton):
     def __init__(self, parent, *rect_args, player: Player):
         super().__init__(parent, *rect_args, player=player, color=COLORS["call"], text_str="Call")
 
-    def on_click(self, event):
+    def command(self):
         self.player.action(Actions.CALL)
 
     def update_bet_amount(self, new_bet_amount: int):
@@ -135,7 +137,7 @@ class RaiseButton(ActionButton):
         self.original_icon = None
         self.original_text = ""
 
-    def on_click(self, event):
+    def command(self):
         self.game_scene.show_bet_prompt(not self.game_scene.bet_prompt.shown)
 
         if self.game_scene.bet_prompt.shown:

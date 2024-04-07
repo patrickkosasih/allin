@@ -1,8 +1,8 @@
 import pygame.image
 
-from app.scenes.game_scene import GameScene
 from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
+from app.widgets.basic.game_bg import GameBackground
 from app.widgets.basic.button import Button
 from app.shared import *
 
@@ -13,6 +13,8 @@ MAIN_MENU_BUTTON_COLOR = (24, 31, 37, 128)
 class MainMenuScene(Scene):
     def __init__(self, app):
         super().__init__(app)
+
+        self.background = GameBackground(self, 0, 0, 100, 100, "%", "ctr", "ctr")
 
         self.singleplayer_button = Button(self, -11, -7.5, 20, 50, "%", "ctr", "ctr", text_str="Singleplayer",
                                           rrr=h_percent_to_px(5), b_thickness=0, color=MAIN_MENU_BUTTON_COLOR,

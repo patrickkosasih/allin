@@ -245,7 +245,7 @@ class Deal:
 
         player: PlayerHand = self.get_current_player()
 
-        action_broadcast = GameEvent(code=GameEvent.ANY_ACTION,
+        action_broadcast = GameEvent(code=GameEvent.ANY_ACTION if not blinds else GameEvent.DEAL_START,
                                      prev_player=self.current_turn,
                                      next_player=self.get_next_turn(),
                                      message="")
@@ -304,7 +304,7 @@ class Deal:
         # endregion
 
         if player.all_in:
-            action_broadcast.message = "all-in"
+            action_broadcast.message = "all in"
 
         player.last_action = action_broadcast.message
 
@@ -376,12 +376,12 @@ class Deal:
             self.broadcast(GameEvent(GameEvent.SKIP_ROUND, -1, -1, ""))
 
         else:
-            # Broadcast new round event
+            # Broadcast round event
             self.broadcast(GameEvent(GameEvent.NEW_ROUND, -1, -1, ""))
 
     def start_new_round(self):
         """
-        Start the new betting round by broadcasting the "start new round" game event to all players. This function
+        Start the new betting round by broadcasting the "start round" game event to all players. This function
         should be only called after calling the `next_round` method.
         """
 

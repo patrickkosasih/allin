@@ -1,5 +1,7 @@
 import pygame
 
+from app.audio import play_sound
+from app.widgets.basic.game_bg import GameBackground
 from rules.game_flow import GameEvent, PokerGame
 import rules.singleplayer
 
@@ -122,8 +124,20 @@ class GameScene(Scene):
                 action_str += f" ${event.bet_amount:,}"
                 self.pot_text.set_text_anim(self.game.deal.pot)
 
+                play_sound("assets/audio/game/actions/money.mp3")  # Money sound effect
+
             self.players.sprites()[event.prev_player].set_sub_text_anim(action_str)
             self.players.sprites()[event.prev_player].update_money()
+
+        """
+        Action sound effect
+        """
+        if event.code == GameEvent.DEAL_START:
+            if event.prev_player == self.game.deal.blinds[0]:
+                play_sound("assets/audio/game/rounds/blinds.mp3")
+
+        elif event.message:
+            play_sound(f"assets/audio/game/actions/{event.message}.mp3")
 
         """
         Show/hide action buttons
@@ -169,6 +183,7 @@ class GameScene(Scene):
         """
 
         self.hide_dealer_button()
+        play_sound("assets/audio/game/player/slide.mp3")
 
         old_group = self.players.copy()
         self.players.empty()
@@ -259,6 +274,7 @@ class GameScene(Scene):
         Deals the pocket cards to all players and also moves the dealer button.
         """
         self.move_dealer_button()
+        play_sound("assets/audio/game/card/deal cards.mp3")
 
         for i, player_display in enumerate(self.players.sprites()):
             for j in range(2):  # Every player has 2 pocket cards
@@ -337,12 +353,17 @@ class GameScene(Scene):
         :param skip_round:
         """
 
+        ROUND_NAMES = {3: "flop", 4: "turn", 5: "river"}
+
         if self.game.deal.winners:
             return
 
         for player in self.players.sprites():
             player.set_sub_text_anim("All in" if player.player_data.player_hand.all_in else "")
 
+        """
+        Show next community cards
+        """
         for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
             card_data = self.game.deal.community_cards[i]
 
@@ -354,7 +375,20 @@ class GameScene(Scene):
 
             self.community_cards.add(card)
 
+        """
+        Card sliding sound effect
+        """
+        play_sound(f"assets/audio/game/card/slide/{ROUND_NAMES[len(self.community_cards)]}.mp3")
+
+        app_timer.Timer(2 + len(self.community_cards) / 8,
+            lambda: play_sound(f"assets/audio/game/rounds/{ROUND_NAMES[len(self.community_cards)]}.mp3")
+        )
+
+        """
+        Update hand ranking
+        """
         anim_delay = 2 + len(self.community_cards) / 8
+
         ranking_int = self.game.the_player.player_hand.hand_ranking.ranking_type
         ranking_str = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
         if self.game.the_player.player_hand.folded:
@@ -363,14 +397,20 @@ class GameScene(Scene):
         app_timer.Timer(anim_delay, self.ranking_text.set_text_anim, (ranking_str,))
         app_timer.Timer(anim_delay + 0.25, self.highlight_cards)
 
+        """
+        Hide blinds button on flop
+        """
         if len(self.game.deal.community_cards) == 3:
             app_timer.Timer(2, self.ranking_text.set_visible, (True,))
             self.hide_blinds_button()
 
+        """
+        Start or skip round
+        """
         if skip_round:
-            app_timer.Timer(anim_delay, self.game.deal.next_round)  # Skip round
+            app_timer.Timer(anim_delay + 0.1, self.game.deal.next_round)  # Skip round
         else:
-            app_timer.Timer(anim_delay + 0.25, self.game.deal.start_new_round)  # Start new round
+            app_timer.Timer(anim_delay + 0.25, self.game.deal.start_new_round)  # Start round
 
     def showdown(self):
         """
@@ -385,11 +425,13 @@ class GameScene(Scene):
         """
         Show all pocket cards
         """
+        play_sound("assets/audio/game/card/reveal cards.mp3")
+
         for player_display in self.players.sprites():
             if player_display.player_data is not self.game.the_player:
                 for i, card in enumerate(player_display.pocket_cards.sprites()):
                     card.card_data = player_display.player_data.player_hand.pocket_cards[i]
-                    card.reveal(random.uniform(1, 1.5))
+                    card.reveal(random.uniform(1, 1.5), sfx=False)
 
         """
         Get a sorted list of player indexes sorted from the lowest hand ranking to the winners.
@@ -423,7 +465,9 @@ class GameScene(Scene):
         """
         if i >= len(sorted_players):
             """
-            Flash the screen and set the pot text to 0 when revealing the winner
+            Execute once when revealing the winner(s):
+            
+            Flash the screen, set the pot text to 0, and play the win sound effect.
             """
             def set_flash_fac(flash_fac):
                 self.flash_fac = int(flash_fac)
@@ -434,19 +478,34 @@ class GameScene(Scene):
             self.pot_text.set_text_anim(0)
             app_timer.Timer(0.25, self.highlight_cards, (True,))
 
+            play_sound("assets/audio/game/showdown/win.mp3")
+
             return
 
         player_display = self.players.sprites()[sorted_players[i]]
         player_hand = player_display.player_data.player_hand
 
-        # Update sub text to hand ranking
+        rank_number = len(sorted_players) - len(self.game.deal.winners) - i + 1
+        # e.g. rank_number = 2 -> The current player is the player placing in 2nd place.
+
+        """
+        Update sub text to hand ranking
+        """
         ranking_int = player_hand.hand_ranking.ranking_type
         ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
         player_display.set_sub_text_anim(ranking_text)
 
+        """
+        Ranking reveal sound effect
+        """
+        try:
+            play_sound(f"assets/audio/game/showdown/reveal {rank_number}.mp3")
+        except FileNotFoundError:
+            pass
+
         if player_hand in self.game.deal.winners:
             """
-            Reveal the winner
+            Reveal the winner(s)
             """
             # Create a winner crown
             winner_crown = WinnerCrown(self, player_display)
@@ -460,7 +519,10 @@ class GameScene(Scene):
             self.reveal_rankings(sorted_players, i + 1)
 
         else:
-            next_player_delay = 1 / (len(sorted_players) - len(self.game.deal.winners) - i + 1)
+            """
+            Reveal the next loser(s)
+            """
+            next_player_delay = 1 / rank_number
             app_timer.Timer(next_player_delay, self.reveal_rankings, args=(sorted_players, i + 1))
 
     def new_deal(self):
@@ -492,6 +554,8 @@ class GameScene(Scene):
                 card.move_anim(random.uniform(1.5, 2), card_end_pos)
 
             player.set_sub_text_anim("")  # Reset sub text
+
+        play_sound("assets/audio/game/card/deal cards.mp3")
 
         # Community cards
         for card, rot in zip(self.community_cards.sprites(), COMM_CARD_ROTATIONS):
