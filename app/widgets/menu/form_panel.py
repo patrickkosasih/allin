@@ -76,14 +76,10 @@ class FormPanel(Panel):
     """
 
     def __init__(self, parent: "Widget" or Scene, *rect_args, panel_unit="%",
-                 entry_height=10, entry_horizontal_margin=2, **kwargs):
+                 entry_horizontal_margin=5, **kwargs):
 
         super().__init__(parent, *rect_args, panel_unit=panel_unit, **kwargs)
 
-        if panel_unit == "%":
-            entry_height = self.rect.h * entry_height / 100  # Convert % into px
-
-        self.entry_height = entry_height
         self.entry_hz_margin = entry_horizontal_margin
 
         self.entry_dict = {}  # {field name: entry widget}
@@ -92,10 +88,7 @@ class FormPanel(Panel):
         if field_name in self.entry_dict:
             raise ValueError(f"field name already exists: {field_name}")
 
-        w = self.rect.w - 2 * self._outer_margin
-        h = self.entry_height
-
-        entry = FormEntry(self, 0, 0, w, h, "px", "tl", "tl",
+        entry = FormEntry(self, *self.next_pack_rect, "px", "tl", "tl",
                           entry_label_text=label_text, horizontal_margin=self.entry_hz_margin,
                           **entry_kwargs)
 
@@ -105,10 +98,7 @@ class FormPanel(Panel):
         return entry
 
     def add_header(self, header_text: str) -> FormHeader:
-        w = self.rect.w - 2 * self._outer_margin
-        h = self.entry_height
-
-        header = FormHeader(self, 0, 0, w, h, "px", "tl", "tl", header_text=header_text)
+        header = FormHeader(self, *self.next_pack_rect, "px", "tl", "tl", header_text=header_text)
         self.add_scrollable(header)
 
         self._next_row_y += self._inner_margin

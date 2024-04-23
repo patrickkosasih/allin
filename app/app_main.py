@@ -4,6 +4,7 @@ from typing import Callable
 import pygame
 
 from app.scenes.game_scene import GameScene
+from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
 from app.scenes.menu.main_menu import MainMenuScene
 from app import app_timer
@@ -31,7 +32,6 @@ class App:
 
         # self.scene = GameScene(self)
         self.scene = MainMenuScene(self)
-        self.scene_stack = []  # Probably unused idk
 
     def run(self):
         while self.running:
@@ -65,14 +65,26 @@ class App:
 
         pygame.quit()
 
-    def change_scene(self, scene: Scene, stack=False):
-        if stack:
-            self.scene_stack.append(self.scene)
+    def change_scene(self, scene: Scene or str, **kwargs):
+        if issubclass(type(scene), Scene):
+            self.scene = scene
 
-        self.scene = scene
+        elif type(scene) is str:
+            match scene:
+                case "mainmenu":
+                    self.scene = MainMenuScene(self)
 
-    def back_to_prev_scene(self):
-        self.scene = self.scene_stack.pop(-1)
+                case "singleplayer":
+                    self.scene = SingleplayerMenuScene(self)
+
+                case "game":
+                    self.scene = GameScene(self, **kwargs)
+
+                case _:
+                    raise ValueError(f"invalid scene key string: {scene}")
+
+        else:
+            raise TypeError("the scene argument must be a string or an instance of Scene")
 
     def quit(self):
         self.running = False

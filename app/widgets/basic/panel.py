@@ -2,7 +2,6 @@ from typing import Type
 
 import pygame
 
-from app.scenes.scene import Scene
 from app.widgets.listeners import MouseListener
 from app.widgets.widget import Widget, WidgetComponent
 from app.shared import *
@@ -19,23 +18,25 @@ class Panel(MouseListener):
     scroll wheel.
     """
 
-    def __init__(self, parent: "Widget" or Scene, *rect_args, panel_unit="%",
+    def __init__(self, parent, *rect_args, panel_unit="%",
                  base_color=DEFAULT_PANEL_COLOR, base_radius=1, scrollable=True,
-                 outer_margin=5, inner_margin=2):
+                 outer_margin=5, inner_margin=2, pack_height=10):
         super().__init__(parent, *rect_args)
 
         if panel_unit == "%":
             base_radius = (self.rect.h * base_radius / 100) if base_radius >= 0 else base_radius
             outer_margin = self.rect.h * outer_margin / 100
             inner_margin = self.rect.h * inner_margin / 100
+            pack_height = self.rect.h * pack_height / 100
 
         self._outer_margin = outer_margin
         self._inner_margin = inner_margin
+        self._pack_height = pack_height
 
         """
         Components
         """
-        self._unscrolled_y_pos = {}
+        self._unscrolled_y_pos = {}  # Dictionary containing the original unscrolled y positions of every widget.
 
         self._base = WidgetComponent(self, 0, 0, 100, 100, "%", "ctr", "ctr")
         draw_rounded_rect(self._base.image, self._base.rect, color=base_color, r=base_radius)
@@ -53,11 +54,28 @@ class Panel(MouseListener):
         """
         self._prev_mouse_y = 0
 
-    def add_scrollable(self, widget: Widget, pack=True):
-        if pack:
-            widget.rect.x = self._outer_margin
-            widget.rect.y = self._next_row_y
-            widget.rect.w = self.rect.w - 2 * self._outer_margin
+    @property
+    def next_pack_rect(self) -> tuple:
+        """
+        This property function returns 4 values for a rect (x, y, w, h) in pixels.
+
+        The mentioned rect is used to correctly place a widget on the panel so that the widget is aligned correctly and
+        neatly with uniform margins.
+        """
+
+        x = self._outer_margin
+        y = self._next_row_y
+        w = self.rect.w - 2 * self._outer_margin
+        h = self._pack_height
+
+        return x, y, w, h
+
+    def add_scrollable(self, widget: Widget, repack=False):
+        if repack:
+            x, y, w, _ = self.next_pack_rect
+            widget.rect.x = x
+            widget.rect.y = y
+            widget.rect.w = w
 
         self._unscrolled_y_pos[widget] = widget.rect.y
 

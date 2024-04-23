@@ -54,6 +54,7 @@ class Layer:
     PLAYER = 5
     BLINDS_BUTTON = 6
     DEALER_BUTTON = 7
+    SIDE_MENU = 8
 
 
 def w_percent_to_px(x: float) -> float:
@@ -97,7 +98,7 @@ def hsv_factor(rgb: tuple or str, hf=0, sf=1, vf=1) -> tuple:
 
 
 def draw_rounded_rect(surface: pygame.Surface, rect: pygame.Rect,
-                      color=(0, 0, 0), b_color=(0, 0, 0), b=0, r=0) -> None:
+                      color=(0, 0, 0), b_color=(0, 0, 0), b=0, r=-1) -> None:
     """
     Draw a rounded rectangle on the specified surface with the given rect.
 
@@ -145,7 +146,13 @@ def draw_rounded_rect(surface: pygame.Surface, rect: pygame.Rect,
         draw_rounded_rect(inner, pygame.Rect(b, b, w - 2 * b, h - 2 * b), color, b=0, r=r)
         canvas.blit(inner, rect)
 
-    elif r <= 0:
+    elif r == 0:
+        """
+        Draw a plain rectangle.
+        """
+        pygame.gfxdraw.box(canvas, rect, color)
+
+    elif r < 0:
         """
         Draw a borderless stadium (fully rounded rectangle): 1 rectangle and 2 circles.
         """
@@ -163,8 +170,8 @@ def draw_rounded_rect(surface: pygame.Surface, rect: pygame.Rect,
         """
         Draw a borderless rounded rectangle: 2 stadiums and 1 horizontal rectangle.
         """
-        draw_rounded_rect(canvas, pygame.Rect(x, y, w, 2 * r), color, b=0, r=0)  # Top rounded rectangle
-        draw_rounded_rect(canvas, pygame.Rect(x, h - 2 * r, w, 2 * r), color, b=0, r=0)  # Bottom rounded rectangle
+        draw_rounded_rect(canvas, pygame.Rect(x, y, w, 2 * r), color, b=0, r=-1)  # Top rounded rectangle
+        draw_rounded_rect(canvas, pygame.Rect(x, h - 2 * r, w, 2 * r), color, b=0, r=-1)  # Bottom rounded rectangle
         pygame.gfxdraw.box(canvas, (x - 1, y + r, w + 2, (h - 2 * r)), color)  # Horizontal rectangle
 
     if canvas is not surface:

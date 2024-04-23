@@ -7,14 +7,14 @@ from app.widgets.basic.button import Button
 from app.shared import *
 
 
-MAIN_MENU_BUTTON_COLOR = (24, 31, 37, 128)
+MAIN_MENU_BUTTON_COLOR = (24, 31, 37, 169)
 
 
 class MainMenuScene(Scene):
     def __init__(self, app):
         super().__init__(app)
 
-        self.background = GameBackground(self, 0, 0, 100, 100, "%", "ctr", "ctr")
+        self.background = GameBackground(self, 0, 0, 100, 100, "%w", "ctr", "ctr")
 
         self.singleplayer_button = Button(self, -11, -7.5, 20, 50, "%", "ctr", "ctr", text_str="Singleplayer",
                                           rrr=h_percent_to_px(5), b_thickness=0, color=MAIN_MENU_BUTTON_COLOR,
@@ -41,4 +41,4 @@ class MainMenuScene(Scene):
                                   command=self.app.quit)
 
     def singleplayer_click(self):
-        self.app.change_scene(SingleplayerMenuScene(self.app))
+        self.app.change_scene("singleplayer")

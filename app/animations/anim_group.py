@@ -1,3 +1,5 @@
+from typing import Type
+
 from app.animations.animation import Animation
 
 
@@ -14,11 +16,18 @@ class AnimGroup:
     def add(self, animation: Animation):
         self.animations.append(animation)
 
-    def reset(self):
+    def reset(self, anim_type: Type or None = None):
         """
-        Remove all the animations on the animation group.
+        Remove all the animations on the animation group. If `anim_type` is specified, then only the animations of the
+        specified type/class is removed.
         """
-        self.animations = []
+        if anim_type:
+            for anim in self.animations:
+                if type(anim) is anim_type:
+                    self.animations.remove(anim)
+
+        else:
+            self.animations = []
 
     def update(self, dt):
         """

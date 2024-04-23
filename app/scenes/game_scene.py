@@ -2,6 +2,7 @@ import pygame
 
 from app.audio import play_sound
 from app.widgets.basic.game_bg import GameBackground
+from app.widgets.menu.side_menu import SideMenu, SideMenuButton
 from rules.game_flow import GameEvent, PokerGame
 import rules.singleplayer
 
@@ -53,7 +54,10 @@ class GameScene(Scene):
         Miscellaneous GUI
         """
         self.fps_counter = FPSCounter(self, 0.5, 0.5, 15, 5, "%", "tl", "tl")
-        self.all_sprites.add(self.fps_counter)
+
+        self.side_menu_button = SideMenuButton(self, 1.5, 1.5, 4, "%h", "tl", "tl")
+        self.side_menu = SideMenu(self, 0, 0, 25, 100, "%", "ml", "ml", toggle_button=self.side_menu_button)
+        self.side_menu.set_shown(False, 0)
 
         self.flash_fac = 0
 
@@ -210,7 +214,7 @@ class GameScene(Scene):
                 """
                 start_pos = self.table.get_edge_coords(rot, (3, 3))
 
-                player_display = PlayerDisplay(self, *start_pos, 15, 12.5, "px %", "tl", "ctr",
+                player_display = PlayerDisplay(self, *start_pos, 15, 12.5, ("px", "%"), "tl", "ctr",
                                                player_data=player_data)
 
             self.players.add(player_display)

@@ -18,7 +18,7 @@ class SingleplayerMenuScene(Scene):
         """
         self.setting_panel = FormPanel(self, 0, -5, 75, 65, "%", "ctr", "ctr",
                                        base_color=(24, 31, 37, 128),
-                                       base_radius=5, entry_height=12, entry_horizontal_margin=3)
+                                       base_radius=5, pack_height=12, entry_horizontal_margin=3)
 
         # Setting panel elements
         self.setting_panel.add_header("Singleplayer Game")

@@ -2,20 +2,20 @@ import pygame
 import pygame.sprite
 import pygame.gfxdraw
 
-from app.animations.anim_group import AnimGroup
 from app.audio import play_sound
 from app.shared import *
 from app.widgets.listeners import MouseListener
-from app.widgets.widget import Widget, WidgetComponent
+from app.widgets.widget import WidgetComponent
+
+
+DEFAULT_COLOR = (128, 128, 128)
 
 
 class Button(MouseListener):
-    DEFAULT_COLOR = (43, 193, 193)
-
     def __init__(self, parent, *rect_args,
                  color=DEFAULT_COLOR, command: Callable = None, disabled=False,
                  text_str="", text_color=(255, 255, 255), font: pygame.font.Font = None,
-                 b_color=None, b_thickness=0, rrr=0,
+                 b_color=None, b_thickness=0, rrr=-1,
                  icon: pygame.Surface or None = None, icon_size: float = 1.0,
                  text_align="middle", icon_align="left", text_align_offset=0):
 
@@ -165,7 +165,7 @@ class Button(MouseListener):
             self.image.fill(3 * (-brightness,), special_flags=pygame.BLEND_SUB)
 
     def on_click(self, event):
-        if event.button == 1:
+        if event.button == 1 and not self.disabled:
             self.command()
             play_sound("assets/audio/click.mp3")
 
@@ -173,7 +173,8 @@ class Button(MouseListener):
         super().update(dt)
 
         if self.disabled:
-            self.brighten(-60)
+            # self.brighten(-60)
+            pass
 
         else:
             """
@@ -191,21 +192,46 @@ class CircularButton(Button):
     A button that has a circular base and mouse hover detection.
     """
 
-    def __init__(self, parent, x, y, r, unit="px", anchor="tl", pivot="tl", **kwargs):
-        w, h = 2 * r, 2 * r
-        if unit == "%":
-            w /= parent.rect.aspect_ratio
+    def __init__(self, parent, x, y, r,
+                 unit: str or tuple = "px",
+                 anchor: str = "tl",
+                 pivot: str = "tl",
+                 **kwargs):
+        """
+        The parameters for this class are slightly different from the usual widget parameters, where width (w) and
+        height (h) are replaced with radius (r) instead.
 
-        super().__init__(parent, x, y, w, h, unit, anchor, pivot, **kwargs)
+        The size unit cannot be set to "%", because otherwise, the width and height of the rect would have different
+        values (in pixels). If the size unit is set to "%", then "%h" is used instead.
+        """
+
+        w, h = 2 * r, 2 * r
+        pos_unit, size_unit = unit if type(unit) is tuple else (unit, unit)
+
+        size_unit = size_unit if size_unit != "%" else "%h"
+
+        super().__init__(parent, x, y, w, h, (pos_unit, size_unit), anchor, pivot, **kwargs)
 
     def draw_base(self):
+        """
+        Draw a circle instead of a rounded rectangle for the button's base.
+        """
         r = int(self.rect.h / 2)
         pygame.gfxdraw.aacircle(self.base.image, r, r, r, self.color)
         pygame.gfxdraw.filled_circle(self.base.image, r, r, r, self.color)
 
     @property
     def hover(self):
+        """
+        The circular button class uses a special way to calculate if the mouse is hovering on the button or not.
+
+        r: Radius of button.
+            r = Button height / 2
+        d_sq: Distance between mouse and button center, squared.
+            d^2 = |Mouse pos (vector) - Button's global pos (vector)| ^ 2
+
+        If d < r (or d^2 < r^2), then the cursor is inside the button's circle.
+        """
         r = self.rect.h / 2
         d_sq = (Vector2(self.mouse_x, self.mouse_y) - Vector2(self.rect.global_rect.center)).magnitude_squared()
-        # Distance squared
         return d_sq < r ** 2

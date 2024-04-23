@@ -8,10 +8,15 @@ sprite class, and they use an AutoRect (an extension of the Pygame Rect class) f
 import pygame
 from abc import ABC
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.scenes.scene import Scene
+
 from app.animations.anim_group import AnimGroup
+from app.animations.fade import FadeAlpha
 from app.animations.move import MoveAnimation
-from app.scenes.scene import Scene
 from app.shared import *
+
 
 
 class AutoRect(pygame.rect.Rect):
@@ -20,8 +25,7 @@ class AutoRect(pygame.rect.Rect):
     An AutoRect has a settable unit, anchor, pivot, and parent rect that would make it easier to position widgets.
     """
 
-    VALID_UNITS = ["px", "%", "px %", "% px",
-                   "px px", "% %"]
+    VALID_UNITS = ["px", "%", "%w", "%h"]
 
     ALIGNMENT_FACTORS = {           # Aliases
         "topleft": (0, 0),          "tl": (0, 0),
@@ -35,7 +39,11 @@ class AutoRect(pygame.rect.Rect):
         "bottomright": (1, 1),      "br": (1, 1),
     }
 
-    def __init__(self, x, y, w, h, unit="px", anchor="topleft", pivot="topleft", parent_rect=None):
+    def __init__(self, x, y, w, h,
+                 unit: str or tuple[str, str] = "px",
+                 anchor: str = "topleft",
+                 pivot: str ="topleft",
+                 parent_rect: "AutoRect" = None):
         """
         Parameters:
 
@@ -46,9 +54,14 @@ class AutoRect(pygame.rect.Rect):
 
         :param unit: The unit of x, y, w, and h. Possible units:
                        "px": Pixels (default).
-                       "%":  A fraction of the display's dimensions in percentage.
-                       "px %": px for x and y, and % for w and h.
-                       "% px": % for x and y, and px for w and h.
+                       "%":  A fraction of the parent widget/display's dimensions in percentage.
+                             x and w are based on the parent's width, while y and h are based on the parent's height.
+                       "%w": A fraction of the parent's width.
+                       "%h": A fraction of the parent's height.
+
+                     Alternatively, a tuple of two strings can also be passed as an argument. If so, then the position
+                     (x and y) and size (w and h) arguments would have different units.
+                       Format: (<pos unit>, <size unit>).
 
         :param anchor: The anchor/origin of the rect on the parent rect. Possible anchors: See `ALIGNMENT_FACTORS`.
                          e.g. When the anchor is set to "center", then the position's (0, 0) would be located in the
@@ -58,17 +71,20 @@ class AutoRect(pygame.rect.Rect):
                         e.g. When the pivot is set to "bottomright", then the rect's bottom right corner would be placed
                         in the given x and y positions.
 
-        :param parent_rect: The parent rect.
+        :param parent_rect: The parent widget/display's rect.
         """
 
-        if unit not in self.VALID_UNITS:
-            raise ValueError(f"invalid unit: {unit}")
+        pos_unit, size_unit = unit if type(unit) is tuple else (unit, unit)
 
-        parent_rect = parent_rect if parent_rect else pygame.Rect(0, 0, *pygame.display.get_window_size())
-        pos_unit, size_unit = unit.split() if len(unit.split()) == 2 else (unit, unit)
+        if pos_unit not in self.VALID_UNITS or size_unit not in self.VALID_UNITS:
+            raise ValueError(f"invalid unit: {unit}")
 
         if size_unit == "%":
             w, h = elementwise_mult(parent_rect.size, (w / 100, h / 100))
+        elif size_unit == "%w":
+            w, h = Vector2(w, h) / 100 * parent_rect.w
+        elif size_unit == "%h":
+            w, h = Vector2(w, h) / 100 * parent_rect.h
 
         super().__init__(0, 0, w, h)
 
@@ -97,7 +113,7 @@ class AutoRect(pygame.rect.Rect):
 
         :param x: X position.
         :param y: Y position.
-        :param unit: Temporarily override the rect's pos unit. Possible units: "px" or "%".
+        :param unit: Temporarily override the rect's pos unit. Possible units: "px", "%", "%w", "%h".
         :param anchor: Temporarily override the rect's anchor.
         :param pivot: Temporarily override the rect's pivot.
         """
@@ -113,6 +129,10 @@ class AutoRect(pygame.rect.Rect):
             self.x, self.y = x, y
         elif unit == "%":
             self.x, self.y = elementwise_mult(self.parent_rect.size, (x / 100, y / 100))
+        elif unit == "%w":
+            self.x, self.y = Vector2(x, y) / 100 * self.parent_rect.w
+        elif unit == "%h":
+            self.x, self.y = Vector2(x, y) / 100 * self.parent_rect.h
         else:
             raise ValueError(f"invalid pos unit: {unit}")
 
@@ -200,7 +220,7 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
     have in common.
     """
 
-    def __init__(self, parent: "Widget" or Scene, *rect_args):
+    def __init__(self, parent: "Widget" or "Scene", *rect_args):
         """
         Parameters:
 
@@ -228,6 +248,13 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
             self.set_pos(*end_pos, unit, anchor, pivot)
             return None
 
+    def _get_fade_anim(self, duration: int or float, end_val: int, **kwargs):
+        if duration > 0:
+            return FadeAlpha(duration, self, -1, end_val, **kwargs)
+        else:
+            self.image.set_alpha(end_val)
+            return None
+
     """
     Getters and setters
     """
@@ -239,10 +266,10 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
         return self._rect.get_pos(unit, anchor, pivot)
 
     def is_root_widget(self) -> bool:
-        return issubclass(type(self.parent), Scene)
+        return not issubclass(type(self.parent), Widget)
 
     @property
-    def scene(self) -> Scene:
+    def scene(self) -> "Scene":
         return self.parent if self.is_root_widget() else self.parent.scene
 
     @property
@@ -273,26 +300,38 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
 
 
 class Widget(AutoSprite):
-    def __init__(self, parent: "Widget" or Scene, *rect_args):
-        if not issubclass(type(parent), Scene) and not issubclass(type(parent), Widget):
-            raise TypeError("the parent must either be a scene or a widget")
-
+    def __init__(self, parent: "Widget" or "Scene", *rect_args):
         super().__init__(parent, *rect_args)
 
-        if issubclass(type(parent), Scene):
-            parent.all_sprites.add(self)
-        elif issubclass(type(parent), Widget):
-            parent.children_group.add(self)
+        try:
+            if issubclass(type(parent), Widget):
+                parent.children_group.add(self)
+            else:
+                parent.all_sprites.add(self)
+        except AttributeError:
+            raise TypeError("the parent must either be a scene or a widget")
 
         self.children_group = pygame.sprite.Group()
         self.component_group = pygame.sprite.Group()
 
         self.anim_group = AnimGroup()
 
-    def move_anim(self, duration: int or float, end_pos: tuple or Vector2, *args, **kwargs) -> MoveAnimation or None:
-        anim = super()._get_move_anim(duration, end_pos, *args, **kwargs)
+    def move_anim(self, duration: int or float, end_pos: tuple or Vector2, *rect_alignment, **kwargs) -> MoveAnimation or None:
+        self.anim_group.reset(MoveAnimation)
+
+        anim = self._get_move_anim(duration, end_pos, *rect_alignment, **kwargs)
         if anim:
             self.anim_group.add(anim)
+
+        return anim
+
+    def fade_anim(self, duration, end_val, **kwargs) -> FadeAlpha or None:
+        self.anim_group.reset(FadeAlpha)
+
+        anim = self._get_fade_anim(duration, end_val, **kwargs)
+        if anim:
+            self.anim_group.add(anim)
+
         return anim
 
     def draw(self):
@@ -318,7 +357,13 @@ class WidgetComponent(AutoSprite):
         self.parent.component_group.add(self)
 
     def move_anim(self, duration: int or float, end_pos: tuple or Vector2, *args, **kwargs) -> MoveAnimation or None:
-        anim = super()._get_move_anim(duration, end_pos, *args, **kwargs)
+        anim = self._get_move_anim(duration, end_pos, *args, **kwargs)
+        if anim:
+            self.parent.anim_group.add(anim)
+        return anim
+
+    def fade_anim(self, duration, end_val, **kwargs) -> FadeAlpha or None:
+        anim = self._get_fade_anim(duration, end_val, **kwargs)
         if anim:
             self.parent.anim_group.add(anim)
         return anim
