@@ -5,7 +5,6 @@ The module that controls the flow of a poker game. This module contains classes 
 poker game, so that every player action follows the rules of Texas Hold'em poker.
 """
 from dataclasses import dataclass
-from typing import Callable
 
 from rules.basic import *
 
@@ -38,19 +37,22 @@ class GameEvent:
     """
 
     # Event codes
-    ANY_ACTION = 0
-    DEAL_START = 1
-    ROUND_FINISH = 2
-    NEW_ROUND = 3
-    START_NEW_ROUND = 4
-    SKIP_ROUND = 5
-    DEAL_END = 6
+    DEFAULT_ACTION = 0
+    NEW_DEAL = 1
+    START_DEAL = 2
+    ROUND_FINISH = 3
+    NEW_ROUND = 4
+    START_NEW_ROUND = 5
+    SKIP_ROUND = 6
+    DEAL_END = 7
+    RESET_DEAL = 8
+    RESET_PLAYERS = 9
 
     # Class fields
     code: int
-    prev_player: int
-    next_player: int
-    message: str
+    prev_player: int = -1
+    next_player: int = -1
+    message: str = ""
     bet_amount: int = 0
 
 
@@ -73,6 +75,7 @@ class Player:
 
         self.name = name
         self.money = money
+        self.player_number = -2
 
     def action(self, action_type: int, new_amount=0) -> GameEvent or None:
         """
@@ -214,7 +217,6 @@ class Deal:
         self.action(Actions.BET, self.game.sb_amount, blinds=True)
         self.action(Actions.BET, self.game.sb_amount * 2, blinds=True)
 
-
     def action(self, action_type: int, new_amount=0, blinds=False) -> int:
         """
         Takes an action for the current turn player. There are 3 types of actions:
@@ -245,7 +247,7 @@ class Deal:
 
         player: PlayerHand = self.get_current_player()
 
-        action_broadcast = GameEvent(code=GameEvent.ANY_ACTION if not blinds else GameEvent.DEAL_START,
+        action_broadcast = GameEvent(code=GameEvent.DEFAULT_ACTION if not blinds else GameEvent.START_DEAL,
                                      prev_player=self.current_turn,
                                      next_player=self.get_next_turn(),
                                      message="")
@@ -408,8 +410,7 @@ class Deal:
         """
         Broadcast a `GameEvent` to all `Player` objects by calling their `receive_event` methods.
         """
-        for player_hand in self.players:
-            player_hand.player_data.receive_event(broadcast)
+        self.game.broadcast(broadcast)
 
     def get_next_turn(self, n=1, turn=-1) -> int:
         """
@@ -458,18 +459,16 @@ class PokerGame:
     """
 
     def __init__(self):
-        # Note: In the future players may join in the middle of an ongoing match and the `n_players` parameter won't
-        # be necessary.
         self.players = []
-        self.the_player = None
         self.dealer = 0  # The index of `self.players` who becomes the dealer of the current deal.
 
         self.sb_amount = 25  # Small blinds amount. Big blinds = 2 * Small blinds.
+        self.game_in_progress = False
 
         self.deal: Deal or None = None
 
-        self.call_on_any_action: Callable[[GameEvent], None] = lambda x: None
-
+    def start_game(self):
+        self.new_deal(cycle_dealer=False)
 
     def new_deal(self, cycle_dealer=True):
         """
@@ -479,17 +478,56 @@ class PokerGame:
         :return: True if a new deal is started; False otherwise, due to insufficient player count.
         """
 
-        self.players = [player for player in self.players if player.money > 0]  # Remove bankrupt players
+        self.eliminate_players()
+        self.update_player_numbers()
 
         if cycle_dealer:
             self.dealer = (self.dealer + 1) % len(self.players)  # Cycle dealer
 
         if len(self.players) >= 2:
             self.deal = Deal(self)
+            self.broadcast(GameEvent(GameEvent.NEW_DEAL))
+            self.game_in_progress = True
             return True
-
         else:
+            self.game_in_progress = False
             return False
+
+    def eliminate_players(self) -> bool:
+        """
+        Check the players' amount of money and remove any players that are bankrupt.
+
+        :return: True if at least 1 player was eliminated, otherwise False.
+        """
+        bankrupt = [player for player in self.players if player.money <= 0]
+        self.players = [player for player in self.players if player.money > 0]
+
+        for x in bankrupt:
+            x.player_number = -2
+
+        if len(bankrupt) > 0:
+            self.update_player_numbers()
+
+        return len(bankrupt) > 0
+
+    def update_player_numbers(self):
+        for i, player in enumerate(self.players):
+            player.player_number = i
+
+    def on_event(self, event):
+        """
+        A hook method that is called everytime a game event is broadcasted.
+        """
+        pass
+
+    def broadcast(self, broadcast: GameEvent) -> None:
+        """
+        Broadcast a `GameEvent` to all `Player` objects by calling their `receive_event` methods.
+        """
+        self.on_event(broadcast)
+
+        for player in self.players:
+            player.receive_event(broadcast)
 
     @property
     def min_bet(self):

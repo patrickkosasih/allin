@@ -12,25 +12,44 @@ the scheduled function is called.
 from typing import Callable
 
 
-timers = []
-
-
 class Timer:
-    def __init__(self, delay: float, func: Callable, args=()):
+    def __init__(self, delay: float, func: Callable, args=(), group: None or "TimerGroup" = None):
         self.time_left = delay
         self.func = func
         self.args = args
 
-        timers.append(self)
+        self.group = group if group else default_group
+        self.group.add(self)
 
     def update(self, dt: float):
         self.time_left -= dt
 
         if self.time_left <= 0:
             self.func(*self.args)
-            timers.remove(self)
+            self.group.remove(self)
 
 
-def update_timers(dt: float):
-    for x in timers:
-        x.update(dt)
+class TimerGroup:
+    def __init__(self):
+        self.timers = []
+
+    def new_timer(self, delay: float, func: Callable, args=()) -> Timer:
+        return Timer(delay, func, args, group=self)
+
+    def add(self, timer: Timer) -> None:
+        if timer.group and timer.group is not self:
+            timer.group.remove(timer)
+
+        timer.group = self
+
+        self.timers.append(timer)
+
+    def remove(self, timer: Timer) -> None:
+        self.timers.remove(timer)
+
+    def update(self, dt: float) -> None:
+        for x in self.timers:
+            x.update(dt)
+
+
+default_group = TimerGroup()

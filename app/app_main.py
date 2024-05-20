@@ -59,13 +59,15 @@ class App:
                 if event.type == pygame.MOUSEMOTION:
                     MouseListener.mouse_x, MouseListener.mouse_y = event.pos
 
-            app_timer.update_timers(dt)
+            app_timer.default_group.update(dt)
             self.scene.update(dt)
             pygame.display.update()
 
         pygame.quit()
 
     def change_scene(self, scene: Scene or str, **kwargs):
+        old_scene = self.scene
+
         if issubclass(type(scene), Scene):
             self.scene = scene
 
@@ -85,6 +87,8 @@ class App:
 
         else:
             raise TypeError("the scene argument must be a string or an instance of Scene")
+
+        del old_scene
 
     def quit(self):
         self.running = False

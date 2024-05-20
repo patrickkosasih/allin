@@ -3,8 +3,10 @@ import pygame
 from app.audio import play_sound
 from app.widgets.basic.game_bg import GameBackground
 from app.widgets.menu.side_menu import SideMenu, SideMenuButton
+
+from rules.basic import HandRanking
 from rules.game_flow import GameEvent, PokerGame
-import rules.singleplayer
+from rules.singleplayer import InterfaceGame, SingleplayerGame
 
 from app.scenes.scene import Scene
 from app.shared import *
@@ -44,11 +46,11 @@ def player_rotation(i: int, n_players: int) -> float:
 
 ## noinspection PyUnresolvedReferences,PyTypeChecker
 class GameScene(Scene):
-    def __init__(self, app, game: PokerGame):
+    def __init__(self, app, game: InterfaceGame):
         super().__init__(app)
 
         self.game = game
-        self.game.call_on_any_action = self.receive_event
+        self.game.event_receiver = self.receive_event
 
         """
         Miscellaneous GUI
@@ -101,22 +103,44 @@ class GameScene(Scene):
         """
         Cards and game initialization
         """
-        self.game.new_deal(cycle_dealer=False)
-
         Card.set_size(height=h_percent_to_px(12.5))  # Initialize card size
         self.community_cards = pygame.sprite.Group()
 
-        self.reset_players()
-
-        app_timer.Timer(2, self.deal_cards)
-        app_timer.Timer(3, self.pot_text.set_visible, (True,))
-        app_timer.Timer(4, self.game.deal.start_deal)
+        if type(game) is SingleplayerGame:
+            self.game.start_game()
 
     def receive_event(self, event: GameEvent):
         """
         The method that is called everytime an action or event happens.
         """
-        # print(event)
+        print(event)
+
+        """
+        Handle non-player-action events
+        """
+        player_action = False
+
+        match event.code:
+            case GameEvent.RESET_PLAYERS:
+                self.reset_players()
+
+            case GameEvent.NEW_DEAL:
+                self.deal_cards()
+
+            case GameEvent.NEW_ROUND | GameEvent.SKIP_ROUND:
+                self.next_round()
+
+            case GameEvent.DEAL_END:
+                app_timer.Timer(1, self.showdown)
+
+            case GameEvent.RESET_DEAL:
+                self.reset_deal()
+
+            case _:
+                player_action = True
+
+        if not player_action:
+            return
 
         """
         Update the subtext on a player action
@@ -136,7 +160,7 @@ class GameScene(Scene):
         """
         Action sound effect
         """
-        if event.code == GameEvent.DEAL_START:
+        if event.code == GameEvent.START_DEAL:
             if event.prev_player == self.game.deal.blinds[0]:
                 play_sound("assets/audio/game/rounds/blinds.mp3")
 
@@ -146,12 +170,12 @@ class GameScene(Scene):
         """
         Show/hide action buttons
         """
-        if event.next_player == self.game.players.index(self.game.the_player):
+        if event.next_player == self.game.client_player.player_number:
             for x in self.action_buttons:
                 x.update_bet_amount(self.game.deal.bet_amount)
             self.show_action_buttons(True)
 
-        elif event.prev_player == self.game.players.index(self.game.the_player):
+        elif event.prev_player == self.game.client_player.player_number:
             self.show_action_buttons(False)
 
         """
@@ -159,22 +183,6 @@ class GameScene(Scene):
         """
         if event.message == "fold":
             self.fold_cards(event.prev_player)
-
-        """
-        Round finish and deal end
-        """
-        match event.code:
-            case GameEvent.ROUND_FINISH:
-                app_timer.Timer(1, self.game.deal.next_round)
-
-            case GameEvent.NEW_ROUND:
-                self.next_round()
-
-            case GameEvent.SKIP_ROUND:
-                self.next_round(skip_round=True)
-
-            case GameEvent.DEAL_END:
-                app_timer.Timer(1, self.showdown)
 
     def reset_players(self):
         """
@@ -246,9 +254,9 @@ class GameScene(Scene):
 
         rects = [(-m, (-m - i * (h + m)), w, h, "%", "br", "br") for i in range(3)]  # List of all the button rects
 
-        self.fold_button = FoldButton(self, *rects[0], player=self.game.the_player)
-        self.call_button = CallButton(self, *rects[1], player=self.game.the_player)
-        self.raise_button = RaiseButton(self, *rects[2], player=self.game.the_player)
+        self.fold_button = FoldButton(self, *rects[0], player=self.game.client_player)
+        self.call_button = CallButton(self, *rects[1], player=self.game.client_player)
+        self.raise_button = RaiseButton(self, *rects[2], player=self.game.client_player)
 
         for x in (self.fold_button, self.call_button, self.raise_button):
             self.action_buttons.add(x)
@@ -260,7 +268,7 @@ class GameScene(Scene):
         bp_dimensions = 30, 2 * h + m  # Width and height of bet prompt (in %screen)
 
         self.bet_prompt = BetPrompt(self, -m, -m, *bp_dimensions, "%", "br", "br",
-                                    game_scene=self, player=self.game.the_player)
+                                    game_scene=self, player=self.game.client_player)
         self.bet_prompt.set_shown(False, 0.0)
 
     def show_action_buttons(self, shown: bool):
@@ -295,9 +303,12 @@ class GameScene(Scene):
                 self.all_sprites.add(card)
                 player_display.pocket_cards.add(card)
 
-                if player_display.player_data is self.game.the_player:
+                if player_display.player_data is self.game.client_player:
                     card.card_data = player_display.player_data.player_hand.pocket_cards[j]
                     animation.call_on_finish = card.reveal
+
+        app_timer.Timer(1, self.pot_text.set_visible, (True,))
+
 
     def highlight_cards(self, showdown=False, unhighlight=False):
         """
@@ -315,7 +326,7 @@ class GameScene(Scene):
             kickers = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.kickers)
         else:
             # Highlight the ranked cards of "the player" (client user)
-            ranked_cards = set(self.game.the_player.player_hand.hand_ranking.ranked_cards)
+            ranked_cards = set(self.game.client_player.player_hand.hand_ranking.ranked_cards)
             kickers = set()
 
         highlighted_cards = set.union(ranked_cards, kickers)
@@ -336,7 +347,7 @@ class GameScene(Scene):
         player = self.players.sprites()[i]
 
         for card in player.pocket_cards:
-            if player.player_data is self.game.the_player:
+            if player.player_data is self.game.client_player:
                 animation = FadeAlpha(0.25, card, -1, 128)
                 self.anim_group.add(animation)
 
@@ -350,11 +361,9 @@ class GameScene(Scene):
                 animation = MoveAnimation(random.uniform(1, 1.5), card, None, pos)
                 self.anim_group.add(animation)
 
-    def next_round(self, skip_round=False):
+    def next_round(self):
         """
         The method that is called when the deal advances to the next round (a NEW_ROUND game event is received).
-
-        :param skip_round:
         """
 
         ROUND_NAMES = {3: "flop", 4: "turn", 5: "river"}
@@ -379,42 +388,36 @@ class GameScene(Scene):
 
             self.community_cards.add(card)
 
+        anim_delay = 2 + len(self.community_cards) / 8
+
         """
         Card sliding sound effect
         """
         play_sound(f"assets/audio/game/card/slide/{ROUND_NAMES[len(self.community_cards)]}.mp3")
 
-        app_timer.Timer(2 + len(self.community_cards) / 8,
+        app_timer.Timer(anim_delay,
             lambda: play_sound(f"assets/audio/game/rounds/{ROUND_NAMES[len(self.community_cards)]}.mp3")
         )
 
         """
         Update hand ranking
         """
-        anim_delay = 2 + len(self.community_cards) / 8
-
-        ranking_int = self.game.the_player.player_hand.hand_ranking.ranking_type
-        ranking_str = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
-        if self.game.the_player.player_hand.folded:
+        ranking_int = self.game.client_player.player_hand.hand_ranking.ranking_type
+        ranking_str = HandRanking.TYPE_STR[ranking_int].capitalize()
+        if self.game.client_player.player_hand.folded:
             ranking_str = "Folded:  " + ranking_str
 
         app_timer.Timer(anim_delay, self.ranking_text.set_text_anim, (ranking_str,))
         app_timer.Timer(anim_delay + 0.25, self.highlight_cards)
 
         """
-        Hide blinds button on flop
+        Hide blinds button and show ranking text on the flop round
         """
         if len(self.game.deal.community_cards) == 3:
-            app_timer.Timer(2, self.ranking_text.set_visible, (True,))
-            self.hide_blinds_button()
+            if self.game.client_player.player_number >= 0:
+                app_timer.Timer(2, self.ranking_text.set_visible, (True,))
 
-        """
-        Start or skip round
-        """
-        if skip_round:
-            app_timer.Timer(anim_delay + 0.1, self.game.deal.next_round)  # Skip round
-        else:
-            app_timer.Timer(anim_delay + 0.25, self.game.deal.start_new_round)  # Start round
+            self.hide_blinds_button()
 
     def showdown(self):
         """
@@ -432,7 +435,7 @@ class GameScene(Scene):
         play_sound("assets/audio/game/card/reveal cards.mp3")
 
         for player_display in self.players.sprites():
-            if player_display.player_data is not self.game.the_player:
+            if player_display.player_data is not self.game.client_player:
                 for i, card in enumerate(player_display.pocket_cards.sprites()):
                     card.card_data = player_display.player_data.player_hand.pocket_cards[i]
                     card.reveal(random.uniform(1, 1.5), sfx=False)
@@ -453,11 +456,6 @@ class GameScene(Scene):
         Start revealing the hand rankings
         """
         app_timer.Timer(2, self.reveal_rankings, args=(sorted_players,))
-
-        """
-        Start a new deal in 8 seconds
-        """
-        app_timer.Timer(8, self.new_deal)
 
     def reveal_rankings(self, sorted_players, i=0):
         """
@@ -496,7 +494,7 @@ class GameScene(Scene):
         Update sub text to hand ranking
         """
         ranking_int = player_hand.hand_ranking.ranking_type
-        ranking_text = rules.basic.HandRanking.TYPE_STR[ranking_int].capitalize()
+        ranking_text = HandRanking.TYPE_STR[ranking_int].capitalize()
         player_display.set_sub_text_anim(ranking_text)
 
         """
@@ -529,7 +527,7 @@ class GameScene(Scene):
             next_player_delay = 1 / rank_number
             app_timer.Timer(next_player_delay, self.reveal_rankings, args=(sorted_players, i + 1))
 
-    def new_deal(self):
+    def reset_deal(self):
         """
         Reset the sprites of cards and winner crowns, and then start a new deal.
         """
@@ -569,37 +567,12 @@ class GameScene(Scene):
         app_timer.Timer(2.5, self.delete_on_new_deal)
 
         """
-        Call the new deal method
-        """
-        is_new_deal = self.game.new_deal()
-
-        """
-        Rearrange players if the players list has changed
-        """
-        if len(self.players.sprites()) != len(self.game.players) or \
-            any(x.player_data is not y for x, y in zip(self.players.sprites(), self.game.players)):
-
-            app_timer.Timer(2.5, self.reset_players)
-            rearrange_delay = 1.5
-
-        else:
-            rearrange_delay = 0
-
-        """
         Reset action buttons
         """
         for x in (self.fold_button, self.call_button, self.raise_button):
             x.set_shown(False, 0.0)
 
         self.call_button.all_in = False
-
-        """
-        Start a new deal after a delay
-        """
-        if is_new_deal:
-            app_timer.Timer(3 + rearrange_delay, self.deal_cards)
-            app_timer.Timer(4 + rearrange_delay, self.pot_text.set_visible, (True,))
-            app_timer.Timer(5 + rearrange_delay, self.game.deal.start_deal)
 
     def delete_on_new_deal(self):
         """
@@ -695,6 +668,8 @@ class GameScene(Scene):
 
     def update(self, dt):
         super().update(dt)
+
+        self.game.timer_group.update(dt)
 
         if self.flash_fac > 0:
             self.display_surface.fill(3 * (self.flash_fac,), special_flags=pygame.BLEND_RGB_ADD)
