@@ -11,7 +11,7 @@ from rules.singleplayer import SingleplayerGame
 
 class SingleplayerMenuScene(Scene):
     def __init__(self, app):
-        super().__init__(app)
+        super().__init__(app, "singleplayer")
 
         """
         Setting panel

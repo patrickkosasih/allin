@@ -6,7 +6,7 @@ The interface module is used to bridge the communication between the rules engin
 
 from typing import Callable, Optional
 
-from app.app_timer import TimerGroup
+from app.tools.app_timer import TimerGroup
 from rules.game_flow import Player, GameEvent, PokerGame
 
 

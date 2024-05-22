@@ -53,8 +53,7 @@ class SideMenu(Panel):
         self.toggle_button.set_shown(True)
 
     def main_menu_click(self):
-        # FIXME The game still runs in the background after going to the main menu.
-        self.scene.app.change_scene("mainmenu")
+        self.scene.app.change_scene("mainmenu", cache_old_scene=False)
 
     def quit_click(self):
         self.scene.app.quit()

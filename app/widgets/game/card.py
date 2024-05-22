@@ -116,7 +116,6 @@ class Card(Widget):
         """
         Reveal the front side of the card with a card flip animation.
         """
-        # FIXME The card flip animation sometimes bugs out, e.g. blank front side, or doesn't flip all the way through.
 
         if duration <= 0:
             self.draw_card_front()

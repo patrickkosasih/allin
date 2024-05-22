@@ -11,8 +11,9 @@ from app.shared import *
 
 
 class Scene:
-    def __init__(self, app: "App"):
+    def __init__(self, app: "App", scene_id: str):
         self.app = app
+        self.scene_id = scene_id
 
         self.display_surface = pygame.display.get_surface()
         self.all_sprites = pygame.sprite.LayeredUpdates()

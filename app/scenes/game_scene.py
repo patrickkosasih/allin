@@ -1,16 +1,16 @@
 import pygame
+import random
 
 from app.audio import play_sound
-from app.widgets.basic.game_bg import GameBackground
 from app.widgets.menu.side_menu import SideMenu, SideMenuButton
 
 from rules.basic import HandRanking
-from rules.game_flow import GameEvent, PokerGame
+from rules.game_flow import GameEvent
 from rules.singleplayer import InterfaceGame, SingleplayerGame
 
 from app.scenes.scene import Scene
 from app.shared import *
-from app import app_timer
+from app.tools import app_timer
 
 from app import widgets
 from app.widgets.game.card import Card
@@ -21,7 +21,6 @@ from app.widgets.game.player_display import PlayerDisplay
 from app.widgets.game.bet_prompt import BetPrompt
 from app.widgets.basic.fps_counter import FPSCounter
 
-from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
 from app.animations.fade import FadeAlpha
 
@@ -47,7 +46,7 @@ def player_rotation(i: int, n_players: int) -> float:
 ## noinspection PyUnresolvedReferences,PyTypeChecker
 class GameScene(Scene):
     def __init__(self, app, game: InterfaceGame):
-        super().__init__(app)
+        super().__init__(app, "game")
 
         self.game = game
         self.game.event_receiver = self.receive_event
@@ -113,7 +112,7 @@ class GameScene(Scene):
         """
         The method that is called everytime an action or event happens.
         """
-        print(event)
+        # print(event)
 
         """
         Handle non-player-action events
@@ -348,8 +347,7 @@ class GameScene(Scene):
 
         for card in player.pocket_cards:
             if player.player_data is self.game.client_player:
-                animation = FadeAlpha(0.25, card, -1, 128)
-                self.anim_group.add(animation)
+                card.fade_anim(0.25, 128)
 
                 if self.ranking_text.visible:
                     self.ranking_text.set_text_anim("Folded:  " + self.ranking_text.text_str)
@@ -358,8 +356,7 @@ class GameScene(Scene):
                 angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
                 pos = self.table.get_edge_coords(angle, (2.75, 2.75))
 
-                animation = MoveAnimation(random.uniform(1, 1.5), card, None, pos)
-                self.anim_group.add(animation)
+                card.move_anim(random.uniform(1, 1.5), pos)
 
     def next_round(self):
         """
@@ -396,8 +393,8 @@ class GameScene(Scene):
         play_sound(f"assets/audio/game/card/slide/{ROUND_NAMES[len(self.community_cards)]}.mp3")
 
         app_timer.Timer(anim_delay,
-            lambda: play_sound(f"assets/audio/game/rounds/{ROUND_NAMES[len(self.community_cards)]}.mp3")
-        )
+                        lambda: play_sound(f"assets/audio/game/rounds/{ROUND_NAMES[len(self.community_cards)]}.mp3")
+                        )
 
         """
         Update hand ranking

@@ -12,7 +12,7 @@ MAIN_MENU_BUTTON_COLOR = (24, 31, 37, 169)
 
 class MainMenuScene(Scene):
     def __init__(self, app):
-        super().__init__(app)
+        super().__init__(app, "mainmenu")
 
         self.background = GameBackground(self, 0, 0, 100, 100, "%w", "ctr", "ctr")
 

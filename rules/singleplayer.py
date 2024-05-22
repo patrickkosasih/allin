@@ -4,11 +4,7 @@ rules/singleplayer.py
 The singleplayer module is used to interface the game flow engine from the main app on singleplayer games.
 """
 
-
-from typing import Callable, Optional
-import random
-
-from app import app_timer
+from app.tools import app_timer
 from rules.game_flow import *
 from rules.interface import *
 
