@@ -1,6 +1,6 @@
 import pygame
 
-from app.animations.anim_group import AnimGroup
+from app.animations.animation import AnimGroup
 from app.animations.move import MoveAnimation
 from app.animations.var_slider import VarSlider
 from app.widgets.game.player_display import ComponentCodes, PlayerDisplay
@@ -38,6 +38,8 @@ class WinnerCrown(Widget):
         self.crown = WidgetComponent(self, 0, 0, 0, 0)
         self.text = WidgetComponent(self, 0, 0, 0, 0)
         # TODO Revamp the positioning.
+
+        self.anim_group = AnimGroup()
 
         """
         Hidden positions: Positions to go to when the winner crown is reset.

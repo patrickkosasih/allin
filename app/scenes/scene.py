@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from app.app_main import App
     from app.widgets.listeners import MouseListener, KeyboardListener
 
-from app.animations.anim_group import AnimGroup
+from app.animations.animation import AnimGroup
 from app.shared import *
 
 

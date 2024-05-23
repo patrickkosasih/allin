@@ -3,7 +3,7 @@ import pygame.image
 from app.scenes.game_scene import GameScene
 from app.scenes.scene import Scene
 from app.shared import FontSave
-from app.widgets.basic.button import Button
+from app.widgets.basic.button import Button, CircularButton
 from app.widgets.basic.number_picker import NumberPicker
 from app.widgets.menu.form_panel import FormPanel, FormEntry
 from rules.singleplayer import SingleplayerGame
@@ -38,13 +38,18 @@ class SingleplayerMenuScene(Scene):
         )
 
         """
-        Start button
+        Buttons
         """
         self.start_button = Button(self, 37.5, 37.5, 20, 8, "%", "ctr", "br",
                                    text_str="Start Game", command=self.start,
                                    font=FontSave.get_font(6), color=(126, 237, 139),
                                    icon=pygame.image.load("assets/sprites/action icons/confirm bet.png"),
                                    icon_size=0.8, icon_align="right")
+
+        self.side_menu_button = CircularButton(self, 1.5, 1.5, 4, "%h", "tl", "tl",
+                                               command=lambda: self.app.change_scene("mainmenu"),
+                                               icon=pygame.image.load("assets/sprites/menu icons/back.png"),
+                                               icon_size=0.8)
 
     def start(self):
         game_settings = self.setting_panel.get_form_data()

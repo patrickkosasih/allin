@@ -2,12 +2,17 @@ import pygame
 
 import rules.game_flow
 import rules.basic
+from app.animations.animation import AnimGroup
 from app.shared import *
 
-from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
 from app.animations.interpolations import ease_out
 from app.widgets.widget import Widget, WidgetComponent
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.animations.move import MoveAnimation
+    from app.animations.fade import FadeAlpha
 
 DEFAULT_HEAD_COLOR = 95, 201, 123
 DEFAULT_SUB_COLOR = 32, 46, 38
@@ -62,8 +67,8 @@ class PlayerDisplay(Widget):
         """
         self.components = {}
 
-        self.pocket_cards = pygame.sprite.Group()
-        # Note: Pocket cards are separate from player displays.
+        self.pocket_cards = pygame.sprite.Group()  # Note: Pocket cards are separate from player displays.
+        self.anim_group = AnimGroup()
 
         """
         Data fields
@@ -197,6 +202,18 @@ class PlayerDisplay(Widget):
 
         else:
             self.set_money_text(new_money)
+
+    """
+    Overridden animation methods
+    """
+    def move_anim(self, duration: int or float, end_pos: tuple or Vector2,
+                  unit=None, anchor=None, pivot=None, start_pos: tuple or None = None,
+                  **kwargs) -> "MoveAnimation" or None:
+
+        super().move_anim(duration, end_pos, unit, anchor, pivot, start_pos, **kwargs)
+
+    def fade_anim(self, duration: int or float, end_val: int, **kwargs) -> "FadeAlpha" or None:
+        super().fade_anim(duration, end_val, **kwargs)
 
 
     def update(self, dt):

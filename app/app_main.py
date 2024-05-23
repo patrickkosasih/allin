@@ -1,5 +1,6 @@
 import pygame
 
+from app.animations import animation
 from app.scenes.game_scene import GameScene
 from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
@@ -73,6 +74,7 @@ class App:
             Main updates
             """
             app_timer.default_group.update(dt)
+            animation.default_group.update(dt)
             self.scene.update(dt)
             pygame.display.update()
 

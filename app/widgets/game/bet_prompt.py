@@ -1,6 +1,5 @@
 import pygame.sprite
 
-from app.animations.anim_group import AnimGroup
 from app.animations.interpolations import ease_in, ease_out
 from app.animations.move import MoveAnimation
 from app.widgets.game.action_buttons import COLORS, SideTextedButton
@@ -53,10 +52,9 @@ class BetPrompt(Widget):
             self.confirm_button.update_bet_text()
 
         if duration > 0:
-            animation = MoveAnimation(duration, self, None, self.original_pos if shown else self.hidden_pos,
-                                      "px", "tl", "ctr",
-                                      interpolation=ease_out if shown else ease_in)
-            self.anim_group.add(animation)
+            self.move_anim(duration, self.original_pos if shown else self.hidden_pos,
+                           "px", "tl", "ctr",
+                           interpolation=ease_out if shown else ease_in)
 
         else:
             self.rect.set_pos(*(self.original_pos if shown else self.hidden_pos), "px", "tl", "ctr")

@@ -1,7 +1,6 @@
 import pygame
 
 import rules.basic
-from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
 from app.audio import play_sound
 from app.shared import Layer
@@ -123,7 +122,7 @@ class Card(Widget):
             self.is_revealed = True
         else:
             animation = CardFlipAnimation(duration, self)
-            self.anim_group.add(animation)
+            self.scene.anim_group.add(animation)
 
         if sfx:
             play_sound("assets/audio/game/card/flip.mp3")
@@ -158,11 +157,7 @@ class Card(Widget):
         self.is_ranked = ranked if shown else self.is_ranked
 
         start_end = (0, 255) if shown else (255, 0)
-        animation = VarSlider(0.25, *start_end, setter_func=lambda x: self.set_highlight_alpha(int(x)))
-        self.anim_group.add(animation)
-
-    def update(self, dt):
-        self.anim_group.update(dt)
+        VarSlider(0.25, *start_end, setter_func=lambda x: self.set_highlight_alpha(int(x)))
 
     @staticmethod
     def set_size(height):

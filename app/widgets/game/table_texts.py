@@ -1,6 +1,5 @@
 import pygame.sprite
 
-from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
 from app.animations.move import MoveAnimation
 from app.animations.interpolations import *
@@ -23,8 +22,6 @@ class TableText(Widget):
 
         self.text_str = ""
         self.visible = True
-
-        self.anim_group = AnimGroup()
 
         """
         Initialize
@@ -53,14 +50,13 @@ class TableText(Widget):
         if duration > 0:
             animation = VarSlider(duration, 255 * self.visible, 255 * visible,
                                   setter_func=lambda x: self.image.set_alpha(int(x)))
-            self.anim_group.add(animation)
+            self.scene.anim_group.add(animation)
         else:
             self.image.set_alpha(255 * visible)
 
         self.visible = visible
 
     def update(self, dt):
-        self.anim_group.update(dt)
         self.image.fill((0, 0, 0, 0))
         self.component_group.draw(self.image)
 
@@ -84,7 +80,7 @@ class PotText(TableText):
         animation = VarSlider(0.4, self.pot, pot,
                               setter_func=lambda x: self.set_text(f"${int(x):,}"),
                               interpolation=lambda x: ease_out(x, 3))
-        self.anim_group.add(animation)
+        self.scene.anim_group.add(animation)
 
         self.pot = pot
 

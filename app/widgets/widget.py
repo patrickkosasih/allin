@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.scenes.scene import Scene
 
-from app.animations.anim_group import AnimGroup
+from app.animations.animation import AnimGroup
 from app.animations.fade import FadeAlpha
 from app.animations.move import MoveAnimation
 from app.shared import *
@@ -237,20 +237,39 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
         self._image = pygame.Surface(self._rect.size, pygame.SRCALPHA)  # Protected attribute
         self._layer = Layer.DEFAULT
 
+        self._current_move_anim: Optional[MoveAnimation] = None
+        self._current_fade_anim: Optional[FadeAlpha] = None
+
         self.parent = parent
 
-    def _get_move_anim(self, duration: int or float, end_pos: tuple or Vector2,
+    """
+    Animations
+    """
+
+    def move_anim(self, duration: int or float, end_pos: tuple or Vector2,
                   unit=None, anchor=None, pivot=None, start_pos: tuple or None = None,
                   **kwargs) -> MoveAnimation or None:
+
+        if self._current_move_anim and self._current_move_anim.running:
+            self._current_move_anim.stop()
+
         if duration > 0:
-            return MoveAnimation(duration, self, start_pos, end_pos, unit, anchor, pivot, **kwargs)
+            anim = MoveAnimation(duration, self, start_pos, end_pos, unit, anchor, pivot, **kwargs)
+            self.scene.anim_group.add(anim)
+            self._current_move_anim = anim
+            return anim
         else:
             self.set_pos(*end_pos, unit, anchor, pivot)
-            return None
 
-    def _get_fade_anim(self, duration: int or float, end_val: int, **kwargs):
+    def fade_anim(self, duration: int or float, end_val: int, **kwargs) -> FadeAlpha or None:
+        if self._current_fade_anim and self._current_fade_anim.running:
+            self._current_fade_anim.stop()
+
         if duration > 0:
-            return FadeAlpha(duration, self, -1, end_val, **kwargs)
+            anim = FadeAlpha(duration, self, -1, end_val, **kwargs)
+            self.scene.anim_group.add(anim)
+            self._current_fade_anim = anim
+            return anim
         else:
             self.image.set_alpha(end_val)
             return None
@@ -314,34 +333,12 @@ class Widget(AutoSprite):
         self.children_group = pygame.sprite.Group()
         self.component_group = pygame.sprite.Group()
 
-        self.anim_group = AnimGroup()
-
-    def move_anim(self, duration: int or float, end_pos: tuple or Vector2, *rect_alignment, **kwargs) -> MoveAnimation or None:
-        self.anim_group.reset(MoveAnimation)
-
-        anim = self._get_move_anim(duration, end_pos, *rect_alignment, **kwargs)
-        if anim:
-            self.anim_group.add(anim)
-
-        return anim
-
-    def fade_anim(self, duration, end_val, **kwargs) -> FadeAlpha or None:
-        self.anim_group.reset(FadeAlpha)
-
-        anim = self._get_fade_anim(duration, end_val, **kwargs)
-        if anim:
-            self.anim_group.add(anim)
-
-        return anim
-
     def draw(self):
         self.image.fill((0, 0, 0, 0))
         self.component_group.draw(self.image)
         self.children_group.draw(self.image)
 
     def update(self, dt):
-        self.anim_group.update(dt)
-
         if self.children_group.sprites() or self.component_group.sprites():
             self.children_group.update(dt)
             self.component_group.update(dt)
@@ -355,15 +352,3 @@ class WidgetComponent(AutoSprite):
 
         super().__init__(parent, *rect_args)
         self.parent.component_group.add(self)
-
-    def move_anim(self, duration: int or float, end_pos: tuple or Vector2, *args, **kwargs) -> MoveAnimation or None:
-        anim = self._get_move_anim(duration, end_pos, *args, **kwargs)
-        if anim:
-            self.parent.anim_group.add(anim)
-        return anim
-
-    def fade_anim(self, duration, end_val, **kwargs) -> FadeAlpha or None:
-        anim = self._get_fade_anim(duration, end_val, **kwargs)
-        if anim:
-            self.parent.anim_group.add(anim)
-        return anim
