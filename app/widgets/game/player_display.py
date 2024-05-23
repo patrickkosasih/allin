@@ -12,7 +12,7 @@ from app.widgets.widget import Widget, WidgetComponent
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.animations.move import MoveAnimation
-    from app.animations.fade import FadeAlpha
+    from app.animations.fade import FadeAlphaAnimation
 
 DEFAULT_HEAD_COLOR = 95, 201, 123
 DEFAULT_SUB_COLOR = 32, 46, 38
@@ -212,7 +212,7 @@ class PlayerDisplay(Widget):
 
         super().move_anim(duration, end_pos, unit, anchor, pivot, start_pos, **kwargs)
 
-    def fade_anim(self, duration: int or float, end_val: int, **kwargs) -> "FadeAlpha" or None:
+    def fade_anim(self, duration: int or float, end_val: int, **kwargs) -> "FadeAlphaAnimation" or None:
         super().fade_anim(duration, end_val, **kwargs)
 
 

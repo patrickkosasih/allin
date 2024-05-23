@@ -1,6 +1,8 @@
 import pygame
 
 from app.animations import animation
+from app.animations.animation import AnimGroup
+from app.animations.fade import FadeSceneTransition
 from app.scenes.game_scene import GameScene
 from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
@@ -28,6 +30,8 @@ class App:
         """
         # self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        self.display_surface = pygame.display.get_surface()
+
         self.clock = pygame.time.Clock()
         self.running = True
 
@@ -36,6 +40,7 @@ class App:
         """
         self.scene = MainMenuScene(self)
         self.scene_cache = {}
+        self.scene_transition_group = AnimGroup()
 
         self.reset_next_dt = False
 
@@ -48,6 +53,7 @@ class App:
 
             if self.reset_next_dt:
                 dt = 1 / FPS
+                self.reset_next_dt = False
 
             """
             Event loop
@@ -76,12 +82,28 @@ class App:
             app_timer.default_group.update(dt)
             animation.default_group.update(dt)
             self.scene.update(dt)
+            self.scene_transition_group.update(dt)
+
             pygame.display.update()
 
         pygame.quit()
 
-    def change_scene(self, scene: Scene or str, cache_old_scene=True, **kwargs):
+    def change_scene(self, scene: Scene or str, cache_old_scene=True, duration=0.4):
+        if duration > 0:
+            if not self.scene_transition_group.animations:
+                anim = FadeSceneTransition(duration, self, scene, cache_old_scene)
+                self.scene_transition_group.add(anim)
+            return
+
+        elif self.scene_transition_group.animations:
+            anim = self.scene_transition_group.animations[0]
+            anim.pause()
+
+        else:
+            anim = None
+
         old_scene = self.scene
+        self.reset_next_dt = True
 
         if issubclass(type(scene), Scene):
             self.scene = scene
@@ -99,10 +121,10 @@ class App:
                         self.scene = SingleplayerMenuScene(self)
 
                     case "game":
-                        self.scene = GameScene(self, **kwargs)
+                        raise ValueError("cannot change to game scene by string id")
 
                     case _:
-                        raise ValueError(f"invalid scene key string: {scene}")
+                        raise ValueError(f"invalid scene id: {scene}")
 
         else:
             raise TypeError("the scene argument must be a string or an instance of Scene")
@@ -111,6 +133,9 @@ class App:
             self.scene_cache[old_scene.scene_id] = old_scene
         else:
             del old_scene
+
+        if anim:
+            anim.start()
 
     def quit(self):
         self.running = False

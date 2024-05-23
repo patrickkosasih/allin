@@ -9,7 +9,7 @@ from app.widgets.widget import Widget
 class Table(Widget):
     def __init__(self, parent, *rect_args):
         super().__init__(parent, *rect_args)
-        self._image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/misc/table.png"), self.rect.size)
+        self._image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/misc/table.png"), self.rect.size).convert_alpha()
 
     def get_edge_coords(self, degrees: float, scale=(1.0, 1.0)):
         rad = degrees / 180 * pi

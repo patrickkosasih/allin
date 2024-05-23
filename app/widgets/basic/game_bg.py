@@ -8,4 +8,4 @@ class GameBackground(Widget):
         super().__init__(parent, *rect_args)
 
         self.image = pygame.transform.smoothscale(pygame.image.load("assets/sprites/misc/background.png"),
-                                                  self.rect.size)
+                                                  self.rect.size).convert()

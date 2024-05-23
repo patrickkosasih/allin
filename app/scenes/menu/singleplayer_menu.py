@@ -53,4 +53,5 @@ class SingleplayerMenuScene(Scene):
 
     def start(self):
         game_settings = self.setting_panel.get_form_data()
-        self.app.change_scene(GameScene(self.app, SingleplayerGame(**game_settings)))
+        self.app.change_scene(GameScene(self.app, SingleplayerGame(**game_settings)), duration=1)
+        # FIXME Prevent the player from spamming the start button while the scene is fading.

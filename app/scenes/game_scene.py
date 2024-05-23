@@ -2,6 +2,7 @@ import pygame
 import random
 
 from app.audio import play_sound
+from app.widgets.basic.game_bg import GameBackground
 from app.widgets.menu.side_menu import SideMenu, SideMenuButton
 
 from rules.basic import HandRanking
@@ -22,7 +23,7 @@ from app.widgets.game.bet_prompt import BetPrompt
 from app.widgets.basic.fps_counter import FPSCounter
 
 from app.animations.var_slider import VarSlider
-from app.animations.fade import FadeAlpha
+from app.animations.fade import FadeAlphaAnimation
 
 
 COMM_CARD_ROTATIONS = (198, 126, 270, 54, -18)
@@ -54,6 +55,9 @@ class GameScene(Scene):
         """
         Miscellaneous GUI
         """
+        self.background = GameBackground(self, 0, 0, 100, 100, "%w", "ctr", "ctr")
+        self.background.image.set_alpha(128)
+
         self.fps_counter = FPSCounter(self, 0.5, 0.5, 15, 5, "%", "tl", "tl")
 
         self.side_menu_button = SideMenuButton(self, 1.5, 1.5, 4, "%h", "tl", "tl")
@@ -617,7 +621,7 @@ class GameScene(Scene):
             self.all_sprites.remove(self.dealer_button)
             self.dealer_button = None
 
-        animation = FadeAlpha(0.5, self.dealer_button, 255, 0, call_on_finish=delete)
+        animation = FadeAlphaAnimation(0.5, self.dealer_button, 255, 0, call_on_finish=delete)
         self.anim_group.add(animation)
 
     def new_blinds_button(self):
@@ -658,8 +662,8 @@ class GameScene(Scene):
             self.sb_button = None
             self.bb_button = None
 
-        sb_animation = FadeAlpha(0.25, self.sb_button, 255, 0)
-        bb_animation = FadeAlpha(0.25, self.bb_button, 255, 0, call_on_finish=delete)
+        sb_animation = FadeAlphaAnimation(0.25, self.sb_button, 255, 0)
+        bb_animation = FadeAlphaAnimation(0.25, self.bb_button, 255, 0, call_on_finish=delete)
         self.anim_group.add(sb_animation)
         self.anim_group.add(bb_animation)
 
@@ -669,4 +673,4 @@ class GameScene(Scene):
         self.game.timer_group.update(dt)
 
         if self.flash_fac > 0:
-            self.display_surface.fill(3 * (self.flash_fac,), special_flags=pygame.BLEND_RGB_ADD)
+            self.app.display_surface.fill(3 * (self.flash_fac,), special_flags=pygame.BLEND_RGB_ADD)

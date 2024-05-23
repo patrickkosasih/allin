@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from app.scenes.scene import Scene
 
 from app.animations.animation import AnimGroup
-from app.animations.fade import FadeAlpha
+from app.animations.fade import FadeAlphaAnimation
 from app.animations.move import MoveAnimation
 from app.shared import *
 
@@ -238,7 +238,7 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
         self._layer = Layer.DEFAULT
 
         self._current_move_anim: Optional[MoveAnimation] = None
-        self._current_fade_anim: Optional[FadeAlpha] = None
+        self._current_fade_anim: Optional[FadeAlphaAnimation] = None
 
         self.parent = parent
 
@@ -261,12 +261,12 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
         else:
             self.set_pos(*end_pos, unit, anchor, pivot)
 
-    def fade_anim(self, duration: int or float, end_val: int, **kwargs) -> FadeAlpha or None:
+    def fade_anim(self, duration: int or float, end_val: int, **kwargs) -> FadeAlphaAnimation or None:
         if self._current_fade_anim and self._current_fade_anim.running:
             self._current_fade_anim.stop()
 
         if duration > 0:
-            anim = FadeAlpha(duration, self, -1, end_val, **kwargs)
+            anim = FadeAlphaAnimation(duration, self, -1, end_val, **kwargs)
             self.scene.anim_group.add(anim)
             self._current_fade_anim = anim
             return anim
