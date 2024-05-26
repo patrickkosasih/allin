@@ -1,5 +1,11 @@
+"""
+animation.py
+
+The animation module contains the `Animation` base class and the `AnimGroup` class to group and update animations.
+"""
+
 from abc import ABC, abstractmethod
-from typing import Callable, Type
+from typing import Callable, Type, Any
 
 from app.animations.interpolations import InterpolationFunc, ease_in_out
 
@@ -30,8 +36,9 @@ class Animation(ABC):
 
         self.call_on_finish = call_on_finish
 
-        self.anim_group = anim_group if anim_group else default_group
-        self.anim_group.add(self)
+        self.anim_group = None
+        if anim_group:
+            anim_group.add(self)
 
         if duration == 0:
             self.stop()
@@ -48,6 +55,10 @@ class Animation(ABC):
         else:
             self.update_anim()
 
+    """
+    Abstract methods
+    """
+
     @abstractmethod
     def update_anim(self) -> None:
         """
@@ -62,13 +73,26 @@ class Animation(ABC):
         """
         pass
 
+    """
+    Start, stop, pause methods
+    """
+
     def start(self):
+        """
+        Start or continue the animation.
+        """
         self.running = True
 
     def pause(self):
+        """
+        Pause the animation.
+        """
         self.running = False
 
     def stop(self):
+        """
+        Stop the animation. Once it's stopped, the animation cannot be continued anymore.
+        """
         if not self.running:
             return
 
@@ -93,14 +117,22 @@ class AnimGroup:
         self.animations: list[Animation] = []  # Currently running animations
 
     def add(self, animation: Animation):
-        if animation in animation.anim_group.animations:
+        """
+        Add an animation to the animation group. Each animation can only be bound to one anim group, so if the animation
+        is already in another animation group, then that animation is removed from its previous group.
+        """
+        if animation.anim_group and animation in animation.anim_group.animations:
             animation.anim_group.remove(animation)
 
         animation.anim_group = self
         self.animations.append(animation)
 
     def remove(self, animation: Animation):
+        """
+        Remove an animation from the group.
+        """
         self.animations.remove(animation)
+        animation.anim_group = None
 
     def reset(self, anim_type: Type or None = None):
         """
@@ -121,6 +153,3 @@ class AnimGroup:
         """
         for animation in self.animations:
             animation.update(dt)
-
-
-default_group = AnimGroup()

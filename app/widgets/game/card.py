@@ -157,7 +157,9 @@ class Card(Widget):
         self.is_ranked = ranked if shown else self.is_ranked
 
         start_end = (0, 255) if shown else (255, 0)
-        VarSlider(0.25, *start_end, setter_func=lambda x: self.set_highlight_alpha(int(x)))
+        VarSlider(0.25, *start_end, setter_func=lambda x: self.set_highlight_alpha(int(x)),
+                  anim_group=self.scene.anim_group)
+
 
     @staticmethod
     def set_size(height):

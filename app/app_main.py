@@ -1,8 +1,10 @@
+from typing import Callable
+
 import pygame
 
 from app.animations import animation
 from app.animations.animation import AnimGroup
-from app.animations.fade import FadeSceneTransition
+from app.animations.fade import FadeSceneAnimation
 from app.scenes.game_scene import GameScene
 from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
@@ -21,7 +23,7 @@ class App:
         pygame.display.set_caption("Allin")
         pygame.display.set_icon(pygame.image.load("assets/sprites/misc/icon.png"))
 
-        pygame.key.set_repeat(500, 50)
+        # pygame.key.set_repeat(500, 50)
         pygame.mixer.init()
         pygame.mixer.set_num_channels(32)
 
@@ -77,10 +79,9 @@ class App:
                     MouseListener.mouse_x, MouseListener.mouse_y = event.pos
 
             """
-            Main updates
+            Updates
             """
             app_timer.default_group.update(dt)
-            animation.default_group.update(dt)
             self.scene.update(dt)
             self.scene_transition_group.update(dt)
 
@@ -88,20 +89,7 @@ class App:
 
         pygame.quit()
 
-    def change_scene(self, scene: Scene or str, cache_old_scene=True, duration=0.4):
-        if duration > 0:
-            if not self.scene_transition_group.animations:
-                anim = FadeSceneTransition(duration, self, scene, cache_old_scene)
-                self.scene_transition_group.add(anim)
-            return
-
-        elif self.scene_transition_group.animations:
-            anim = self.scene_transition_group.animations[0]
-            anim.pause()
-
-        else:
-            anim = None
-
+    def change_scene(self, scene: Scene or str, cache_old_scene=True):
         old_scene = self.scene
         self.reset_next_dt = True
 
@@ -126,16 +114,28 @@ class App:
                     case _:
                         raise ValueError(f"invalid scene id: {scene}")
 
+        elif callable(scene):
+            self.scene = scene()
+
         else:
-            raise TypeError("the scene argument must be a string or an instance of Scene")
+            raise TypeError("the scene argument must be either a string, an instance of Scene, or a function that"
+                            "returns a Scene instance")
 
         if cache_old_scene:
             self.scene_cache[old_scene.scene_id] = old_scene
         else:
             del old_scene
 
-        if anim:
-            anim.start()
+    def change_scene_anim(self, scene: Scene or str or Callable[[None], Scene], cache_old_scene=True, duration=0.2):
+        if self.scene_transition_group.animations:
+            return
+
+        app_timer.Sequence([
+            lambda: FadeSceneAnimation(duration, self, 0, 255, anim_group=self.scene_transition_group),
+            duration,
+            lambda: self.change_scene(scene, cache_old_scene),
+            lambda: FadeSceneAnimation(duration, self, 255, 0, anim_group=self.scene_transition_group)
+        ])
 
     def quit(self):
         self.running = False

@@ -5,34 +5,37 @@ from app.shared import Layer
 from app.widgets.basic.button import CircularButton, Button
 from app.widgets.basic.panel import Panel
 from app.animations.interpolations import *
+from app.widgets.listeners import KeyboardListener
 
 INGAME_MENU_COLOR = (10, 10, 10, 100)
 
 
-class SideMenu(Panel):
+class SideMenu(Panel, KeyboardListener):
     def __init__(self, parent, *rect_args, toggle_button: "SideMenuButton", **panel_kwargs):
 
         super().__init__(parent, *rect_args, base_color=INGAME_MENU_COLOR,
                          outer_margin=2, base_radius=0, pack_height=7.5, **panel_kwargs)
+
         self.layer = Layer.SIDE_MENU
+        self._shown = False
 
         """
         Buttons
         """
-        # Back button
+        # Close menu button
         bx, by, bw, bh = self.next_pack_rect
         self.add_scrollable(CircularButton(self, bx, by, bh / 2,
-                                           command=self.back_click,
+                                           command=self.close_menu,
                                            icon=pygame.image.load("assets/sprites/action icons/cancel.png"), icon_size=0.9))
 
         # Home/main menu button
         self.add_scrollable(Button(self, *self.next_pack_rect, text_str="Main Menu",
-                                   command=self.main_menu_click,
+                                   command=self.main_menu,
                                    icon=pygame.image.load("assets/sprites/menu icons/home.png"), icon_size=0.95))
 
         # Quit button
         self.add_scrollable(Button(self, *self.next_pack_rect, text_str="Close Game",
-                                   command=self.quit_click,
+                                   command=self.quit_game,
                                    icon=pygame.image.load("assets/sprites/menu icons/quit.png"), icon_size=0.9))
 
 
@@ -48,17 +51,19 @@ class SideMenu(Panel):
         self.original_pos = self.rect.topleft
         self.hidden_pos = Vector2(self.rect.topleft) - Vector2(self.rect.width, 0)
 
-    def back_click(self):
+    def close_menu(self):
         self.set_shown(False)
         self.toggle_button.set_shown(True)
 
-    def main_menu_click(self):
-        self.scene.app.change_scene("mainmenu", cache_old_scene=False)
+    def main_menu(self):
+        self.scene.app.change_scene_anim("mainmenu", cache_old_scene=False, duration=0.5)
 
-    def quit_click(self):
+    def quit_game(self):
         self.scene.app.quit()
 
     def set_shown(self, shown: bool, duration=0.4):
+        self._shown = shown
+
         self.move_anim(duration, self.original_pos if shown else self.hidden_pos, "px", "tl", "tl",
                        interpolation=ease_out if shown else ease_in_out)
 
@@ -66,7 +71,14 @@ class SideMenu(Panel):
         super().on_mouse_down(event)
 
         if not self.rect.global_rect.collidepoint(self.mouse_x, self.mouse_y):
-            self.back_click()
+            self.close_menu()
+
+    def key_down(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            shown = self._shown
+
+            self.set_shown(not shown)
+            self.toggle_button.set_shown(shown)
 
 
 class SideMenuButton(CircularButton):
@@ -74,7 +86,7 @@ class SideMenuButton(CircularButton):
         super().__init__(parent, *rect_args, command=self.command,
                          icon=pygame.image.load("assets/sprites/menu icons/side menu.png"), icon_size=0.75)
 
-        self.menu = None
+        self.menu: SideMenu or None = None
 
     def command(self):
         if not self.menu:

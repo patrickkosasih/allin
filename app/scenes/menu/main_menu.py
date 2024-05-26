@@ -1,7 +1,9 @@
 import pygame.image
 
+from app.animations.move import MoveAnimation
 from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
+from app.tools import app_timer
 from app.widgets.basic.game_bg import GameBackground
 from app.widgets.basic.button import Button
 from app.shared import *
@@ -40,5 +42,6 @@ class MainMenuScene(Scene):
                                   icon=pygame.image.load("assets/sprites/menu icons/quit.png"), icon_size=0.8,
                                   command=self.app.quit)
 
+
     def singleplayer_click(self):
-        self.app.change_scene("singleplayer")
+        self.app.change_scene_anim("singleplayer")

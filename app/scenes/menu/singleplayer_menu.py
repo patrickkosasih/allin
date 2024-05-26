@@ -46,12 +46,21 @@ class SingleplayerMenuScene(Scene):
                                    icon=pygame.image.load("assets/sprites/action icons/confirm bet.png"),
                                    icon_size=0.8, icon_align="right")
 
-        self.side_menu_button = CircularButton(self, 1.5, 1.5, 4, "%h", "tl", "tl",
-                                               command=lambda: self.app.change_scene("mainmenu"),
-                                               icon=pygame.image.load("assets/sprites/menu icons/back.png"),
-                                               icon_size=0.8)
+        self.back_button = CircularButton(self, 1.5, 1.5, 4, "%h", "tl", "tl",
+                                          command=self.back,
+                                          icon=pygame.image.load("assets/sprites/menu icons/back.png"),
+                                          icon_size=0.8)
 
     def start(self):
         game_settings = self.setting_panel.get_form_data()
-        self.app.change_scene(GameScene(self.app, SingleplayerGame(**game_settings)), duration=1)
+        self.app.change_scene_anim(lambda: GameScene(self.app, SingleplayerGame(**game_settings)), duration=0.5)
         # FIXME Prevent the player from spamming the start button while the scene is fading.
+
+    def back(self):
+        self.app.change_scene_anim("mainmenu")
+
+    def broadcast_keyboard(self, event: pygame.event.Event):
+        super().broadcast_keyboard(event)
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.back()

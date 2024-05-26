@@ -28,11 +28,11 @@ class Scene:
         self.all_sprites.update(dt)
         self.all_sprites.draw(self.app.display_surface)
 
-    def broadcast_keyboard(self, event):
+    def broadcast_keyboard(self, event: pygame.event.Event):
         for listener in self.keyboard_listeners:
             listener.receive_keyboard_event(event)
 
-    def broadcast_mouse(self, event):
+    def broadcast_mouse(self, event: pygame.event.Event):
         for listener in self.mouse_listeners:
             listener.receive_mouse_event(event)
 
