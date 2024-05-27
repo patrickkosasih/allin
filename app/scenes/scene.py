@@ -14,6 +14,7 @@ class Scene:
     def __init__(self, app: "App", scene_id: str):
         self.app = app
         self.scene_id = scene_id
+        self.bg_color = "#123456"
 
         self.all_sprites = pygame.sprite.LayeredUpdates()
         self.anim_group = AnimGroup()
@@ -24,7 +25,7 @@ class Scene:
     def update(self, dt):
         self.anim_group.update(dt)
 
-        self.app.display_surface.fill("#123456")
+        self.app.display_surface.fill(self.bg_color)
         self.all_sprites.update(dt)
         self.all_sprites.draw(self.app.display_surface)
 

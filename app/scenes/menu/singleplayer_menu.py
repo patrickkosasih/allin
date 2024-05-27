@@ -4,6 +4,7 @@ from app.scenes.game_scene import GameScene
 from app.scenes.scene import Scene
 from app.shared import FontSave
 from app.widgets.basic.button import Button, CircularButton
+from app.widgets.basic.game_bg import GameBackground
 from app.widgets.basic.number_picker import NumberPicker
 from app.widgets.menu.form_panel import FormPanel, FormEntry
 from rules.singleplayer import SingleplayerGame
@@ -13,11 +14,14 @@ class SingleplayerMenuScene(Scene):
     def __init__(self, app):
         super().__init__(app, "singleplayer")
 
+        self.background = GameBackground(self, 0, 0, 101, 100, "%w", "ctr", "ctr")
+        self.background.image.set_alpha(200)
+
         """
         Setting panel
         """
         self.setting_panel = FormPanel(self, 0, -5, 75, 65, "%", "ctr", "ctr",
-                                       base_color=(24, 31, 37, 128),
+                                       base_color=(24, 31, 37, 200),
                                        base_radius=5, pack_height=12, entry_horizontal_margin=3)
 
         # Setting panel elements

@@ -242,6 +242,13 @@ class AutoSprite(pygame.sprite.Sprite, ABC):
 
         self.parent = parent
 
+    def delete(self, parent_attribute_name=""):
+        if parent_attribute_name:
+            setattr(self.parent, parent_attribute_name, None)
+
+        for group in self.groups():
+            group.remove(self)
+
     """
     Animations
     """

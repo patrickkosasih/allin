@@ -40,7 +40,7 @@ class App:
         """
         Scene and scene changing system
         """
-        self.scene = MainMenuScene(self)
+        self.scene = MainMenuScene(self, startup_sequence=True)
         self.scene_cache = {}
         self.scene_transition_group = AnimGroup()
 
