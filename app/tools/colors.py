@@ -31,3 +31,15 @@ def rand_color() -> tuple:
     Generates a random color in an (R, G, B) tuple format.
     """
     return tuple(random.randrange(256) for _ in range(3))
+
+
+def mix_color(c1: tuple, c2: tuple, fac=0.5) -> tuple:
+    """
+    Mixes two colors by averaging the RGB values. Colors must be in RGB tuple format.
+
+    :param c1: Color 1.
+    :param c2: Color 2.
+    :param fac: The factor of the color mixing, with 0 being closer to c1 and 1 being closer to c2.
+    """
+
+    return tuple(int((1 - fac) * x + fac * y) for x, y in zip(c1, c2))

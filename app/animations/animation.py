@@ -40,7 +40,7 @@ class Animation(ABC):
         if anim_group:
             anim_group.add(self)
 
-        if duration == 0:
+        if duration <= 0:
             self.stop()
 
     def update(self, dt):

@@ -167,7 +167,7 @@ class Button(MouseListener):
     def on_click(self, event):
         if event.button == 1 and not self.disabled:
             self.command()
-            play_sound("assets/audio/click.mp3")
+            play_sound("assets/audio/widgets/button.mp3")
 
     def update(self, dt):
         super().update(dt)

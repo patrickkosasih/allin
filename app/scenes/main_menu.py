@@ -37,7 +37,7 @@ class MainMenuScene(Scene):
         self.settings_button = Button(self, -11, 25, 20, 10, "%", "ctr", "ctr", text_str="Settings",
                                       b_thickness=0, color=MAIN_MENU_BUTTON_COLOR, font=FontSave.get_font(5),
                                       icon=pygame.image.load("assets/sprites/menu icons/settings.png"), icon_size=0.8,
-                                      command=lambda: print("Settings likewise come'th soon..."))
+                                      command=self.settings_click)
 
         self.quit_button = Button(self, 11, 25, 20, 10, "%", "ctr", "ctr", text_str="Quit",
                                   b_thickness=0, color=MAIN_MENU_BUTTON_COLOR, font=FontSave.get_font(5),
@@ -48,6 +48,10 @@ class MainMenuScene(Scene):
 
         if startup_sequence:
             self.startup_sequence()
+
+    """
+    Start-up sequence
+    """
 
     def startup_sequence(self):
         for _ in self.set_buttons_shown(False, 0, 0):
@@ -77,5 +81,12 @@ class MainMenuScene(Scene):
             if interval > 0:
                 yield interval
 
+    """
+    Button commands
+    """
+
     def singleplayer_click(self):
         self.app.change_scene_anim("singleplayer")
+
+    def settings_click(self):
+        self.app.change_scene_anim("settings")

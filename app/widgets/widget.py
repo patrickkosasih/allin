@@ -76,8 +76,10 @@ class AutoRect(pygame.rect.Rect):
 
         pos_unit, size_unit = unit if type(unit) is tuple else (unit, unit)
 
-        if pos_unit not in self.VALID_UNITS or size_unit not in self.VALID_UNITS:
-            raise ValueError(f"invalid unit: {unit}")
+        if pos_unit not in self.VALID_UNITS:
+            raise ValueError(f"invalid pos unit: {pos_unit}")
+        elif size_unit not in self.VALID_UNITS:
+            raise ValueError(f"invalid size unit: {size_unit}")
 
         if size_unit == "%":
             w, h = elementwise_mult(parent_rect.size, (w / 100, h / 100))

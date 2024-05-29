@@ -1,5 +1,6 @@
 import pygame
 
+from app.audio import play_sound
 from app.shared import *
 from app.widgets.listeners import MouseListener
 from app.widgets.widget import Widget, WidgetComponent
@@ -64,15 +65,16 @@ class Slider(MouseListener):
         min_x, max_x = m, self.rect.w - m
         x = max(min_x, min(max_x, x))
 
-        self.thumb.rect = self.thumb.image.get_rect(center=(x, h / 2))
+        if x // 25 != self.thumb.rect.centerx // 25:
+            # Scroll sfx
+            play_sound("assets/audio/widgets/slider.mp3")
+
+        self.thumb.set_pos(x, h / 2, "px", "tl", "ctr")
 
         if update_value:
             k = (x - min_x) / (max_x - min_x)
             value = k * (self.max_value - self.min_value) + self.min_value
             self.set_value(value)
-
-    def set_color(self):
-        pass
 
     def on_change(self):
         """
@@ -88,7 +90,7 @@ class Slider(MouseListener):
         Update thumb pos
         """
         if self.selected:
-            self.set_thumb_pos(self.mouse_x - self.rect.left - self.rect.global_rect.x)
+            self.set_thumb_pos(self.mouse_x - self.rect.global_rect.x)
             self.on_change()
 
         self.image.fill((0, 0, 0, 0))

@@ -2,7 +2,9 @@ from typing import Type
 
 from app.scenes.scene import Scene
 from app.shared import *
-from app.widgets.basic.number_picker import NumberPicker
+from app.widgets.basic.number_picker import NumberPicker, ItemPicker
+from app.widgets.basic.slider import Slider
+from app.widgets.basic.toggle_switch import ToggleSwitch
 from app.widgets.widget import Widget, WidgetComponent
 from app.widgets.basic.panel import Panel
 
@@ -19,8 +21,9 @@ class FormEntry(Widget):
     # Widget types
     NO_WIDGET = 0
     NUMBER_PICKER = 1
-    SWITCH = 2
+    ITEM_PICKER = 2
     SLIDER = 3
+    TOGGLE_SWITCH = 4
 
     def __init__(self, parent: "FormPanel", *rect_args,
                  entry_label_text: str = "", horizontal_margin=2,
@@ -39,6 +42,7 @@ class FormEntry(Widget):
         self.label.image = (FontSave.get_font(self.rect.height * entry_label_scale, "px").
                             render(entry_label_text, True, entry_label_color))
 
+        self.input_widget: None or NumberPicker or ItemPicker or Slider or ToggleSwitch
         self.input_widget = None
 
     def set_input_widget(self, widget_type: int, **widget_kwargs):
@@ -53,11 +57,26 @@ class FormEntry(Widget):
                 self.input_widget = NumberPicker(self, -self.horizontal_margin, 0, 25, 75, "%", "mr", "mr",
                                                  **widget_kwargs)
 
-            # TODO Coming soon switch/checkbox and slider inputs
+            case FormEntry.ITEM_PICKER:
+                self.input_widget = ItemPicker(self, -self.horizontal_margin, 0, 30, 75, "%", "mr", "mr",
+                                               **widget_kwargs)
+
+            case FormEntry.SLIDER:
+                self.input_widget = Slider(self, -self.horizontal_margin, 0, 50, 75, "%", "mr", "mr",
+                                           **widget_kwargs)
+
+            case FormEntry.TOGGLE_SWITCH:
+                self.input_widget = ToggleSwitch(self, -self.horizontal_margin, 0, 100, 50, ("%", "%h"), "mr", "mr",
+                                                 **widget_kwargs)
+
+            case _:
+                raise ValueError(f"invalid widget type code: {widget_type}")
 
     def get_entry_data(self):
-        if type(self.input_widget) is NumberPicker:
+        if type(self.input_widget) is NumberPicker or type(self.input_widget) is ItemPicker:
             return self.input_widget.value
+        elif type(self.input_widget) is Slider:
+            return self.input_widget
 
 
 class FormHeader(Widget):
@@ -97,8 +116,11 @@ class FormPanel(Panel):
 
         return entry
 
-    def add_header(self, header_text: str) -> FormHeader:
-        header = FormHeader(self, *self.next_pack_rect, "px", "tl", "tl", header_text=header_text)
+    def add_header(self, header_text: str, font_scale=1.0) -> FormHeader:
+        x, y, w, h = self.next_pack_rect
+        h *= font_scale
+
+        header = FormHeader(self, x, y, w, h, "px", "tl", "tl", header_text=header_text)
         self.add_scrollable(header)
 
         self._next_row_y += self._inner_margin

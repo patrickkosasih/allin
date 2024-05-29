@@ -2,13 +2,12 @@ from typing import Callable
 
 import pygame
 
-from app.animations import animation
 from app.animations.animation import AnimGroup
 from app.animations.fade import FadeSceneAnimation
-from app.scenes.game_scene import GameScene
-from app.scenes.menu.singleplayer_menu import SingleplayerMenuScene
+from app.scenes.settings_scene import SettingsScene
+from app.scenes.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
-from app.scenes.menu.main_menu import MainMenuScene
+from app.scenes.main_menu import MainMenuScene
 from app.tools import app_timer
 from app.widgets.listeners import MouseListener
 
@@ -107,6 +106,9 @@ class App:
 
                     case "singleplayer":
                         self.scene = SingleplayerMenuScene(self)
+
+                    case "settings":
+                        self.scene = SettingsScene(self)
 
                     case "game":
                         raise ValueError("cannot change to game scene by string id")

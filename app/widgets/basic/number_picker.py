@@ -1,3 +1,5 @@
+from typing import T
+
 import pygame
 
 from app.shared import *
@@ -91,3 +93,45 @@ class NumberPicker(Widget):
     def value(self, value):
         self._value = value
         self.update_label()
+
+
+class ItemPicker(NumberPicker):
+    def __init__(self, parent, *rect_args,
+                 items: list[T], default_index: int = 0,
+                 format_func: Callable[[T], str] = str,
+                 **kwargs):
+
+        self._items = items
+        self._selected_index = default_index
+
+        super().__init__(parent, *rect_args,
+                         min_value=0, max_value=len(items), default_value=0, step=1,
+                         format_func=format_func)
+
+        del self._value
+
+    def update_label(self):
+        self.label.image = FontSave.get_font(4).render(self.format_func(self._items[self._selected_index]), True, self._label_color)
+        self.label.set_pos(0, 0)
+
+    def plus_click(self):
+        self._selected_index += 1
+        self._selected_index %= len(self._items)
+        self.update_label()
+
+    def minus_click(self):
+        self._selected_index -= 1
+        self._selected_index %= len(self._items)
+        self.update_label()
+
+    @property
+    def value(self):
+        return self._items[self._selected_index]
+
+    @value.setter
+    def value(self, value):
+        if value in self._items:
+            self._selected_index = self._items.index(value)
+            self.update_label()
+        else:
+            raise ValueError(f"the given item does not exist in the items list: {value}")
