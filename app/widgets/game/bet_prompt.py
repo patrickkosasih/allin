@@ -63,13 +63,13 @@ class BetPrompt(Widget):
         self.edit_mode = edit_mode
 
         if edit_mode:
-            self.edit_button.set_icon(pygame.image.load("assets/sprites/action icons/cancel.png"), 0.9)
+            self.edit_button.set_icon(load_image("assets/sprites/action icons/cancel.png"), 0.9)
             self.confirm_button.current_bet_input = self.bet_amount
             self.confirm_button.set_side_text_money(0)
             self.confirm_button.all_in = False
 
         else:
-            self.edit_button.set_icon(pygame.image.load("assets/sprites/action icons/edit bet.png"))
+            self.edit_button.set_icon(load_image("assets/sprites/action icons/edit bet.png"))
 
             new_bet = self.confirm_button.current_bet_input
             new_bet = max(self.slider.min_value, min(new_bet, self.slider.max_value))
@@ -108,7 +108,7 @@ class BetConfirmButton(KeyboardListener, SideTextedButton):
     def __init__(self, prompt, *rect_args, **kwargs):
         super().__init__(prompt, *rect_args,
                          color=COLORS["raise"], text_str="", command=self.command,
-                         icon=pygame.image.load("assets/sprites/action icons/confirm bet.png"), icon_size=0.8,
+                         icon=load_image("assets/sprites/action icons/confirm bet.png"), icon_size=0.8,
                          **kwargs)
 
         self.prompt = prompt
@@ -170,7 +170,7 @@ class BetEditButton(CircularButton):
         super().__init__(prompt, *rect_args,
                          command=self.command,
                          color=hsv_factor(COLORS["raise"], sf=0.9, vf=1.2),
-                         icon=pygame.image.load("assets/sprites/action icons/edit bet.png"))
+                         icon=load_image("assets/sprites/action icons/edit bet.png"))
 
         self.prompt = prompt
 

@@ -8,6 +8,7 @@ from app.scenes.settings_scene import SettingsScene
 from app.scenes.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
 from app.scenes.main_menu import MainMenuScene
+from app.shared import load_image
 from app.tools import app_timer
 from app.widgets.listeners import MouseListener
 
@@ -18,9 +19,6 @@ FPS = 60
 class App:
     def __init__(self):
         pygame.init()
-
-        pygame.display.set_caption("Allin")
-        pygame.display.set_icon(pygame.image.load("assets/sprites/misc/icon.png"))
 
         # pygame.key.set_repeat(500, 50)
         pygame.mixer.init()
@@ -44,6 +42,12 @@ class App:
         self.scene_transition_group = AnimGroup()
 
         self.reset_next_dt = False
+
+        """
+        Title and icon
+        """
+        pygame.display.set_caption("Allin")
+        pygame.display.set_icon(load_image("assets/sprites/misc/icon.png"))
 
     def run(self):
         while self.running:
@@ -125,8 +129,6 @@ class App:
 
         if cache_old_scene:
             self.scene_cache[old_scene.scene_id] = old_scene
-        else:
-            del old_scene
 
     def change_scene_anim(self, scene: Scene or str or Callable[[None], Scene], cache_old_scene=True, duration=0.2):
         if self.scene_transition_group.animations:

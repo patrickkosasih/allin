@@ -66,11 +66,11 @@ class NumberPicker(Widget):
         self.update_label()
 
         self.minus_button = CircularButton(self, 0, 0, 50, "%", "ml", "ml",
-                                           icon=pygame.image.load("assets/sprites/misc/minus.png"), icon_size=0.9,
+                                           icon=load_image("assets/sprites/misc/minus.png"), icon_size=0.9,
                                            color=button_color, command=self.minus_click)
 
         self.plus_button = CircularButton(self, 0, 0, 50, "%", "mr", "mr",
-                                          icon=pygame.image.load("assets/sprites/misc/plus.png"), icon_size=0.9,
+                                          icon=load_image("assets/sprites/misc/plus.png"), icon_size=0.9,
                                           color=button_color, command=self.plus_click)
 
     def update_label(self):

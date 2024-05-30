@@ -1,6 +1,6 @@
 import pygame
 
-from app.shared import Layer, h_percent_to_px
+from app.shared import Layer, h_percent_to_px, load_image
 from app.widgets.widget import Widget
 
 SPRITE_PATHS = {
@@ -30,5 +30,5 @@ class DealerButton(Widget):
         if button_type not in SPRITE_PATHS:
             raise ValueError(f"invalid button type: {button_type}")
 
-        self._image = pygame.transform.smoothscale(pygame.image.load(SPRITE_PATHS[button_type]), self.rect.size)
+        self._image = load_image(SPRITE_PATHS[button_type], self.rect.size)
         self.layer = Layer.DEALER_BUTTON if button_type == "D" else Layer.BLINDS_BUTTON

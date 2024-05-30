@@ -1,7 +1,7 @@
 import pygame
 from pygame import Vector2
 
-from app.shared import Layer
+from app.shared import Layer, load_image
 from app.widgets.basic.button import CircularButton, Button
 from app.widgets.basic.panel import Panel
 from app.animations.interpolations import *
@@ -26,17 +26,17 @@ class SideMenu(Panel, KeyboardListener):
         bx, by, bw, bh = self.next_pack_rect
         self.add_scrollable(CircularButton(self, bx, by, bh / 2,
                                            command=self.close_menu,
-                                           icon=pygame.image.load("assets/sprites/action icons/cancel.png"), icon_size=0.9))
+                                           icon=load_image("assets/sprites/action icons/cancel.png"), icon_size=0.9))
 
         # Home/main menu button
         self.add_scrollable(Button(self, *self.next_pack_rect, text_str="Main Menu",
                                    command=self.main_menu,
-                                   icon=pygame.image.load("assets/sprites/menu icons/home.png"), icon_size=0.95))
+                                   icon=load_image("assets/sprites/menu icons/home.png"), icon_size=0.95))
 
         # Quit button
         self.add_scrollable(Button(self, *self.next_pack_rect, text_str="Close Game",
                                    command=self.quit_game,
-                                   icon=pygame.image.load("assets/sprites/menu icons/quit.png"), icon_size=0.9))
+                                   icon=load_image("assets/sprites/menu icons/quit.png"), icon_size=0.9))
 
 
         """
@@ -84,7 +84,7 @@ class SideMenu(Panel, KeyboardListener):
 class SideMenuButton(CircularButton):
     def __init__(self, parent, *rect_args):
         super().__init__(parent, *rect_args, command=self.command,
-                         icon=pygame.image.load("assets/sprites/menu icons/side menu.png"), icon_size=0.75)
+                         icon=load_image("assets/sprites/menu icons/side menu.png"), icon_size=0.75)
 
         self.menu: SideMenu or None = None
 

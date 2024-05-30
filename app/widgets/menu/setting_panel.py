@@ -13,9 +13,9 @@ DEFAULT_ENTRY_BG_COLOR = (20, 20, 20, 128)
 DEFAULT_ENTRY_FG_COLOR = (255, 255, 255)
 
 
-class FormEntry(Widget):
+class SettingEntry(Widget):
     """
-    Form entries are elements of the form panel which has a representing text and an input widget.
+    Setting fields are elements of the setting panel which has a representing text and an input widget.
     """
 
     # Widget types
@@ -25,7 +25,7 @@ class FormEntry(Widget):
     SLIDER = 3
     TOGGLE_SWITCH = 4
 
-    def __init__(self, parent: "FormPanel", *rect_args,
+    def __init__(self, parent: "SettingPanel", *rect_args,
                  entry_label_text: str = "", horizontal_margin=2,
                  entry_base_color=DEFAULT_ENTRY_BG_COLOR,
                  entry_label_scale=0.6,
@@ -50,22 +50,22 @@ class FormEntry(Widget):
             del self.input_widget
 
         match widget_type:
-            case FormEntry.NO_WIDGET:
+            case SettingEntry.NO_WIDGET:
                 self.input_widget = None
 
-            case FormEntry.NUMBER_PICKER:
+            case SettingEntry.NUMBER_PICKER:
                 self.input_widget = NumberPicker(self, -self.horizontal_margin, 0, 25, 75, "%", "mr", "mr",
                                                  **widget_kwargs)
 
-            case FormEntry.ITEM_PICKER:
+            case SettingEntry.ITEM_PICKER:
                 self.input_widget = ItemPicker(self, -self.horizontal_margin, 0, 30, 75, "%", "mr", "mr",
                                                **widget_kwargs)
 
-            case FormEntry.SLIDER:
+            case SettingEntry.SLIDER:
                 self.input_widget = Slider(self, -self.horizontal_margin, 0, 50, 75, "%", "mr", "mr",
                                            **widget_kwargs)
 
-            case FormEntry.TOGGLE_SWITCH:
+            case SettingEntry.TOGGLE_SWITCH:
                 self.input_widget = ToggleSwitch(self, -self.horizontal_margin, 0, 100, 50, ("%", "%h"), "mr", "mr",
                                                  **widget_kwargs)
 
@@ -76,11 +76,13 @@ class FormEntry(Widget):
         if type(self.input_widget) is NumberPicker or type(self.input_widget) is ItemPicker:
             return self.input_widget.value
         elif type(self.input_widget) is Slider:
-            return self.input_widget
+            return self.input_widget.current_value
+        elif type(self.input_widget) is ToggleSwitch:
+            return self.input_widget.state
 
 
-class FormHeader(Widget):
-    def __init__(self, parent: "FormPanel", *rect_args, header_text: str, color=DEFAULT_ENTRY_FG_COLOR):
+class SettingHeader(Widget):
+    def __init__(self, parent: "SettingPanel", *rect_args, header_text: str, color=DEFAULT_ENTRY_FG_COLOR):
         super().__init__(parent, *rect_args)
 
         self.image = FontSave.get_font(self.rect.h, "px").render(header_text, True, color)
@@ -89,9 +91,10 @@ class FormHeader(Widget):
         pass
 
 
-class FormPanel(Panel):
+class SettingPanel(Panel):
     """
-    The form panel is an extension of the `Panel` class that is used to create a container for multiple input widgets.
+    The setting panel is an extension of the `Panel` class that is able to contain multiple rows of entries usually used
+    to configure something.
     """
 
     def __init__(self, parent: "Widget" or Scene, *rect_args, panel_unit="%",
@@ -103,29 +106,29 @@ class FormPanel(Panel):
 
         self.entry_dict = {}  # {field name: entry widget}
 
-    def add_entry(self, field_name: str, label_text: str = "", **entry_kwargs) -> FormEntry:
+    def add_entry(self, field_name: str, label_text: str = "", **entry_kwargs) -> SettingEntry:
         if field_name in self.entry_dict:
             raise ValueError(f"field name already exists: {field_name}")
 
-        entry = FormEntry(self, *self.next_pack_rect, "px", "tl", "tl",
-                          entry_label_text=label_text, horizontal_margin=self.entry_hz_margin,
-                          **entry_kwargs)
+        entry = SettingEntry(self, *self.next_pack_rect, "px", "tl", "tl",
+                             entry_label_text=label_text, horizontal_margin=self.entry_hz_margin,
+                             **entry_kwargs)
 
         self.add_scrollable(entry)
         self.entry_dict[field_name] = entry
 
         return entry
 
-    def add_header(self, header_text: str, font_scale=1.0) -> FormHeader:
+    def add_header(self, header_text: str, font_scale=1.0) -> SettingHeader:
         x, y, w, h = self.next_pack_rect
         h *= font_scale
 
-        header = FormHeader(self, x, y, w, h, "px", "tl", "tl", header_text=header_text)
+        header = SettingHeader(self, x, y, w, h, "px", "tl", "tl", header_text=header_text)
         self.add_scrollable(header)
 
         self._next_row_y += self._inner_margin
 
         return header
 
-    def get_form_data(self) -> dict:
+    def get_setting_data(self) -> dict:
         return {field: entry.get_entry_data() for field, entry in self.entry_dict.items()}

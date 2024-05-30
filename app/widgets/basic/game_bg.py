@@ -1,5 +1,6 @@
 import pygame
 
+from app.shared import load_image
 from app.widgets.widget import Widget
 
 

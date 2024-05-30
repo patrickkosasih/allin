@@ -16,6 +16,9 @@ from app.tools.colors import hsv_factor, rand_color
 from app.tools.draw import draw_rounded_rect
 
 
+"""
+Image loading-related tools
+"""
 class FontSave:
     """
     The `FontSave` class makes creating font objects much easier by having a global font object that is shared
@@ -44,6 +47,32 @@ class FontSave:
         )
 
 
+def load_image(path: str,
+               size: None or tuple = None,
+               convert = True) -> pygame.Surface:
+    """
+    Load an image file into a pygame.Surface object, and convert it to the correct pixel format using `convert_alpha`.
+
+    A much simpler way of writing `pygame.image.load(path).convert_alpha()`.
+
+    :param path: Path to the image file.
+    :param size: If not set to None then the image is resized to the given size.
+    :param convert: Convert the image using `convert_alpha` or not
+    :return: The loaded and converted image.
+    """
+    image = pygame.image.load(path)
+
+    if size:
+        image = pygame.transform.smoothscale(image, size)
+    if convert:
+        image = image.convert_alpha()
+
+    return image
+
+
+"""
+Universal layer order constants
+"""
 class Layer:
     BACKGROUND = -1
     DEFAULT = 0
@@ -57,6 +86,9 @@ class Layer:
     SIDE_MENU = 8
 
 
+"""
+% to px conversion functions
+"""
 def w_percent_to_px(x: float) -> float:
     return 0.01 * x * pygame.display.get_window_size()[0]
 

@@ -92,7 +92,7 @@ class SideTextedButton(Button):
 class FoldButton(ActionButton):
     def __init__(self, parent, *rect_args, player: Player):
         super().__init__(parent, *rect_args, player=player, color=COLORS["fold"], text_str="Fold",
-                         icon=pygame.image.load("assets/sprites/action icons/fold.png"), icon_size=0.8)
+                         icon=load_image("assets/sprites/action icons/fold.png"), icon_size=0.8)
 
     def command(self):
         self.player.action(Actions.FOLD)
@@ -113,10 +113,10 @@ class CallButton(ActionButton, SideTextedButton):
 
         if amount_to_pay > 0:
             self.set_text("Call")
-            self.set_icon(pygame.image.load("assets/sprites/action icons/call.png"), 0.9)
+            self.set_icon(load_image("assets/sprites/action icons/call.png"), 0.9)
         else:
             self.set_text("Check")
-            self.set_icon(pygame.image.load("assets/sprites/action icons/check.png"), 0.8)
+            self.set_icon(load_image("assets/sprites/action icons/check.png"), 0.8)
 
         self.all_in = amount_to_pay >= self.player.money
 
@@ -142,7 +142,7 @@ class RaiseButton(ActionButton):
 
         if self.game_scene.bet_prompt.shown:
             self.set_text("Cancel")
-            self.set_icon(pygame.image.load("assets/sprites/action icons/cancel.png"), 0.9)
+            self.set_icon(load_image("assets/sprites/action icons/cancel.png"), 0.9)
             self.set_color((100, 100, 100))
         else:
             self.set_text(self.original_text)
@@ -152,10 +152,10 @@ class RaiseButton(ActionButton):
     def update_bet_amount(self, new_bet_amount: int):
         if new_bet_amount > 0:
             self.original_text = "Raise"
-            self.original_icon = pygame.image.load("assets/sprites/action icons/raise.png")
+            self.original_icon = load_image("assets/sprites/action icons/raise.png")
         else:
             self.original_text = "Bet"
-            self.original_icon = pygame.image.load("assets/sprites/action icons/bet.png")
+            self.original_icon = load_image("assets/sprites/action icons/bet.png")
 
         self.set_text(self.original_text)
         self.set_icon(self.original_icon, 0.9)

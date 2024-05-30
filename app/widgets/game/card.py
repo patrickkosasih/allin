@@ -3,7 +3,7 @@ import pygame
 import rules.basic
 from app.animations.var_slider import VarSlider
 from app.audio import play_sound
-from app.shared import Layer
+from app.shared import Layer, load_image
 from app.animations.card_flip import CardFlipAnimation
 from app.widgets.widget import Widget
 
@@ -94,7 +94,7 @@ class Card(Widget):
         """
         2. Top left corner suit
         """
-        unscaled_suit = pygame.image.load(SUIT_SPRITE_PATHS[self.card_data.suit])
+        unscaled_suit = load_image(SUIT_SPRITE_PATHS[self.card_data.suit])
         corner_suit_size = 0.2 * self.card_front.get_width()
 
         corner_suit = pygame.transform.smoothscale(unscaled_suit, 2 * (corner_suit_size,))
@@ -178,10 +178,10 @@ class Card(Widget):
         elif height <= 0:
             raise ValueError("height must be a positive number")
 
-        unscaled_base = pygame.image.load("assets/sprites/card/base.png")
-        unscaled_back = pygame.image.load("assets/sprites/card/back.png")
-        unscaled_highlight = pygame.image.load("assets/sprites/card/highlight.png")
-        unscaled_k_highlight = pygame.image.load("assets/sprites/card/kicker highlight.png")
+        unscaled_base = load_image("assets/sprites/card/base.png")
+        unscaled_back = load_image("assets/sprites/card/back.png")
+        unscaled_highlight = load_image("assets/sprites/card/highlight.png")
+        unscaled_k_highlight = load_image("assets/sprites/card/kicker highlight.png")
 
         width = (unscaled_base.get_width() / unscaled_base.get_height()) * height
 
