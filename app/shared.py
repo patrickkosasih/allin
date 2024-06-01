@@ -3,6 +3,7 @@ app/shared.py
 
 A module that contains various shared functions used throughout the program.
 """
+import os
 
 # When another module imports this module by `from app.shared import *`, all the imports below are imported as well.
 
@@ -14,6 +15,12 @@ import time
 
 from app.tools.colors import hsv_factor, rand_color
 from app.tools.draw import draw_rounded_rect
+
+
+SAVE_FOLDER_PATH = os.path.join(os.getenv("localappdata"), "Allin")
+
+if not os.path.isdir(SAVE_FOLDER_PATH):
+    os.mkdir(SAVE_FOLDER_PATH)
 
 
 """

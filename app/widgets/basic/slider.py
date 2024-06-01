@@ -9,7 +9,7 @@ from app.widgets.widget import Widget, WidgetComponent
 class Slider(MouseListener):
     def __init__(self, parent, *rect_args,
                  min_value=0, max_value=100, default_value=0, int_only=False,
-                 update_func: Callable[[int or float], None] = lambda x: None):
+                 call_on_change: Callable[[], None] = lambda: None):
         super().__init__(parent, *rect_args)
 
         """
@@ -20,9 +20,7 @@ class Slider(MouseListener):
         self.current_value = default_value
         self.int_only = int_only
 
-        self.set_value(default_value)
-
-        self.update_func = update_func
+        self.call_on_change = call_on_change
 
         self.track_color = (100, 100, 100)
         self.thumb_color = (200, 200, 200)
@@ -46,7 +44,12 @@ class Slider(MouseListener):
         pygame.gfxdraw.aacircle(self.thumb.image, r, r, r, self.thumb_color)
         pygame.gfxdraw.filled_circle(self.thumb.image, r, r, r, self.thumb_color)
 
-    def set_value(self, value, update_thumb_pos=False):
+        """
+        Initialize thumb position based on default value
+        """
+        self.set_value(default_value, update_thumb_pos=True, silent=True)
+
+    def set_value(self, value, update_thumb_pos=False, silent=False):
         self.current_value = int(value) if self.int_only else value
 
         if update_thumb_pos:
@@ -56,16 +59,16 @@ class Slider(MouseListener):
 
             k = (value - self.min_value) / (self.max_value - self.min_value) if self.max_value != self.min_value else 0
             x = k * (max_x - min_x) + min_x
-            self.set_thumb_pos(x, False)
+            self.set_thumb_pos(x, False, silent)
 
-    def set_thumb_pos(self, x, update_value=True):
+    def set_thumb_pos(self, x, update_value=True, silent=False):
         h = self.rect.h
         m = h / 3 + h / 8
 
         min_x, max_x = m, self.rect.w - m
         x = max(min_x, min(max_x, x))
 
-        if x // 25 != self.thumb.rect.centerx // 25:
+        if not silent and x // 25 != self.thumb.rect.centerx // 25:
             # Scroll sfx
             play_sound("assets/audio/widgets/slider.mp3")
 
@@ -76,12 +79,6 @@ class Slider(MouseListener):
             value = k * (self.max_value - self.min_value) + self.min_value
             self.set_value(value)
 
-    def on_change(self):
-        """
-        A function that is called everytime the value is changed.
-        """
-        pass
-
     def update(self, dt):
         """"""
         super().update(dt)
@@ -91,7 +88,7 @@ class Slider(MouseListener):
         """
         if self.selected:
             self.set_thumb_pos(self.mouse_x - self.rect.global_rect.x)
-            self.on_change()
+            self.call_on_change()
 
         self.image.fill((0, 0, 0, 0))
         self.component_group.draw(self.image)

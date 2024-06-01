@@ -21,7 +21,8 @@ class NumberPicker(Widget):
     def __init__(self, parent, *rect_args,
                  min_value=1, max_value=10, default_value=1, step=1,
                  base_color=DEFAULT_BASE_COLOR, button_color=DEFAULT_BUTTON_COLOR, label_color=DEFAULT_LABEL_COLOR,
-                 format_func: Callable[[int or float], str] = str):
+                 format_func: Callable[[int or float], str] = str,
+                 call_on_change: Callable[[], None] = lambda: None):
 
         """
         Parameters:
@@ -40,6 +41,7 @@ class NumberPicker(Widget):
 
         :param format_func: A function that converts the integer or float value of the number picker into a string that
                             is shown in the number picker's label.
+        :param call_on_change: A function that is called everytime the value of the number picker changes.
         """
 
         super().__init__(parent, *rect_args)
@@ -55,6 +57,7 @@ class NumberPicker(Widget):
         self._label_color = label_color
 
         self.format_func = format_func
+        self.call_on_change = call_on_change
 
         """
         Components
@@ -63,6 +66,7 @@ class NumberPicker(Widget):
         draw_rounded_rect(self.base.image, self.base.rect, base_color)
 
         self.label = WidgetComponent(self, 0, 0, 100, 75, "%", "ctr", "ctr")
+
         self.update_label()
 
         self.minus_button = CircularButton(self, 0, 0, 50, "%", "ml", "ml",
@@ -80,10 +84,12 @@ class NumberPicker(Widget):
     def minus_click(self):
         if (new_val := self.value - self._step) >= self._min_value:
             self.value = new_val
+            self.call_on_change()
 
     def plus_click(self):
         if (new_val := self.value + self._step) <= self._max_value:
             self.value = new_val
+            self.call_on_change()
 
     @property
     def value(self):
@@ -96,42 +102,47 @@ class NumberPicker(Widget):
 
 
 class ItemPicker(NumberPicker):
+    """
+    The item picker is an extension of the number picker that enables the user pick something from a list of items
+    instead of picking a number between a number range. The said item can be of any data type, from strings, tuples,
+    numbers, class instances, and more.
+    """
+
     def __init__(self, parent, *rect_args,
                  items: list[T], default_index: int = 0,
                  format_func: Callable[[T], str] = str,
                  **kwargs):
 
         self._items = items
-        self._selected_index = default_index
 
         super().__init__(parent, *rect_args,
-                         min_value=0, max_value=len(items), default_value=0, step=1,
-                         format_func=format_func)
-
-        del self._value
+                         min_value=0, max_value=len(items), default_value=default_index, step=1,
+                         format_func=format_func, **kwargs)
 
     def update_label(self):
-        self.label.image = FontSave.get_font(4).render(self.format_func(self._items[self._selected_index]), True, self._label_color)
+        self.label.image = FontSave.get_font(4).render(self.format_func(self.selected_item), True, self._label_color)
         self.label.set_pos(0, 0)
 
     def plus_click(self):
-        self._selected_index += 1
-        self._selected_index %= len(self._items)
+        self._value += 1
+        self._value %= len(self._items)
+        self.call_on_change()
         self.update_label()
 
     def minus_click(self):
-        self._selected_index -= 1
-        self._selected_index %= len(self._items)
+        self._value -= 1
+        self._value %= len(self._items)
+        self.call_on_change()
         self.update_label()
 
     @property
-    def value(self):
-        return self._items[self._selected_index]
+    def selected_item(self):
+        return self._items[self._value]
 
-    @value.setter
-    def value(self, value):
+    @selected_item.setter
+    def selected_item(self, value):
         if value in self._items:
-            self._selected_index = self._items.index(value)
+            self._value = self._items.index(value)
             self.update_label()
         else:
             raise ValueError(f"the given item does not exist in the items list: {value}")

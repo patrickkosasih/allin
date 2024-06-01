@@ -85,10 +85,10 @@ class BetPrompt(Widget):
 
 class BetSlider(Slider):
     def __init__(self, prompt, *rect, **kwargs):
-        super().__init__(prompt, *rect, int_only=True, **kwargs)
+        super().__init__(prompt, *rect, int_only=True, call_on_change=self.set_bet, **kwargs)
         self.prompt = prompt
 
-    def on_change(self):
+    def set_bet(self):
         self.prompt.set_bet(self.current_value)
 
     def update_range(self):
@@ -101,7 +101,7 @@ class BetSlider(Slider):
         self.min_value = min(self.min_value, self.max_value)
 
         self.set_value(self.min_value, update_thumb_pos=True)
-        self.on_change()
+        self.set_bet()
 
 
 class BetConfirmButton(KeyboardListener, SideTextedButton):

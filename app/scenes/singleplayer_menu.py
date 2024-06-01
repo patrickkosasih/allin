@@ -3,6 +3,7 @@ import pygame.image
 from app.scenes.game_scene import GameScene
 from app.scenes.scene import Scene
 from app.shared import FontSave, load_image
+from app.tools.settings_data import FieldType
 from app.widgets.basic.button import Button, CircularButton
 from app.widgets.basic.game_bg import GameBackground
 from app.widgets.basic.number_picker import NumberPicker
@@ -28,16 +29,16 @@ class SingleplayerMenuScene(Scene):
         self.setting_panel.add_header("Singleplayer Game")
 
         self.setting_panel.add_entry("n_bots", "Number of Bots").set_input_widget(
-            SettingEntry.NUMBER_PICKER, min_value=1, max_value=9, default_value=5
+            FieldType.NUMBER_PICKER, min_value=1, max_value=9, default_value=5
         )
 
         self.setting_panel.add_entry("starting_money", "Starting Money").set_input_widget(
-            SettingEntry.NUMBER_PICKER, min_value=500, max_value=10000, default_value=1000, step=500,
+            FieldType.NUMBER_PICKER, min_value=500, max_value=10000, default_value=1000, step=500,
             format_func=lambda x: f"${x:,}"
         )
 
         self.setting_panel.add_entry("sb_amount", "Blinds Amount").set_input_widget(
-            SettingEntry.NUMBER_PICKER, min_value=5, max_value=250, default_value=25, step=5,
+            FieldType.NUMBER_PICKER, min_value=5, max_value=250, default_value=25, step=5,
             format_func=lambda x: f"${x:,} / ${x * 2:,}"
         )
 
@@ -56,7 +57,7 @@ class SingleplayerMenuScene(Scene):
                                           icon_size=0.8)
 
     def start(self):
-        game_settings = self.setting_panel.get_setting_data()
+        game_settings = self.setting_panel.get_data_as_dict()
         self.app.change_scene_anim(lambda: GameScene(self.app, SingleplayerGame(**game_settings)), duration=0.5)
 
     def back(self):

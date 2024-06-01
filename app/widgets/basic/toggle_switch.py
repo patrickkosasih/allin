@@ -1,3 +1,5 @@
+from typing import Callable
+
 import pygame
 import pygame.gfxdraw
 
@@ -16,10 +18,17 @@ THUMB_COLOR = 255, 255, 255, 225
 
 
 class ToggleSwitch(MouseListener):
-    def __init__(self, parent, *rect_args, default_state=False):
+    """
+    The toggle switch is a simple widget resembling a switch that can be turned on and off, and be used by the program
+    to accept a boolean true/false input.
+    """
+
+    def __init__(self, parent, *rect_args, default_state=False,
+                 call_on_change: Callable[[], None] = lambda: None):
         super().__init__(parent, *rect_args)
 
         self._state = default_state
+        self.call_on_change = call_on_change
 
         self.track = WidgetComponent(self, 0, 0, 100, 100, "%", "tl", "tl")
         self.thumb = WidgetComponent(self, 0, 0, 100, 100, "%h", "ctr", "ctr")
@@ -85,6 +94,7 @@ class ToggleSwitch(MouseListener):
     def on_click(self, event):
         if event.button == 1:
             self.state = not self.state
+            self.call_on_change()
             play_sound(f"assets/audio/widgets/switch {'on' if self._state else 'off'}.mp3")
 
     def update(self, dt):
