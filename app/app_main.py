@@ -2,18 +2,16 @@ from typing import Callable
 
 import pygame
 
+from app import audio, app_settings
 from app.animations.animation import AnimGroup
 from app.animations.fade import FadeSceneAnimation
 from app.scenes.settings_scene import SettingsScene
 from app.scenes.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
 from app.scenes.main_menu import MainMenuScene
-from app.shared import load_image
+from app.shared import load_image, FontSave
 from app.tools import app_timer
 from app.widgets.listeners import MouseListener
-
-WINDOWED_DIMENSIONS = 1280, 720
-FPS = 60
 
 
 class App:
@@ -24,20 +22,28 @@ class App:
         pygame.mixer.init()
         pygame.mixer.set_num_channels(32)
 
-        """
-        Main systems
-        """
-        # self.screen = pygame.display.set_mode(WINDOWED_DIMENSIONS)
-        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-        self.display_surface = pygame.display.get_surface()
+        audio.default_group.update_volume()
 
+        """
+        Pygame and app attributes
+        """
+        self.fps_limit = 60
+        self.windowed = False
+        self.window_resolution = (1280, 720)
+
+        self.screen = None
+        self.update_display_settings(force_update_window=True)
+
+        self.display_surface = pygame.display.get_surface()
         self.clock = pygame.time.Clock()
+
+
         self.running = True
 
         """
         Scene and scene changing system
         """
-        self.scene = MainMenuScene(self, startup_sequence=True)
+        self.scene = MainMenuScene(self, startup_sequence=app_settings.main.get_value("startup_sequence"))
         self.scene_cache = {}
         self.scene_transition_group = AnimGroup()
 
@@ -54,10 +60,10 @@ class App:
             """
             Tick
             """
-            dt = self.clock.tick(FPS) / 1000
+            dt = self.clock.tick(self.fps_limit) / 1000
 
             if self.reset_next_dt:
-                dt = 1 / FPS
+                dt = 0
                 self.reset_next_dt = False
 
             """
@@ -90,6 +96,7 @@ class App:
 
             pygame.display.update()
 
+        app_settings.main.save()
         pygame.quit()
 
     def change_scene(self, scene: Scene or str, cache_old_scene=True):
@@ -140,6 +147,28 @@ class App:
             lambda: self.change_scene(scene, cache_old_scene),
             lambda: FadeSceneAnimation(duration, self, 255, 0, anim_group=self.scene_transition_group)
         ])
+
+    def update_display_settings(self, force_update_window=False):
+        prev_windowed = self.windowed
+        prev_resolution = self.window_resolution
+
+        self.fps_limit = app_settings.main.get_value("fps_limit")
+        self.windowed = app_settings.main.get_value("windowed")
+        self.window_resolution = app_settings.main.get_value("window_resolution")
+
+        update_window = (force_update_window or prev_windowed != self.windowed or
+                         (prev_resolution != self.window_resolution and self.windowed))
+
+        if update_window:
+            if self.windowed:
+                self.screen = pygame.display.set_mode(self.window_resolution)
+            else:
+                self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+
+            self.scene_cache = {}
+            FontSave.reset()
+
+        return update_window
 
     def quit(self):
         self.running = False

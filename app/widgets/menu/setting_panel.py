@@ -22,7 +22,7 @@ class SettingEntry(Widget):
     def __init__(self, parent: "SettingPanel", *rect_args,
                  entry_label_text: str = "",
                  field_data: SettingField or None = None,
-                 call_on_change: Callable[[int or float or T or bool], None] = lambda x: None,
+                 call_on_change: Callable[[], None] = lambda: None,
 
                  horizontal_margin=2,
                  entry_base_color=DEFAULT_ENTRY_BG_COLOR,
@@ -32,7 +32,7 @@ class SettingEntry(Widget):
         super().__init__(parent, *rect_args)
 
         self.field_data: SettingField = field_data
-        self.call_on_change = call_on_change
+        self._call_on_change: Callable[[], None] = call_on_change
 
         self.horizontal_margin = horizontal_margin
 
@@ -94,11 +94,18 @@ class SettingEntry(Widget):
                 return self.input_widget.state
 
     def on_change(self):
-        self.call_on_change(self.get_entry_data())
-
         if self.field_data:
             self.field_data.set_value(self.get_entry_data(item_picker_index=True))
 
+        self._call_on_change()
+
+    @property
+    def call_on_change(self):
+        return self._call_on_change
+
+    @call_on_change.setter
+    def call_on_change(self, call_on_change: Callable[[], None]):
+        self._call_on_change = call_on_change
 
 class SettingHeaderLabel(Widget):
     def __init__(self, parent: "SettingPanel", *rect_args, header_text: str, color=DEFAULT_ENTRY_FG_COLOR):
@@ -126,7 +133,7 @@ class SettingPanel(Panel):
         super().__init__(parent, *rect_args, panel_unit=panel_unit, **kwargs)
 
         self.entry_hz_margin = entry_horizontal_margin
-        self.entries = {}  # {field name: entry widget}
+        self._entries = {}  # {field name: entry widget}
 
         self._settings_data: SettingsData = settings_data
 
@@ -136,7 +143,7 @@ class SettingPanel(Panel):
             self.add_entries_from_data()
 
     def add_entry(self, field_name: str, label_text: str = "", **entry_kwargs) -> SettingEntry:
-        if field_name in self.entries:
+        if field_name in self._entries:
             raise ValueError(f"field name already exists: {field_name}")
 
         entry = SettingEntry(self, *self.next_pack_rect, "px", "tl", "tl",
@@ -144,7 +151,7 @@ class SettingPanel(Panel):
                              **entry_kwargs)
 
         self.add_scrollable(entry)
-        self.entries[field_name] = entry
+        self._entries[field_name] = entry
 
         return entry
 
@@ -160,7 +167,7 @@ class SettingPanel(Panel):
         return header
 
     def get_data_as_dict(self) -> dict:
-        return {field: entry.get_entry_data() for field, entry in self.entries.items()}
+        return {field: entry.get_entry_data() for field, entry in self._entries.items()}
 
     def add_entries_from_data(self):
         field_name: str
@@ -203,3 +210,6 @@ class SettingPanel(Panel):
     def settings_data(self):
         return self._settings_data
 
+    @property
+    def entries(self) -> dict:
+        return self._entries

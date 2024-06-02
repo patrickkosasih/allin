@@ -53,6 +53,10 @@ class FontSave:
             pygame.font.Font(FontSave.DEFAULT_FONT_PATH, int(h_percent_to_px(size)))
         )
 
+    @staticmethod
+    def reset():
+        FontSave.font_dict = {}
+
 
 def load_image(path: str,
                size: None or tuple = None,

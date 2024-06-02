@@ -1,5 +1,6 @@
 import pygame.image
 
+from app import app_settings
 from app.animations.interpolations import ease_out
 from app.scenes.scene import Scene
 from app.tools import app_timer
@@ -15,7 +16,7 @@ MAIN_MENU_BUTTON_COLOR = (24, 31, 37, 169)
 class MainMenuScene(Scene):
     def __init__(self, app, startup_sequence=False):
         super().__init__(app, "mainmenu")
-        self.bg_color = "#000000"
+        self.bg_color = "#000000" if app_settings.main.get_value("background") else "#123456"
 
         self.background = GameBackground(self, 0, 0, 101, 101, "%w", "ctr", "ctr")
         self.welcome_text = None

@@ -125,3 +125,11 @@ class Panel(MouseListener):
                 widget.rect.y = self._scroll_offset + self._unscrolled_y_pos[widget]
 
         self._prev_mouse_y = self.mouse_y
+
+    @property
+    def scroll_offset(self):
+        return self._scroll_offset
+
+    @scroll_offset.setter
+    def scroll_offset(self, scroll_offset):
+        self._scroll_offset = scroll_offset
