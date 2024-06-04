@@ -3,9 +3,8 @@ from typing import Callable
 import pygame
 
 from app import audio, app_settings
-from app.animations.animation import AnimGroup
-from app.animations.fade import FadeSceneAnimation
 from app.scenes.settings_scene import SettingsScene
+from app.scenes.side_scenes import BackgroundScene, OverlayScene
 from app.scenes.singleplayer_menu import SingleplayerMenuScene
 from app.scenes.scene import Scene
 from app.scenes.main_menu import MainMenuScene
@@ -37,16 +36,24 @@ class App:
         self.display_surface = pygame.display.get_surface()
         self.clock = pygame.time.Clock()
 
-
         self.running = True
+
+        """
+        Side scenes: Background and overlay
+        """
+        self.solid_bg_color = "#123456"
+        self.show_background = app_settings.main.get_value("background")
+
+        self.background_scene = BackgroundScene(self)
+        self.overlay_scene = OverlayScene(self)
 
         """
         Scene and scene changing system
         """
         self.scene = MainMenuScene(self, startup_sequence=app_settings.main.get_value("startup_sequence"))
-        self.scene_cache = {}
-        self.scene_transition_group = AnimGroup()
 
+        self.scene_cache = {}
+        self.changing_scene = False
         self.reset_next_dt = False
 
         """
@@ -75,6 +82,7 @@ class App:
 
                 if event.type in (pygame.KEYDOWN, pygame.KEYUP):
                     self.scene.broadcast_keyboard(event)
+                    self.overlay_scene.broadcast_keyboard(event)
 
                 if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL):
                     if event.type == pygame.MOUSEBUTTONDOWN:
@@ -83,6 +91,7 @@ class App:
                         MouseListener.mouse_down = False
 
                     self.scene.broadcast_mouse(event)
+                    self.overlay_scene.broadcast_mouse(event)
 
                 if event.type == pygame.MOUSEMOTION:
                     MouseListener.mouse_x, MouseListener.mouse_y = event.pos
@@ -91,8 +100,13 @@ class App:
             Updates
             """
             app_timer.default_group.update(dt)
+
+            self.display_surface.fill(self.solid_bg_color)
+
+            if self.show_background:
+                self.background_scene.update(dt)
             self.scene.update(dt)
-            self.scene_transition_group.update(dt)
+            self.overlay_scene.update(dt)
 
             pygame.display.update()
 
@@ -134,18 +148,21 @@ class App:
             raise TypeError("the scene argument must be either a string, an instance of Scene, or a function that"
                             "returns a Scene instance")
 
-        if cache_old_scene:
-            self.scene_cache[old_scene.scene_id] = old_scene
+        if cache_old_scene and old_scene.scene_cache_id:
+            self.scene_cache[old_scene.scene_cache_id] = old_scene
 
     def change_scene_anim(self, scene: Scene or str or Callable[[None], Scene], cache_old_scene=True, duration=0.2):
-        if self.scene_transition_group.animations:
+        if self.changing_scene:
             return
 
+        self.changing_scene = True
+
         app_timer.Sequence([
-            lambda: FadeSceneAnimation(duration, self, 0, 255, anim_group=self.scene_transition_group),
-            duration,
+            lambda: self.overlay_scene.fader.fade_anim(duration, 255),
+            duration + 0.1,
             lambda: self.change_scene(scene, cache_old_scene),
-            lambda: FadeSceneAnimation(duration, self, 255, 0, anim_group=self.scene_transition_group)
+            lambda: self.overlay_scene.fader.fade_anim(duration, 0),
+            lambda: setattr(self, "changing_scene", False)
         ])
 
     def update_display_settings(self, force_update_window=False):
@@ -155,6 +172,7 @@ class App:
         self.fps_limit = app_settings.main.get_value("fps_limit")
         self.windowed = app_settings.main.get_value("windowed")
         self.window_resolution = app_settings.main.get_value("window_resolution")
+        self.show_background = app_settings.main.get_value("background")
 
         update_window = (force_update_window or prev_windowed != self.windowed or
                          (prev_resolution != self.window_resolution and self.windowed))
@@ -167,6 +185,9 @@ class App:
 
             self.scene_cache = {}
             FontSave.reset()
+
+            self.overlay_scene = OverlayScene(self)
+            self.background_scene = BackgroundScene(self)
 
         return update_window
 

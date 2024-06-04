@@ -60,7 +60,7 @@ class FontSave:
 
 def load_image(path: str,
                size: None or tuple = None,
-               convert = True) -> pygame.Surface:
+               convert: int = 1) -> pygame.Surface:
     """
     Load an image file into a pygame.Surface object, and convert it to the correct pixel format using `convert_alpha`.
 
@@ -68,15 +68,20 @@ def load_image(path: str,
 
     :param path: Path to the image file.
     :param size: If not set to None then the image is resized to the given size.
-    :param convert: Convert the image using `convert_alpha` or not
+    :param convert: 0 - Image isn't converted
+                    1 - Convert the image using `convert_alpha`
+                    2 - Convert the image using `convert`
     :return: The loaded and converted image.
     """
     image = pygame.image.load(path)
 
     if size:
         image = pygame.transform.smoothscale(image, size)
-    if convert:
+
+    if convert == 1:
         image = image.convert_alpha()
+    elif convert == 2:
+        image = image.convert()
 
     return image
 

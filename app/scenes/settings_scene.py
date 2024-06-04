@@ -12,9 +12,6 @@ class SettingsScene(Scene):
     def __init__(self, app, scroll_offset=0):
         super().__init__(app, "settings")
 
-        self.background = GameBackground(self, 0, 0, 101, 100, "%w", "ctr", "ctr")
-        self.background.image.set_alpha(200)
-
         self.setting_panel = SettingPanel(self, 0, 0, 75, 75, "%", "ctr", "ctr",
                                           settings_data=app_settings.main,
                                           main_header_str="Settings",
@@ -24,9 +21,8 @@ class SettingsScene(Scene):
         self.setting_panel.scroll_offset = scroll_offset
 
         self.setting_panel.entries["sfx_volume"].call_on_change = audio.default_group.update_volume
-        self.setting_panel.entries["background"].call_on_change = lambda: self.on_display_change(force_update=True)
 
-        for x in ("windowed", "window_resolution", "fps_limit"):
+        for x in ("windowed", "window_resolution", "fps_limit", "background"):
             self.setting_panel.entries[x].call_on_change = self.on_display_change
 
 

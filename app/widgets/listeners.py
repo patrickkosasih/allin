@@ -17,6 +17,7 @@ class MouseListener(Widget, ABC):
     mouse_y = 0
 
     mouse_down = False
+    already_selected_other = False
 
     def __init__(self, parent, *rect_args):
         super().__init__(parent, *rect_args)
@@ -43,7 +44,9 @@ class MouseListener(Widget, ABC):
 
     # Hook method, but `super().on_mouse_down` must be called.
     def on_mouse_down(self, event):
-        self.selected = self.hover
+        if not MouseListener.already_selected_other:
+            self.selected = self.hover
+            MouseListener.already_selected_other = self.selected
 
     # Hook method, but `super().on_mouse_up` must be called.
     def on_mouse_up(self, event):
@@ -51,6 +54,7 @@ class MouseListener(Widget, ABC):
             self.on_click(event)
 
         self.selected = False
+        MouseListener.already_selected_other = False
 
     # Hook method
     def on_click(self, event):

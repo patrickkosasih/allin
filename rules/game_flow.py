@@ -75,7 +75,7 @@ class Player:
 
         self.name = name
         self.money = money
-        self.player_number = -2
+        self.player_number = -2  # -2: Not assigned to any PokerGame
 
     def action(self, action_type: int, new_amount=0) -> GameEvent or None:
         """
@@ -265,7 +265,6 @@ class Deal:
                 # If everyone except one player folds, then that player wins.
                 if sum(not player.folded for player in self.players) == 1:
                     self.showdown()
-                    action_broadcast.code = GameEvent.DEAL_END
 
 
             case Actions.CALL:   # Check/call
@@ -280,14 +279,15 @@ class Deal:
                 action_broadcast.bet_amount = self.bet_amount
 
             case Actions.RAISE:  # Bet/raise
-                if not blinds and new_amount < self.game.min_bet:
+                if new_amount >= player.player_data.money + player.bet_amount:
+                    new_amount = player.player_data.money + player.bet_amount  # ALL-IN
+
+                elif not blinds and new_amount < self.game.min_bet:
                     return ActionResult.LESS_THAN_MIN_BET
 
                 elif new_amount < 2 * self.bet_amount:
                     return ActionResult.LESS_THAN_MIN_RAISE
 
-                elif new_amount > player.player_data.money + player.bet_amount:
-                    new_amount = player.player_data.money + player.bet_amount  # ALL-IN
 
                 # Everyone except the betting/raising player must call again
                 for x in self.players:

@@ -57,6 +57,7 @@ class SideMenu(Panel, KeyboardListener):
 
     def main_menu(self):
         self.scene.app.change_scene_anim("mainmenu", cache_old_scene=False, duration=0.5)
+        self.scene.app.background_scene.background.fade_anim(0.25, 254)
 
     def quit_game(self):
         self.scene.app.quit()

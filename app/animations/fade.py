@@ -18,6 +18,8 @@ class FadeAlphaAnimation(VarSlider):
 
         if start_val == -1:
             start_val = sprite.image.get_alpha()
+            if start_val is None:
+                start_val = 255
 
         if start_val not in range(256) or end_val not in range(256):
             raise ValueError("start and end val must be between 0-255")
@@ -45,23 +47,3 @@ class FadeColorAnimation(Animation):
     def finish(self) -> None:
         self.setter_func(self.end_color)
 
-
-class FadeSceneAnimation(VarSlider):
-    def __init__(self, duration, app: "App",
-                 start_val: int or float, end_val: int or float, **kwargs):
-
-        super().__init__(duration, start_val, end_val,
-                         setter_func=self.set_fader_alpha,
-                         **kwargs)
-
-        if start_val not in range(256) or end_val not in range(256):
-            raise ValueError("start and end val must be between 0-255")
-
-        self.app = app
-
-        self.fader = pygame.Surface(self.app.screen.get_size())
-        self.fader.fill((0, 0, 0))
-
-    def set_fader_alpha(self, alpha) -> None:
-        self.fader.set_alpha(int(alpha))
-        self.app.screen.blit(self.fader, (0, 0))

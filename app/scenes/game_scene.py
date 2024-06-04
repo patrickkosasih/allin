@@ -20,7 +20,6 @@ from app.widgets.game.dealer_button import DealerButton
 from app.widgets.game.winner_crown import WinnerCrown
 from app.widgets.game.player_display import PlayerDisplay
 from app.widgets.game.bet_prompt import BetPrompt
-from app.widgets.basic.fps_counter import FPSCounter
 
 from app.animations.var_slider import VarSlider
 from app.animations.fade import FadeAlphaAnimation
@@ -47,7 +46,7 @@ def player_rotation(i: int, n_players: int) -> float:
 ## noinspection PyUnresolvedReferences,PyTypeChecker
 class GameScene(Scene):
     def __init__(self, app, game: InterfaceGame):
-        super().__init__(app, "game")
+        super().__init__(app, "")
 
         self.game = game
         self.game.event_receiver = self.receive_event
@@ -55,10 +54,7 @@ class GameScene(Scene):
         """
         Miscellaneous GUI
         """
-        self.background = GameBackground(self, 0, 0, 100, 100, "%w", "ctr", "ctr")
-        self.background.image.set_alpha(128)
-
-        self.fps_counter = FPSCounter(self, 0.5, 0.5, 15, 5, "%", "tl", "tl")
+        self.app.background_scene.background.fade_anim(2, 128)
 
         self.side_menu_button = SideMenuButton(self, 1.5, 1.5, 4, "%h", "tl", "tl")
         self.side_menu = SideMenu(self, 0, 0, 25, 100, "%", "ml", "ml", toggle_button=self.side_menu_button)
@@ -155,7 +151,7 @@ class GameScene(Scene):
                 action_str += f" ${event.bet_amount:,}"
                 self.pot_text.set_text_anim(self.game.deal.pot)
 
-                play_sound("assets/audio/game/actions/money.mp3")  # Money sound effect
+                play_sound("assets/audio/game/actions/money.mp3", 0.5)  # Money sound effect
 
             self.players.sprites()[event.prev_player].set_sub_text_anim(action_str)
             self.players.sprites()[event.prev_player].update_money()
@@ -252,7 +248,7 @@ class GameScene(Scene):
         """
         Measurements
         """
-        dimensions = w, h = (15, 6.5)  # Button dimensions (in %screen)
+        w, h = (15, 6.5)  # Button dimensions (in %screen)
         m = 2  # Margin in %screen
 
         rects = [(-m, (-m - i * (h + m)), w, h, "%", "br", "br") for i in range(3)]  # List of all the button rects
@@ -481,7 +477,7 @@ class GameScene(Scene):
             self.pot_text.set_text_anim(0)
             app_timer.Timer(0.25, self.highlight_cards, (True,))
 
-            play_sound("assets/audio/game/showdown/win.mp3")
+            play_sound("assets/audio/game/showdown/win.mp3", volume_mult=0.7)
 
             return
 
@@ -502,7 +498,8 @@ class GameScene(Scene):
         Ranking reveal sound effect
         """
         try:
-            play_sound(f"assets/audio/game/showdown/reveal {rank_number}.mp3")
+            play_sound(f"assets/audio/game/showdown/reveal {rank_number}.mp3",
+                       volume_mult=0.5 + 0.5 / rank_number)
         except FileNotFoundError:
             pass
 

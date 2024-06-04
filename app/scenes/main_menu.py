@@ -1,6 +1,7 @@
 import pygame.image
 
 from app import app_settings
+from app.animations.fade import FadeColorAnimation
 from app.animations.interpolations import ease_out
 from app.scenes.scene import Scene
 from app.tools import app_timer
@@ -16,9 +17,7 @@ MAIN_MENU_BUTTON_COLOR = (24, 31, 37, 169)
 class MainMenuScene(Scene):
     def __init__(self, app, startup_sequence=False):
         super().__init__(app, "mainmenu")
-        self.bg_color = "#000000" if app_settings.main.get_value("background") else "#123456"
 
-        self.background = GameBackground(self, 0, 0, 101, 101, "%w", "ctr", "ctr")
         self.welcome_text = None
 
         self.singleplayer_button = Button(self, -11, -7.5, 20, 50, "%", "ctr", "ctr", text_str="Singleplayer",
@@ -58,20 +57,28 @@ class MainMenuScene(Scene):
         for _ in self.set_buttons_shown(False, 0, 0):
             pass
 
-        self.background.set_pos(0, -100, "%", "mb", "mb")
-        self.background.image.set_alpha(0)
+        self.app.solid_bg_color = (0, 0, 0)
+
+        if app_settings.main.get_value("background"):
+            self.app.background_scene.background.image.set_alpha(0)
+
+        else:
+            FadeColorAnimation(6, (0, 0, 0), (18, 52, 86),  # end_color = "#123456"
+                               setter_func=lambda x: setattr(self.app, "solid_bg_color", x),
+                               anim_group=self.anim_group)
 
         self.welcome_text = WelcomeText(self, 0, 0, 50, 50, "%", "ctr", "ctr")
 
         app_timer.Sequence([
             1.5,
-            lambda: self.background.move_anim(3, (0, 0), "px", "ctr", "ctr",
-                                              interpolation=lambda x: ease_out(x, power=2.5)),
-            lambda: self.background.fade_anim(4, 255),
+            self.app.background_scene.move_on_startup,
+
 
             2, lambda: self.welcome_text.fade_anim(1.5, 0),
             1, lambda: Coroutine(self.set_buttons_shown(True, 0.5, 0.15)),
-            1.5, lambda: self.welcome_text.delete("welcome_text")
+            1.5, lambda: self.welcome_text.delete("welcome_text"),
+
+            lambda: setattr(self.app, "solid_bg_color", "#123456")
         ])
 
     def set_buttons_shown(self, shown: bool, duration: float, interval: float):

@@ -15,9 +15,6 @@ class SingleplayerMenuScene(Scene):
     def __init__(self, app):
         super().__init__(app, "singleplayer")
 
-        self.background = GameBackground(self, 0, 0, 101, 100, "%w", "ctr", "ctr")
-        self.background.image.set_alpha(200)
-
         """
         Setting panel
         """

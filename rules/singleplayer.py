@@ -13,7 +13,10 @@ class Bot(Player):
     def receive_event(self, event: GameEvent):
         # Run self.action after 0.5 seconds
         if event.next_player == self.game.players.index(self):
-            app_timer.Timer(0.5, self.decide_action, (event,))
+            self.game: SingleplayerGame
+            timer_group = self.game.timer_group if type(self.game) is SingleplayerGame else None
+
+            app_timer.Timer(0.5, self.decide_action, (event,), group=timer_group)
 
     def decide_action(self, event):
         """
