@@ -5,6 +5,7 @@ from app.animations.move import MoveAnimation
 from app.animations.interpolations import *
 
 from app.shared import *
+from app.tools import app_timer
 from app.widgets.widget import Widget, WidgetComponent
 
 
@@ -89,21 +90,16 @@ class RankingText(TableText):
     def __init__(self, *rect_args, **kwargs):
         super().__init__(*rect_args, **kwargs)
 
-    def set_text_anim(self, text_str: str):
+    def set_text_anim(self, text_str: str, duration=0.25):
         if text_str == self.text_str:
             return
 
-        _, _, w, h = self.rect
-        self.text.move_anim(0.25, (0, 100), "%", "ctr", "ctr",
-                            interpolation=ease_in, call_on_finish=lambda: self.__set_text_anim2(text_str))
+        app_timer.Sequence([
+            lambda: self.text.move_anim(duration, (0, 100), "%", "ctr", "ctr",
+                                interpolation=ease_in),
+            duration,
 
-    def __set_text_anim2(self, text_str: str):
-        """
-        The continuation of the `set_text_anim` method that is called when the first animation is finished.
-        """
-
-        self.set_text(text_str, set_rect=False)
-
-        _, _, w, h = self.rect
-        self.text.move_anim(0.25, (0, 0), "%", "ctr", "ctr",
-                            start_pos=(0, -100), interpolation=ease_out)
+            lambda: self.set_text(text_str, set_rect=False),
+            lambda: self.text.move_anim(duration, (0, 0), "%", "ctr", "ctr",
+                                start_pos=(0, -100), interpolation=ease_out),
+        ])

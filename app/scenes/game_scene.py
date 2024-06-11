@@ -1,6 +1,7 @@
 import pygame
 import random
 
+from app.animations.interpolations import ease_out, ease_in, linear
 from app.audio import play_sound
 from app.widgets.basic.game_bg import GameBackground
 from app.widgets.menu.side_menu import SideMenu, SideMenuButton
@@ -13,7 +14,7 @@ from app.scenes.scene import Scene
 from app.shared import *
 from app.tools import app_timer
 
-from app import widgets
+from app import widgets, app_settings
 from app.widgets.game.card import Card
 from app.widgets.game.action_buttons import FoldButton, RaiseButton, CallButton
 from app.widgets.game.dealer_button import DealerButton
@@ -27,20 +28,6 @@ from app.animations.fade import FadeAlphaAnimation
 
 COMM_CARD_ROTATIONS = (198, 126, 270, 54, -18)
 """`COMM_CARD_ROTATIONS` defines the rotation for the animation's starting position of the n-th community card."""
-
-
-def player_rotation(i: int, n_players: int) -> float:
-    """
-    Returns the player rotation for the given player index and number of players.
-
-    A player rotation defines the position of a player display in the table. The returned player rotation is usually
-    converted into a (x, y) position using the `Table.get_edge_coords` method.
-
-    :param i: The index of the player.
-    :param n_players: Total number of players.
-    :return: The player rotation in degrees.
-    """
-    return i * (360 / n_players) + 90
 
 
 ## noinspection PyUnresolvedReferences,PyTypeChecker
@@ -95,9 +82,9 @@ class GameScene(Scene):
         """
         Dealer and blinds buttons
         """
-        self.dealer_button = None
-        self.sb_button = None
-        self.bb_button = None
+        self.dealer_button = DealerButton(self, 0, 0)
+        self.sb_button = DealerButton(self, 0, 0, "SB")
+        self.bb_button = DealerButton(self, 0, 0, "BB")
 
         """
         Cards and game initialization
@@ -176,6 +163,7 @@ class GameScene(Scene):
 
         elif event.prev_player == self.game.client_player.player_number:
             self.show_action_buttons(False)
+            self.bet_prompt.set_shown(False)
 
         """
         Fold
@@ -183,7 +171,7 @@ class GameScene(Scene):
         if event.message == "fold":
             self.fold_cards(event.prev_player)
 
-    def reset_players(self):
+    def reset_players(self, time_interval=0.075):
         """
         Initialize or rearrange all the player displays. When calling this function, 3 different scenarios can happen
         for each player display:
@@ -193,7 +181,7 @@ class GameScene(Scene):
         3. Remove an existing player display
         """
 
-        self.hide_dealer_button()
+        self.dealer_button.set_shown(False)
         play_sound("assets/audio/game/player/slide.mp3")
 
         old_group = self.players.copy()
@@ -203,8 +191,7 @@ class GameScene(Scene):
         """A list of the player data of each player display that exists before rearranging the players."""
 
         for i, player_data in enumerate(self.game.players):
-            rot = player_rotation(i, len(self.game.players))
-            pos = self.table.get_edge_coords(rot, (1.25, 1.2))
+            pos = self.table.get_player_pos(i, (1.25, 1.2))
 
             player_display: PlayerDisplay
 
@@ -219,14 +206,14 @@ class GameScene(Scene):
                 """
                 2. New player display
                 """
-                start_pos = self.table.get_edge_coords(rot, (3, 3))
+                start_pos = self.table.get_player_pos(i, (3, 3))
 
                 player_display = PlayerDisplay(self, *start_pos, 15, 12.5, ("px", "%"), "tl", "ctr",
                                                player_data=player_data)
 
             self.players.add(player_display)
 
-            player_display.move_anim(1.5, pos)
+            player_display.move_anim(1.5 + i * time_interval, pos)
 
         for i, old_player_display in enumerate(old_group.sprites()):
             if old_player_display not in self.players:
@@ -234,10 +221,10 @@ class GameScene(Scene):
                 3. Remove player display
                 """
 
-                rot = player_rotation(i, len(old_group))
-                pos = self.table.get_edge_coords(rot, (3, 3))
+                pos = self.table.get_edge_pos(self.table.get_player_rotation(i, len(old_group)),
+                                              (3, 3))
 
-                old_player_display.move_anim(1.5, pos,
+                old_player_display.move_anim(1.5 + i * time_interval, pos,
                                              call_on_finish=lambda x=old_player_display: self.all_sprites.remove(x))
 
     def init_action_buttons(self):
@@ -275,6 +262,10 @@ class GameScene(Scene):
             x.set_shown(shown, duration=0.4 + 0.05 * i)
 
     def show_bet_prompt(self, shown: bool):
+        if self.game.deal.current_turn != self.game.client_player.player_number:
+            self.bet_prompt.set_shown(False)
+            return
+
         self.bet_prompt.set_shown(shown)
 
         for x in (self.call_button, self.fold_button):
@@ -285,6 +276,7 @@ class GameScene(Scene):
         Deals the pocket cards to all players and also moves the dealer button.
         """
         self.move_dealer_button()
+
         play_sound("assets/audio/game/card/deal cards.mp3")
 
         for i, player_display in enumerate(self.players.sprites()):
@@ -292,8 +284,7 @@ class GameScene(Scene):
                 x, y = player_display.rect.midtop
                 x += w_percent_to_px(1) * (1 if j else -1)
 
-                angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
-                start_pos = self.table.get_edge_coords(angle, (2.75, 2.75))
+                start_pos = self.table.get_player_pos(i, (2.75, 2.75), 2)
 
                 card = Card(self, *start_pos)
                 animation = card.move_anim(random.uniform(1.75, 2), (x, y))
@@ -311,22 +302,32 @@ class GameScene(Scene):
 
     def highlight_cards(self, showdown=False, unhighlight=False):
         """
-        Select the cards that make up a poker hand and highlight them.
+        Select the cards that make up a poker hand and `highlight` them.
 
         :param showdown: If True, then highlight the winning hand (the ranked cards and the kickers).
         Otherwise, highlight the ranked cards of the client user player (the kickers are not highlighted).
 
         :param unhighlight: If set to True then clear all the highlights.
         """
+        if app_settings.main.get_value("card_highlights") == "off":
+            return
+
+        ranked_cards: set
+        kickers: set = set()
 
         if showdown:
             # Showdown: Highlight the winning hand(s)
             ranked_cards = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.ranked_cards)
-            kickers = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.kickers)
+
+            if app_settings.main.get_value("card_highlights") in ("all", "all_always"):
+                kickers = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.kickers)
+
         else:
-            # Highlight the ranked cards of "the player" (client user)
+            # Highlight the ranked cards of the client user
             ranked_cards = set(self.game.client_player.player_hand.hand_ranking.ranked_cards)
-            kickers = set()
+
+            if app_settings.main.get_value("card_highlights") == "all_always":
+                kickers = set(self.game.client_player.player_hand.hand_ranking.kickers)
 
         highlighted_cards = set.union(ranked_cards, kickers)
         card_displays = self.community_cards.sprites() + [card for player_display in self.players
@@ -353,8 +354,7 @@ class GameScene(Scene):
                     self.ranking_text.set_text_anim("Folded:  " + self.ranking_text.text_str)
 
             else:
-                angle = player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2)
-                pos = self.table.get_edge_coords(angle, (2.75, 2.75))
+                pos = self.table.get_player_pos(i, (2.75, 2.75), 2)
 
                 card.move_anim(random.uniform(1, 1.5), pos)
 
@@ -377,7 +377,7 @@ class GameScene(Scene):
         for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
             card_data = self.game.deal.community_cards[i]
 
-            start_pos = self.table.get_edge_coords(COMM_CARD_ROTATIONS[i] + random.uniform(-5, 5), (3, 3))
+            start_pos = self.table.get_edge_pos(COMM_CARD_ROTATIONS[i], (3, 3), 5)
             card = Card(self, *start_pos, "px", "tl", "ctr", card_data=card_data)
 
             card.move_anim(2 + i / 8, (6.5 * (i - 2), 0), "%", "ctr", "ctr",
@@ -405,7 +405,7 @@ class GameScene(Scene):
             ranking_str = "Folded:  " + ranking_str
 
         app_timer.Timer(anim_delay, self.ranking_text.set_text_anim, (ranking_str,))
-        app_timer.Timer(anim_delay + 0.25, self.highlight_cards)
+        app_timer.Timer(anim_delay + 0.15, self.highlight_cards)
 
         """
         Hide blinds button and show ranking text on the flop round
@@ -414,7 +414,8 @@ class GameScene(Scene):
             if self.game.client_player.player_number >= 0:
                 app_timer.Timer(2, self.ranking_text.set_visible, (True,))
 
-            self.hide_blinds_button()
+            self.sb_button.set_shown(False)
+            self.bb_button.set_shown(False)
 
     def showdown(self):
         """
@@ -499,7 +500,7 @@ class GameScene(Scene):
         """
         try:
             play_sound(f"assets/audio/game/showdown/reveal {rank_number}.mp3",
-                       volume_mult=0.5 + 0.5 / rank_number)
+                       volume_mult=0.5 + 0.5 / max(1, rank_number))
         except FileNotFoundError:
             pass
 
@@ -532,7 +533,9 @@ class GameScene(Scene):
 
         self.pot_text.set_visible(False)
         self.ranking_text.set_text("")
-        self.hide_blinds_button()
+
+        self.sb_button.set_shown(False)
+        self.bb_button.set_shown(False)
         self.highlight_cards(unhighlight=True)
 
         """
@@ -548,9 +551,7 @@ class GameScene(Scene):
         for i, player in enumerate(self.players.sprites()):
             for card in player.pocket_cards.sprites():
                 # self.all_sprites.remove(card)
-                card_end_pos = self.table.get_edge_coords(
-                    player_rotation(i, len(self.players.sprites())) + random.uniform(-2, 2), (3, 3)
-                )
+                card_end_pos = self.table.get_player_pos(i, (3, 3), 2)
                 card.move_anim(random.uniform(1.5, 2), card_end_pos)
 
             player.set_sub_text_anim("")  # Reset sub text
@@ -559,7 +560,7 @@ class GameScene(Scene):
 
         # Community cards
         for card, rot in zip(self.community_cards.sprites(), COMM_CARD_ROTATIONS):
-            card_end_pos = self.table.get_edge_coords(rot + random.uniform(-5, 5), (3, 3))
+            card_end_pos = self.table.get_edge_pos(rot, (3, 3), 5)
             card.move_anim(random.uniform(2, 2.5), card_end_pos)
 
         app_timer.Timer(2.5, self.delete_on_new_deal)
@@ -592,77 +593,21 @@ class GameScene(Scene):
 
     def move_dealer_button(self):
         """
-        Move the dealer button to the player display of the current dealer. If there is currently no dealer button on
-        the screen, then a new dealer button is made and moved from outside the screen.
+        Move the dealer button to the player display of the current dealer, then shows the SB and BB button and moves it
+        to their respective player displays.
         """
-
-        if not self.dealer_button:
-            start_pos = self.table.get_edge_coords(player_rotation(self.game.dealer, len(self.game.players)), (3, 3))
-            self.dealer_button = DealerButton(self, *start_pos)
-            self.all_sprites.add(self.dealer_button)
 
         dealer: PlayerDisplay = self.players.sprites()[self.game.dealer]
-        new_pos = dealer.head_base.rect.global_rect.midright
+        sb: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[0]]
+        bb: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[1]]
 
-        self.dealer_button.move_anim(1, new_pos, call_on_finish=self.new_blinds_button)
-
-    def hide_dealer_button(self):
-        """
-        Hide the dealer button when the player displays get rearranged.
-        """
-
-        if not self.dealer_button:
-            return
-
-        def delete():
-            self.all_sprites.remove(self.dealer_button)
-            self.dealer_button = None
-
-        animation = FadeAlphaAnimation(0.5, self.dealer_button, 255, 0, call_on_finish=delete)
-        self.anim_group.add(animation)
-
-    def new_blinds_button(self):
-        """
-        Create two blinds button (SB and BB) and move it to the respective player displays.
-        """
-
-        start_pos = self.dealer_button.rect.center
-
-        # Initialize new buttons
-        self.sb_button = DealerButton(self, *start_pos, "SB")
-        self.bb_button = DealerButton(self, *start_pos, "BB")
-        self.all_sprites.add(self.sb_button)
-        self.all_sprites.add(self.bb_button)
-
-        # Move SB button
-        sb_player: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[0]]
-        sb_pos = sb_player.head_base.rect.global_rect.midright
-
-        self.sb_button.move_anim(0.75, sb_pos)
-
-        # Move BB button
-        bb_player: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[1]]
-        bb_pos = bb_player.head_base.rect.global_rect.midright
-
-        self.bb_button.move_anim(0.75, bb_pos)
-
-    def hide_blinds_button(self):
-        """
-        Hide the blinds buttons (SB and BB) by adding alpha fade animations.
-        """
-        if not self.sb_button or not self.bb_button:
-            return
-
-        def delete():
-            self.all_sprites.remove(self.sb_button)
-            self.all_sprites.remove(self.bb_button)
-            self.sb_button = None
-            self.bb_button = None
-
-        sb_animation = FadeAlphaAnimation(0.25, self.sb_button, 255, 0)
-        bb_animation = FadeAlphaAnimation(0.25, self.bb_button, 255, 0, call_on_finish=delete)
-        self.anim_group.add(sb_animation)
-        self.anim_group.add(bb_animation)
+        app_timer.Sequence([
+            lambda: self.dealer_button.move_to_player(0.75, dealer, interpolation=ease_in),
+            0.75,
+            lambda: self.sb_button.move_to_player(0.3, sb, self.dealer_button, interpolation=linear),
+            0.3,
+            lambda: self.bb_button.move_to_player(0.75, bb, self.sb_button, interpolation=ease_out),
+        ])
 
     def update(self, dt):
         super().update(dt)

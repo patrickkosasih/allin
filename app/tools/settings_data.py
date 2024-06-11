@@ -222,28 +222,3 @@ class SettingsData:
     @property
     def field_dict(self):
         return self._field_dict
-
-
-# Testing stuff
-# if __name__ == "__main__":
-#
-#     thing = SettingsData([
-#         SettingField("music_volume", "Music Volume", FieldType.SLIDER, 69, (0, 100)),
-#         SettingField("sfx_volume", "SFX Volume", FieldType.SLIDER, 72, (0, 100)),
-#         SettingField("funny", "haha", FieldType.NUMBER_PICKER, 727, (1, 1000, 3)),
-#         SettingField("yoyoyo", "whasap", FieldType.ITEM_PICKER, 1,
-#                      ["hy", "walaoe", "ueoaguhaoeugh", "this is 3", "727727272", "WYFIS"]),
-#         SettingField("bol", "yes/no?", FieldType.TOGGLE_SWITCH, True, None),
-#     ], "thingy.ini")
-#
-#     thing.load()
-#
-#     print(thing.get_value("yoyoyo"))
-#     thing.set_value("yoyoyo", 4)
-#     print(thing.get_value("yoyoyo"))
-#
-#     print(thing.get_value("bol"))
-#     thing.set_value("bol", not thing.get_value("bol"))
-#     print(thing.get_value("bol"))
-#
-#     thing.save()

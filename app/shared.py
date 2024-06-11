@@ -3,9 +3,12 @@ app/shared.py
 
 A module that contains various shared functions used throughout the program.
 """
-import os
+
 
 # When another module imports this module by `from app.shared import *`, all the imports below are imported as well.
+
+import os
+import pkgutil
 
 import pygame
 from pygame.math import Vector2
@@ -17,7 +20,11 @@ from app.tools.colors import hsv_factor, rand_color
 from app.tools.draw import draw_rounded_rect
 
 
+"""
+Shared constants
+"""
 SAVE_FOLDER_PATH = os.path.join(os.getenv("localappdata"), "Allin")
+
 
 if not os.path.isdir(SAVE_FOLDER_PATH):
     os.mkdir(SAVE_FOLDER_PATH)
@@ -63,20 +70,36 @@ def load_image(path: str,
                convert: int = 1) -> pygame.Surface:
     """
     Load an image file into a pygame.Surface object, and convert it to the correct pixel format using `convert_alpha`.
-
     A much simpler way of writing `pygame.image.load(path).convert_alpha()`.
 
     :param path: Path to the image file.
-    :param size: If not set to None then the image is resized to the given size.
+
+    :param size: A tuple representing the width and height for the image to be resized to.
+                 If set to None then the image is not resized.
+                 If either the width or height of the size is set to 0, then the size would be based on the other
+                 non-zero value while preserving the aspect ratio of the original image.
+
     :param convert: 0 - Image isn't converted
                     1 - Convert the image using `convert_alpha`
                     2 - Convert the image using `convert`
+
     :return: The loaded and converted image.
     """
     image = pygame.image.load(path)
 
     if size:
-        image = pygame.transform.smoothscale(image, size)
+        if len(size) != 2 or (size[0] <= 0 and size[1] <= 0):
+            raise ValueError(f"invalid size: {size}")
+
+        aspect_ratio = image.get_width() / image.get_height()  # From unscaled image.
+        w, h = size
+
+        if w <= 0:
+            w = int(h * aspect_ratio)
+        elif h <= 0:
+            h = int(w / aspect_ratio)
+
+        image = pygame.transform.smoothscale(image, (w, h))
 
     if convert == 1:
         image = image.convert_alpha()
@@ -92,14 +115,19 @@ Universal layer order constants
 class Layer:
     BACKGROUND = -1
     DEFAULT = 0
+
     TABLE = 1
     TABLE_TEXT = 2
+
     WINNER_CROWN = 3
     CARD = 4
     PLAYER = 5
-    BLINDS_BUTTON = 6
-    DEALER_BUTTON = 7
-    SIDE_MENU = 8
+
+    BB_BUTTON = 6
+    SB_BUTTON = 7
+    DEALER_BUTTON = 8
+
+    SIDE_MENU = 9
 
 
 """

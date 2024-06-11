@@ -6,12 +6,18 @@ from app.animations.interpolations import ease_out
 from app.scenes.scene import Scene
 from app.tools import app_timer
 from app.tools.app_timer import Coroutine
-from app.widgets.basic.game_bg import GameBackground
 from app.widgets.basic.button import Button
 from app.shared import *
 from app.widgets.menu.welcome_text import WelcomeText
+from app.widgets.widget import Widget
 
 MAIN_MENU_BUTTON_COLOR = (24, 31, 37, 169)
+
+
+VERSION_TEXT = "Allin v0.4.0"
+
+COPYRIGHT_TEXT = "Copyright (c) 2023-2024 Patrick Kosasih."
+COPYRIGHT_TEXT_SUB = "All rights reserved."
 
 
 class MainMenuScene(Scene):
@@ -20,6 +26,23 @@ class MainMenuScene(Scene):
 
         self.welcome_text = None
 
+        self.logo = Widget(self, 2, 2, 10, 10, "%h", "tl", "tl")
+        self.logo.image = load_image("assets/sprites/misc/logo.png", (0, self.logo.rect.h))
+
+        self.version_text = Widget(self, 1, -0.5, 3, 3, "%h", "bl", "bl")
+        self.version_text.image = FontSave.get_font(3).render(VERSION_TEXT, True, "white")
+
+        self.copyright_text = Widget(self, -1, -4, 3, 3, "%h", "br", "br")
+        self.copyright_text.image = FontSave.get_font(3).render(COPYRIGHT_TEXT, True, "white")
+
+        self.copyright_text_sub = Widget(self, -1, -0.5, 3, 3, "%h", "br", "br")
+        self.copyright_text_sub.image = FontSave.get_font(3).render(COPYRIGHT_TEXT_SUB, True, "white")
+
+        """
+        Buttons
+        """
+
+        # region Buttons
         self.singleplayer_button = Button(self, -11, -7.5, 20, 50, "%", "ctr", "ctr", text_str="Singleplayer",
                                           rrr=h_percent_to_px(5), b_thickness=0, color=MAIN_MENU_BUTTON_COLOR,
                                           font=FontSave.get_font(5),
@@ -44,7 +67,10 @@ class MainMenuScene(Scene):
                                   icon=load_image("assets/sprites/menu icons/quit.png"), icon_size=0.8,
                                   command=self.app.quit)
 
-        self.buttons = [self.singleplayer_button, self.multiplayer_button, self.settings_button, self.quit_button]
+        # endregion
+
+        self.startup_fade = [self.singleplayer_button, self.multiplayer_button, self.settings_button, self.quit_button,
+                             self.version_text, self.copyright_text, self.copyright_text_sub]
 
         if startup_sequence:
             self.startup_sequence()
@@ -54,10 +80,11 @@ class MainMenuScene(Scene):
     """
 
     def startup_sequence(self):
-        for _ in self.set_buttons_shown(False, 0, 0):
+        for _ in self.set_startup_shown(False, 0, 0):
             pass
 
         self.app.solid_bg_color = (0, 0, 0)
+        self.logo.set_pos(2, -10, "%h")
 
         if app_settings.main.get_value("background"):
             self.app.background_scene.background.image.set_alpha(0)
@@ -73,16 +100,17 @@ class MainMenuScene(Scene):
             1.5,
             self.app.background_scene.move_on_startup,
 
-
             2, lambda: self.welcome_text.fade_anim(1.5, 0),
-            1, lambda: Coroutine(self.set_buttons_shown(True, 0.5, 0.15)),
-            1.5, lambda: self.welcome_text.delete("welcome_text"),
 
+            1, lambda: Coroutine(self.set_startup_shown(True, 0.5, 0.1)),
+            lambda: self.logo.move_anim(0.5, (2, 2), interpolation=ease_out),
+
+            1.5, lambda: self.welcome_text.delete("welcome_text"),
             lambda: setattr(self.app, "solid_bg_color", "#123456")
         ])
 
-    def set_buttons_shown(self, shown: bool, duration: float, interval: float):
-        for button in self.buttons:
+    def set_startup_shown(self, shown: bool, duration: float, interval: float):
+        for button in self.startup_fade:
             button.fade_anim(duration, 255 if shown else 0)
             button.disabled = not shown
 

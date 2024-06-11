@@ -90,7 +90,7 @@ class SingleplayerGame(InterfaceGame):
                 self.timer_group.new_timer(2.25 + len(self.deal.community_cards) / 8, self.deal.start_new_round)
 
             case GameEvent.SKIP_ROUND:
-                self.timer_group.new_timer(2.1 + len(self.deal.community_cards) / 8, self.deal.next_round)
+                self.timer_group.new_timer(2.25 + len(self.deal.community_cards) / 8, self.deal.next_round)
 
             case GameEvent.DEAL_END:
                 self.timer_group.new_timer(10, self.broadcast, (GameEvent(GameEvent.RESET_DEAL),))

@@ -51,8 +51,11 @@ class App:
         Scene and scene changing system
         """
         self.scene = MainMenuScene(self, startup_sequence=app_settings.main.get_value("startup_sequence"))
+        self.scene_cache = {
+            "singleplayer": SingleplayerMenuScene(self),
+            "settings": SettingsScene(self)
+        }
 
-        self.scene_cache = {}
         self.changing_scene = False
         self.reset_next_dt = False
 
@@ -112,6 +115,9 @@ class App:
 
         app_settings.main.save()
         pygame.quit()
+
+    def quit(self):
+        self.running = False
 
     def change_scene(self, scene: Scene or str, cache_old_scene=True):
         old_scene = self.scene
@@ -190,6 +196,3 @@ class App:
             self.background_scene = BackgroundScene(self)
 
         return update_window
-
-    def quit(self):
-        self.running = False

@@ -48,8 +48,15 @@ main = SettingsData([
                  True,
                  new_section="Interface"),
 
-    SettingField("background", "Show Background", FieldType.TOGGLE_SWITCH,
-                 True)
+    SettingField("background", "Show Background Art", FieldType.TOGGLE_SWITCH,
+                 True),
+
+    SettingField("card_highlights", "Show Card Highlights", FieldType.ITEM_PICKER,
+                 2, ["off", "ranked_only", "all", "all_always"],
+                 format_func=lambda x: {"off": "Off",
+                                        "ranked_only": "Ranked cards only",
+                                        "all": "Entire hand",
+                                        "all_always": "Entire hand always"}[x]),
     # endregion
 
 ], os.path.join(SAVE_FOLDER_PATH, "app_settings.ini"))
