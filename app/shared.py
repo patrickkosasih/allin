@@ -1,13 +1,38 @@
-import pygame.gfxdraw
+"""
+app/shared.py
+
+A module that contains various shared functions used throughout the program.
+"""
+
+
+# When another module imports this module by `from app.shared import *`, all the imports below are imported as well.
+
+import os
+import pkgutil
+
+import pygame
 from pygame.math import Vector2
 from pygame.event import Event
-from typing import Callable, Optional
-
-import colorsys
-import random
+from typing import Callable, Optional, Iterable, Generator
 import time
 
+from app.tools.colors import hsv_factor, rand_color
+from app.tools.draw import draw_rounded_rect
 
+
+"""
+Shared constants
+"""
+SAVE_FOLDER_PATH = os.path.join(os.getenv("localappdata"), "Allin")
+
+
+if not os.path.isdir(SAVE_FOLDER_PATH):
+    os.mkdir(SAVE_FOLDER_PATH)
+
+
+"""
+Image loading-related tools
+"""
 class FontSave:
     """
     The `FontSave` class makes creating font objects much easier by having a global font object that is shared
@@ -19,50 +44,95 @@ class FontSave:
     font_dict = {}
 
     @staticmethod
-    def get_font(percent_size):
+    def get_font(size, unit="%"):
         """
         Returns a shared font object.
 
-        :param percent_size: The size of the font. Unit: % window height
+        :param size: The size of the font.
+        :param unit: The unit for size. Possible units: "%" - % height (default)
+                                                        "px" - Pixels
         """
+        if unit == "px":
+            size = size / pygame.display.get_window_size()[1] * 100
+
         return FontSave.font_dict.setdefault(
-            percent_size,
-            pygame.font.Font(FontSave.DEFAULT_FONT_PATH, int(h_percent_to_px(percent_size)))
+            size,
+            pygame.font.Font(FontSave.DEFAULT_FONT_PATH, int(h_percent_to_px(size)))
         )
 
-
-class KeyBroadcaster:
-    """
-    The `KeyBroadcaster` class is used to broadcast a keydown event from the event loop in `app_main.py` to other
-    modules of the entire program. When there is a keydown event, every function on the `key_listeners` list is called
-    with the keydown event as its argument.
-
-    Warning: Unused key listeners are not cleared automatically and may cause memory leaks.
-    """
-
-    key_listeners: list[Callable[[Event], None]] = []
-
     @staticmethod
-    def add_listener(func: Callable[[Event], None]):
-        KeyBroadcaster.key_listeners.append(func)
-
-    @staticmethod
-    def broadcast(event):
-        for listener in KeyBroadcaster.key_listeners:
-            listener(event)
+    def reset():
+        FontSave.font_dict = {}
 
 
+def load_image(path: str,
+               size: None or tuple = None,
+               convert: int = 1) -> pygame.Surface:
+    """
+    Load an image file into a pygame.Surface object, and convert it to the correct pixel format using `convert_alpha`.
+    A much simpler way of writing `pygame.image.load(path).convert_alpha()`.
+
+    :param path: Path to the image file.
+
+    :param size: A tuple representing the width and height for the image to be resized to.
+                 If set to None then the image is not resized.
+                 If either the width or height of the size is set to 0, then the size would be based on the other
+                 non-zero value while preserving the aspect ratio of the original image.
+
+    :param convert: 0 - Image isn't converted
+                    1 - Convert the image using `convert_alpha`
+                    2 - Convert the image using `convert`
+
+    :return: The loaded and converted image.
+    """
+    image = pygame.image.load(path)
+
+    if size:
+        if len(size) != 2 or (size[0] <= 0 and size[1] <= 0):
+            raise ValueError(f"invalid size: {size}")
+
+        aspect_ratio = image.get_width() / image.get_height()  # From unscaled image.
+        w, h = size
+
+        if w <= 0:
+            w = int(h * aspect_ratio)
+        elif h <= 0:
+            h = int(w / aspect_ratio)
+
+        image = pygame.transform.smoothscale(image, (w, h))
+
+    if convert == 1:
+        image = image.convert_alpha()
+    elif convert == 2:
+        image = image.convert()
+
+    return image
+
+
+"""
+Universal layer order constants
+"""
 class Layer:
-    BACKGROUND = 0
+    BACKGROUND = -1
+    DEFAULT = 0
+
     TABLE = 1
     TABLE_TEXT = 2
+
     WINNER_CROWN = 3
     CARD = 4
     PLAYER = 5
-    BLINDS_BUTTON = 6
-    DEALER_BUTTON = 7
+
+    BB_BUTTON = 6
+    SB_BUTTON = 7
+    DEALER_BUTTON = 8
+
+    SIDE_MENU = 9
 
 
+"""
+% to px conversion functions
+"""
 def w_percent_to_px(x: float) -> float:
     return 0.01 * x * pygame.display.get_window_size()[0]
 
@@ -75,77 +145,8 @@ def percent_to_px(x: float, y: float) -> tuple[float, float]:
     return w_percent_to_px(x), h_percent_to_px(y)
 
 
-def hsv_factor(rgb: tuple or str, hf=0, sf=1, vf=1) -> tuple:
-    """
-    Takes a 24 bit RGB value and changes it according to the given HSV factors (hue, saturation, and value)
-
-    :param rgb: The RGB value can be in tuple (e.g. (255, 255, 255)) or a string with the "#RRGGBB" format
-
-    :param hf: Hue factor
-    :param sf: Saturation factor
-    :param vf: Value (brightness) factor
-    """
-
-    r, g, b = (x / 255.0 for x in rgb)
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
-
-    new_hsv = h + hf, s * sf, v * vf
-    new_hsv = tuple(max(0, min(1, x)) for x in new_hsv)  # Clamp values between 0-1
-    new_rgb = colorsys.hsv_to_rgb(*new_hsv)
-    int_rgb = tuple(int(x * 255) for x in new_rgb)  # Convert RGB values from 0.0 - 1.0 to 0 - 255
-
-    return int_rgb
-
-
-def draw_rounded_rect(surface: pygame.Surface, rect: pygame.Rect,
-                      color=(0, 0, 0), b_color=(0, 0, 0), b=0) -> None:
-    """
-    Draw a bordered rounded rectangle with the height as its radius.
-
-    A complete rounded rectangle consists of the outer part (for the border) and the inner part (for the fill).
-    A rounded rectangle is drawn by a rectangle and two circles, complete with antialiasing.
-
-    :param surface: The Pygame surface to draw on
-    :param rect: The rect that determines the position and dimensions rounded rectangle.
-
-    :param color: The fill color of the button.
-    :param b_color: The border color.
-    :param b: The border thickness. If set to 0 then the border is not drawn.
-    """
-
-    x, y, w, h = rect
-    r = h // 2
-    
-    if b > 0:
-        """
-        If border thickness > 0, draw two rounded rectangles (outer and inner) with b = 0.
-        """
-        # Outer rectangle (border)
-        draw_rounded_rect(surface, rect, b_color, b=0)
-
-        # Inner rectangle (fill)
-        inner = pygame.Surface((w, h), pygame.SRCALPHA)
-        draw_rounded_rect(inner, pygame.Rect(b, b, w - 2 * b, h - 2 * b), color, b=0)
-        surface.blit(inner, rect)
-
-    else:
-        """
-        Draw a borderless rounded rectangle
-        """
-        pygame.gfxdraw.aacircle(surface, x + r, y + r, r, color)  # Left circle
-        pygame.gfxdraw.filled_circle(surface, x + r, y + r, r, color)
-
-        pygame.gfxdraw.aacircle(surface, x + w - r, y + r, r, color)  # Right circle
-        pygame.gfxdraw.filled_circle(surface, x + w - r, y + r, r, color)
-
-        pygame.gfxdraw.box(surface, (x + r, y - 1, (w - 2 * r), h + 2), color)  # Rectangle
-
-
-def rand_color() -> tuple:
-    """
-    Generates a random color in an (R, G, B) tuple format.
-    """
-    return tuple(random.randrange(256) for _ in range(3))
+def elementwise_mult(a: Iterable, b: Iterable) -> Generator:
+    return (x * y for x, y in zip(a, b))
 
 
 def func_timer(func):

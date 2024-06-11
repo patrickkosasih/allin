@@ -1,10 +1,11 @@
 import pygame
 
 import rules.basic
-from app.animations.anim_group import AnimGroup
 from app.animations.var_slider import VarSlider
-from app.shared import Layer
+from app.audio import play_sound
+from app.shared import Layer, load_image
 from app.animations.card_flip import CardFlipAnimation
+from app.widgets.widget import Widget
 
 SUIT_SPRITE_PATHS = {
     "S": "assets/sprites/card/spades.png",
@@ -14,7 +15,7 @@ SUIT_SPRITE_PATHS = {
 }
 
 
-class Card(pygame.sprite.Sprite):
+class Card(Widget):
     """
     The card sprite represents a single card, whether it's a pocket card or a community card.
 
@@ -34,33 +35,25 @@ class Card(pygame.sprite.Sprite):
     # Shared font object
     font = None
 
-    def __init__(self, pos: tuple, card_data: rules.basic.Card or None = None):
+    def __init__(self, parent, x, y, unit="px", anchor="tl", pivot="ctr", card_data: rules.basic.Card or None = None):
         """
         Initialize the card. Before initializing a card, the global size of the card class must be defined by calling
         the static `set_size` method.
-
-        :param pos:
-        :param card_data:
         """
 
-        super().__init__()
-
-        """
-        Global scale
-        """
         if Card.global_height <= 0:
             raise ValueError("the set_size method must be called before creating a card widget")
+
+
+        super().__init__(parent, x, y, self.global_width, self.global_height, unit, anchor, pivot)
 
         """
         Sprite
         """
         self.card_front = Card.card_base.copy()
 
-        self.image = Card.card_back
-        self.rect = self.image.get_rect(center=pos)
+        self._image = Card.card_back
         self.layer = Layer.CARD
-
-        self.anim_group = AnimGroup()
 
         """
         Data fields
@@ -101,7 +94,7 @@ class Card(pygame.sprite.Sprite):
         """
         2. Top left corner suit
         """
-        unscaled_suit = pygame.image.load(SUIT_SPRITE_PATHS[self.card_data.suit])
+        unscaled_suit = load_image(SUIT_SPRITE_PATHS[self.card_data.suit])
         corner_suit_size = 0.2 * self.card_front.get_width()
 
         corner_suit = pygame.transform.smoothscale(unscaled_suit, 2 * (corner_suit_size,))
@@ -118,18 +111,21 @@ class Card(pygame.sprite.Sprite):
         big_suit_rect = big_suit.get_rect(bottomright=big_suit_pos)
         self.card_front.blit(big_suit, big_suit_rect)
 
-    def reveal(self, duration=0.4):
+    def reveal(self, duration=0.4, sfx=True):
         """
         Reveal the front side of the card with a card flip animation.
         """
+
         if duration <= 0:
             self.draw_card_front()
             self.image = self.card_front.copy()
             self.is_revealed = True
-
         else:
             animation = CardFlipAnimation(duration, self)
-            self.anim_group.add(animation)
+            self.scene.anim_group.add(animation)
+
+        if sfx:
+            play_sound("assets/audio/game/card/flip.mp3")
 
     def set_highlight_alpha(self, alpha: int):
         """
@@ -161,11 +157,9 @@ class Card(pygame.sprite.Sprite):
         self.is_ranked = ranked if shown else self.is_ranked
 
         start_end = (0, 255) if shown else (255, 0)
-        animation = VarSlider(0.25, *start_end, setter_func=lambda x: self.set_highlight_alpha(int(x)))
-        self.anim_group.add(animation)
+        VarSlider(0.25, *start_end, setter_func=lambda x: self.set_highlight_alpha(int(x)),
+                  anim_group=self.scene.anim_group)
 
-    def update(self, dt):
-        self.anim_group.update(dt)
 
     @staticmethod
     def set_size(height):
@@ -184,10 +178,10 @@ class Card(pygame.sprite.Sprite):
         elif height <= 0:
             raise ValueError("height must be a positive number")
 
-        unscaled_base = pygame.image.load("assets/sprites/card/base.png")
-        unscaled_back = pygame.image.load("assets/sprites/card/back.png")
-        unscaled_highlight = pygame.image.load("assets/sprites/card/highlight.png")
-        unscaled_k_highlight = pygame.image.load("assets/sprites/card/kicker highlight.png")
+        unscaled_base = load_image("assets/sprites/card/base.png")
+        unscaled_back = load_image("assets/sprites/card/back.png")
+        unscaled_highlight = load_image("assets/sprites/card/highlight.png")
+        unscaled_k_highlight = load_image("assets/sprites/card/kicker highlight.png")
 
         width = (unscaled_base.get_width() / unscaled_base.get_height()) * height
 

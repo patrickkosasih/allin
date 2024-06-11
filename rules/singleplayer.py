@@ -4,31 +4,19 @@ rules/singleplayer.py
 The singleplayer module is used to interface the game flow engine from the main app on singleplayer games.
 """
 
-
-from typing import Callable
-import random
-
-from app import app_timer
+from app.tools import app_timer
 from rules.game_flow import *
-
-
-class ThePlayer(Player):
-    def __init__(self, game: "SingleplayerGame", name: str, money: int):
-        super().__init__(game, name, money)
-        self.game = game
-
-    def receive_event(self, game_event: GameEvent):
-        """
-        Calls every time any player makes an action.
-        """
-        self.game.call_on_any_action(game_event)
+from rules.interface import *
 
 
 class Bot(Player):
     def receive_event(self, event: GameEvent):
         # Run self.action after 0.5 seconds
         if event.next_player == self.game.players.index(self):
-            app_timer.Timer(0.5, self.decide_action, (event,))
+            self.game: SingleplayerGame
+            timer_group = self.game.timer_group if type(self.game) is SingleplayerGame else None
+
+            app_timer.Timer(0.5, self.decide_action, (event,), group=timer_group)
 
     def decide_action(self, event):
         """
@@ -62,19 +50,57 @@ class Bot(Player):
                 self.action(Actions.CALL)
 
 
-class SingleplayerGame(PokerGame):
-    def __init__(self, n_players: int,
-                 call_on_any_action: Callable[[GameEvent], None],
-                 auto_start=False):
+class SingleplayerGame(InterfaceGame):
+    """
+    The `SingleplayerGame` class is the rules engine for local singleplayer games. The `SingleplayerGame` child class
+    also handles the timing/delay of events, e.g. after a round ends, the game waits for a moment to start the next
+    round.
+    """
+
+    def __init__(self, n_bots: int, starting_money: int, sb_amount: int):
         super().__init__()
 
-        self.the_player = ThePlayer(self, "YOU", 1000)
+        self.client_player = ClientPlayer(self, "YOU", starting_money)
+        self.bots = [Bot(self, f"Bot {i + 1}", starting_money) for i in range(n_bots)]
+        self.players: list[Player] = [self.client_player] + self.bots
 
-        self.bots = [Bot(self, f"Bot {i + 1}", 1000) for i in range(n_players - 1)]
-        self.players: list[Player] = [self.the_player] + self.bots
+        self.sb_amount = sb_amount
 
-        self.call_on_any_action = call_on_any_action
+    def on_event(self, event):
+        self.event_receiver(event)
+        self.time_next_event(event)
 
-        if auto_start:
-            self.new_deal()
+    def start_game(self):
+        self.broadcast(GameEvent(GameEvent.RESET_PLAYERS))
+        self.timer_group.new_timer(2, self.new_deal, (False,))
 
+    def time_next_event(self, event):
+        match event.code:
+            case GameEvent.RESET_PLAYERS:
+                pass
+                # self.timer_group.new_timer(2, self.new_deal, (self.game_in_progress,))
+
+            case GameEvent.NEW_DEAL:
+                self.timer_group.new_timer(2, self.deal.start_deal)
+
+            case GameEvent.ROUND_FINISH:
+                self.timer_group.new_timer(1, self.deal.next_round)
+
+            case GameEvent.NEW_ROUND:
+                self.timer_group.new_timer(2.25 + len(self.deal.community_cards) / 8, self.deal.start_new_round)
+
+            case GameEvent.SKIP_ROUND:
+                self.timer_group.new_timer(2.25 + len(self.deal.community_cards) / 8, self.deal.next_round)
+
+            case GameEvent.DEAL_END:
+                self.timer_group.new_timer(10, self.broadcast, (GameEvent(GameEvent.RESET_DEAL),))
+
+            case GameEvent.RESET_DEAL:
+                reset_players = self.eliminate_players()
+
+                if reset_players:
+                    self.timer_group.new_timer(2.5, self.broadcast, (GameEvent(GameEvent.RESET_PLAYERS),))
+                    self.timer_group.new_timer(4.5, self.new_deal)
+
+                else:
+                    self.timer_group.new_timer(3, self.new_deal)

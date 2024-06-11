@@ -10,6 +10,19 @@ from rules.basic import *
 from rules.game_flow import *
 
 
+class LegacyTestingGame(PokerGame):
+    def __init__(self, n_players: int):
+        super().__init__()
+
+        if n_players >= 2:
+            self.auto_start_game(n_players)
+
+    def auto_start_game(self, n_players):
+        self.players = [Player(self, f"Player {i + 1}", 1000) for i in range(n_players)]
+        self.new_deal()
+        self.deal.start_deal()
+
+
 """
 ==============
 String formats
@@ -128,7 +141,7 @@ def standard_io_poker():
     Note that check and call does the same thing; and bet and raise also does the same thing.
     """
 
-    game = PokerGame(6)
+    game = LegacyTestingGame(6)
 
     while True:
         print("\n" + "=" * 80 + "\n")
@@ -168,6 +181,10 @@ def standard_io_poker():
 
             action_code = Actions.__dict__[action[0]]
             game.deal.action(action_code, new_amount)
+
+            if game.deal.round_finished:
+                game.deal.next_round()
+                game.deal.start_new_round()
 
         except (IndexError, KeyError):
             print("Invalid input.")
@@ -211,3 +228,9 @@ def hand_ranking_test(n_tests=10, repeat_until=0):
             break
 
     print("Repeats:", i)
+
+
+if __name__ == "__main__":
+    standard_io_poker()
+    # hand_ranking_test(repeat_until=HandRanking.ROYAL_FLUSH)
+    # hand_ranking_test(n_tests=25)
