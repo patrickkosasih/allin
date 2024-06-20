@@ -21,7 +21,8 @@ class App:
         pygame.mixer.init()
         pygame.mixer.set_num_channels(32)
 
-        audio.default_group.update_volume()
+        audio.SoundGroup.update_volume()
+        audio.MusicPlayer.update_volume(autoplay=False)
 
         """
         Pygame and app attributes
@@ -64,6 +65,8 @@ class App:
         """
         pygame.display.set_caption("Allin")
         pygame.display.set_icon(load_image("assets/sprites/misc/icon.png"))
+
+        audio.MusicPlayer.play(intro=True)
 
     def run(self):
         while self.running:

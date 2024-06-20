@@ -8,7 +8,6 @@ A module that contains various shared functions used throughout the program.
 # When another module imports this module by `from app.shared import *`, all the imports below are imported as well.
 
 import os
-import pkgutil
 
 import pygame
 from pygame.math import Vector2
@@ -23,8 +22,7 @@ from app.tools.draw import draw_rounded_rect
 """
 Shared constants
 """
-SAVE_FOLDER_PATH = os.path.join(os.getenv("localappdata"), "Allin")
-
+SAVE_FOLDER_PATH = os.path.join(os.getenv("localappdata"), "Allin") if os.getenv("localappdata") else "./save"
 
 if not os.path.isdir(SAVE_FOLDER_PATH):
     os.mkdir(SAVE_FOLDER_PATH)

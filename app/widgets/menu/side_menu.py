@@ -1,7 +1,9 @@
 import pygame
 from pygame import Vector2
 
+from app import audio
 from app.shared import Layer, load_image
+from app.tools import app_timer
 from app.widgets.basic.button import CircularButton, Button
 from app.widgets.basic.panel import Panel
 from app.animations.interpolations import *
@@ -38,7 +40,6 @@ class SideMenu(Panel, KeyboardListener):
                                    command=self.quit_game,
                                    icon=load_image("assets/sprites/menu icons/quit.png"), icon_size=0.9))
 
-
         """
         Toggle button
         """
@@ -58,6 +59,9 @@ class SideMenu(Panel, KeyboardListener):
     def main_menu(self):
         self.scene.app.change_scene_anim("mainmenu", cache_old_scene=False, duration=0.5)
         self.scene.app.background_scene.background.fade_anim(0.25, 254)
+
+        audio.SoundGroup.stop_all_sounds()
+        app_timer.Timer(0.75, audio.MusicPlayer.play)
 
     def quit_game(self):
         self.scene.app.quit()

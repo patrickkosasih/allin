@@ -22,7 +22,7 @@ App Settings
 main = SettingsData([
     # region Audio
     SettingField("music_volume", "Music Volume", FieldType.SLIDER,
-                 1.0, (0.0, 1.0),
+                 0.75, (0.0, 1.0),
                  new_section="Audio"),
 
     SettingField("sfx_volume", "SFX Volume", FieldType.SLIDER,
@@ -44,14 +44,14 @@ main = SettingsData([
     # endregion
 
     # region Interface
-    SettingField("startup_sequence", "Show Start-up Sequence", FieldType.TOGGLE_SWITCH,
+    SettingField("startup_sequence", "Start-up Sequence", FieldType.TOGGLE_SWITCH,
                  True,
                  new_section="Interface"),
 
-    SettingField("background", "Show Background Art", FieldType.TOGGLE_SWITCH,
+    SettingField("background", "Background Art", FieldType.TOGGLE_SWITCH,
                  True),
 
-    SettingField("card_highlights", "Show Card Highlights", FieldType.ITEM_PICKER,
+    SettingField("card_highlights", "Card Highlights", FieldType.ITEM_PICKER,
                  2, ["off", "ranked_only", "all", "all_always"],
                  format_func=lambda x: {"off": "Off",
                                         "ranked_only": "Ranked cards only",
