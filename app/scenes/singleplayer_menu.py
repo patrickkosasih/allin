@@ -1,5 +1,6 @@
 import pygame.image
 
+from app.audio import MusicPlayer
 from app.scenes.game_scene import GameScene
 from app.scenes.scene import Scene
 from app.shared import FontSave, load_image
@@ -56,6 +57,8 @@ class SingleplayerMenuScene(Scene):
     def start(self):
         game_settings = self.setting_panel.get_data_as_dict()
         self.app.change_scene_anim(lambda: GameScene(self.app, SingleplayerGame(**game_settings)), duration=0.5)
+
+        MusicPlayer.stop()
 
     def back(self):
         self.app.change_scene_anim("mainmenu")

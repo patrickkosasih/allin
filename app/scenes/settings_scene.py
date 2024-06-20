@@ -20,7 +20,8 @@ class SettingsScene(Scene):
 
         self.setting_panel.scroll_offset = scroll_offset
 
-        self.setting_panel.entries["sfx_volume"].call_on_change = audio.default_group.update_volume
+        self.setting_panel.entries["sfx_volume"].call_on_change = audio.SoundGroup.update_volume
+        self.setting_panel.entries["music_volume"].call_on_change = audio.MusicPlayer.update_volume
 
         for x in ("windowed", "window_resolution", "fps_limit", "background"):
             self.setting_panel.entries[x].call_on_change = self.on_display_change
@@ -37,6 +38,12 @@ class SettingsScene(Scene):
     def back(self):
         self.app.change_scene_anim("mainmenu")
         self.setting_panel.settings_data.save()
+
+    def broadcast_keyboard(self, event: pygame.event.Event):
+        super().broadcast_keyboard(event)
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.back()
 
     def on_display_change(self, force_update=False):
         update_window = self.app.update_display_settings(force_update)
