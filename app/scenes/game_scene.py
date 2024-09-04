@@ -146,9 +146,14 @@ class GameScene(Scene):
         """
         Action sound effect
         """
+        is_sb: bool = (event.code == GameEvent.START_DEAL) and (event.prev_player == self.game.deal.blinds[0])
+        # True if the current game event is the small blinds (SB) action.
+
         if event.code == GameEvent.START_DEAL:
-            if event.prev_player == self.game.deal.blinds[0]:
+            if is_sb:
                 play_sound("assets/audio/game/rounds/blinds.mp3")
+            if event.message == "all in":
+                play_sound("assets/audio/game/actions/all in.mp3")
 
         elif event.message:
             play_sound(f"assets/audio/game/actions/{event.message}.mp3")
@@ -156,7 +161,7 @@ class GameScene(Scene):
         """
         Show/hide action buttons
         """
-        if event.next_player == self.game.client_player.player_number:
+        if event.next_player == self.game.client_player.player_number and not is_sb:
             for x in self.action_buttons:
                 x.update_bet_amount(self.game.deal.bet_amount)
             self.show_action_buttons(True)

@@ -140,7 +140,9 @@ class PlayerHand:
         amount_to_pay = new_bet - self.bet_amount  # How much money to pay to call/raise
 
         if amount_to_pay >= self.player_data.money:
-            # ALL IN
+            """
+            ALL IN
+            """
             self.all_in = True
 
             amount_to_pay = self.player_data.money
@@ -151,8 +153,7 @@ class PlayerHand:
         self.bet_amount = new_bet
 
         if blinds:
-            if not self.all_in:
-                self.last_action = "bet"
+            self.last_action = "bet" if not self.all_in else "all in"
         else:
             self.called = True
 
@@ -280,14 +281,13 @@ class Deal:
 
             case Actions.RAISE:  # Bet/raise
                 if new_amount >= player.player_data.money + player.bet_amount:
-                    new_amount = player.player_data.money + player.bet_amount  # ALL-IN
+                    new_amount = player.player_data.money + player.bet_amount  # ALL IN
 
                 elif not blinds and new_amount < self.game.min_bet:
                     return ActionResult.LESS_THAN_MIN_BET
 
                 elif new_amount < 2 * self.bet_amount:
                     return ActionResult.LESS_THAN_MIN_RAISE
-
 
                 # Everyone except the betting/raising player must call again
                 for x in self.players:
@@ -299,8 +299,11 @@ class Deal:
                 else:
                     action_broadcast.message = "bet"
 
-                self.bet_amount = new_amount
                 player.bet(new_amount, blinds)
+                if not blinds:
+                    # Update the bet amount of the current round to the new amount.
+                    # Unless the bet is part of the blinds.
+                    self.bet_amount = new_amount
 
                 action_broadcast.bet_amount = player.bet_amount
         # endregion
