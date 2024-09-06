@@ -131,14 +131,26 @@ class GameScene(Scene):
         """
         Update the subtext on a player action
         """
+        is_sb: bool = (event.code == GameEvent.START_DEAL) and (event.prev_player == self.game.deal.blinds[0])
+        # True if the current game event is the small blinds (SB) action.
+
         if event.prev_player >= 0:
             action_str = event.message.capitalize()
 
             if event.bet_amount > 0 and event.message != "fold":
                 action_str += f" ${event.bet_amount:,}"
-                self.pot_text.set_text_anim(self.game.deal.pot)
 
-                play_sound("assets/audio/game/actions/money.mp3", 0.5)  # Money sound effect
+                """
+                Update the pot text
+                """
+                if not is_sb:
+                    total_pot = sum(self.game.deal.pots) + self.game.deal.current_round_pot
+                    self.pot_text.set_text_anim(total_pot)
+
+                """
+                Money sound effect
+                """
+                play_sound("assets/audio/game/actions/money.mp3", 0.5)
 
             self.players.sprites()[event.prev_player].set_sub_text_anim(action_str)
             self.players.sprites()[event.prev_player].update_money()
@@ -146,9 +158,6 @@ class GameScene(Scene):
         """
         Action sound effect
         """
-        is_sb: bool = (event.code == GameEvent.START_DEAL) and (event.prev_player == self.game.deal.blinds[0])
-        # True if the current game event is the small blinds (SB) action.
-
         if event.code == GameEvent.START_DEAL:
             if is_sb:
                 play_sound("assets/audio/game/rounds/blinds.mp3")

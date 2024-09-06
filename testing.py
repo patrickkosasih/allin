@@ -78,7 +78,8 @@ def print_state(game: PokerGame):
             action=f"{player.last_action.capitalize()} {f'${player.bet_amount:,}' if player.bet_amount > 0 else ''}",
         ))
 
-    print(f"\nPot: ${game.deal.pot:,}\n"
+    print(f"\nPot: ${game.deal.current_round_pot:,} -> Main pot: ${game.deal.pots[0]:,}"
+          f", Side pots: {' '.join(f'${x:,}' for x in game.deal.pots[1:])}\n"
           f"Community cards: {card_list_str(game.deal.community_cards)}")
 
 

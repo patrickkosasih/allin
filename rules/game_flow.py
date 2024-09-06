@@ -122,6 +122,7 @@ class PlayerHand:
 
         self.bet_amount = 0  # The amount of money spent on the current betting round
         self.last_action = ""  # A string representing the action the player previously made.
+        self.pot_eligibility = 0
 
         self.folded = False
         self.called = False
@@ -149,7 +150,7 @@ class PlayerHand:
             new_bet = amount_to_pay + self.bet_amount
 
         self.player_data.money -= amount_to_pay
-        self.deal.pot += amount_to_pay
+        self.deal.current_round_pot += amount_to_pay
         self.bet_amount = new_bet
 
         if blinds:
@@ -181,8 +182,9 @@ class Deal:
         self.winners = []
         # A list of `PlayerHand` objects who won the deal. If the deal is still ongoing then the list is empty.
 
-        self.pot = 0
-        self.bet_amount = 0
+        self.pots = [0]
+        self.current_round_pot = 0
+        self.bet_amount = self.game.sb_amount * 2  # The amount to spend for a player to make a call on this round.
 
         self.community_cards = []
         self.deck = generate_deck()
@@ -207,7 +209,7 @@ class Deal:
 
     def start_deal(self):
         """
-        Start the current deal. Only called once on the start of a deal.
+        Start the current deal. Should only be called ONCE on the start of a deal.
         """
 
         self.deal_started = True
@@ -235,6 +237,9 @@ class Deal:
         :return: An action result integer code.
         """
 
+        """
+        Validation
+        """
         if type(action_type) is not int:
             raise TypeError("action type must be an int")
         elif action_type not in range(3):
@@ -283,7 +288,10 @@ class Deal:
                 if new_amount >= player.player_data.money + player.bet_amount:
                     new_amount = player.player_data.money + player.bet_amount  # ALL IN
 
-                elif not blinds and new_amount < self.game.min_bet:
+                elif blinds:
+                    pass  # Bypass the min bet/raise restrictions on blinds.
+
+                elif new_amount < self.game.min_bet:
                     return ActionResult.LESS_THAN_MIN_BET
 
                 elif new_amount < 2 * self.bet_amount:
@@ -338,12 +346,16 @@ class Deal:
     def next_round(self):
         """
         Advance to the next betting round by resetting the round and revealing the next community card.
-
-        :return:
         """
 
         if self.winners:
             return
+
+        """
+        Transfer the money to the main pot and side pots.
+        """
+        self.pots[-1] += self.current_round_pot
+        self.current_round_pot = 0
 
         """
         Reset fields
@@ -405,7 +417,7 @@ class Deal:
         self.winners = [player for player in not_folded if player.hand_ranking.overall_score == max_score]
 
         for winner in self.winners:
-            winner.player_data.money += self.pot // len(self.winners)
+            winner.player_data.money += self.pots[-1] // len(self.winners)
 
         self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
 
