@@ -28,7 +28,8 @@ class LegacyTestingGame(PokerGame):
 String formats
 ==============
 """
-PLAYER_STATE_FORMAT = "{turn_arrow: <3}{name: <15}{pocket_cards: <10}${money: <10}{ranking: <18} {action: <15}"
+PLAYER_STATE_FORMAT = ("{turn_arrow: <3}{name: <15}{pocket_cards: <10}${money: <10}{ranking: <18} "
+                       "{action: <15} {pot_eligibility}")
 
 
 """
@@ -69,6 +70,16 @@ def print_state(game: PokerGame):
             elif player is players[game.deal.blinds[1]]:
                 preflop_role = "BB"
 
+        match player.pot_eligibility:
+            case -1:
+                pot_eligibility_text = ""
+            case 0:
+                pot_eligibility_text = "Main pot"
+            case 1:
+                pot_eligibility_text = "Main pot + Side pot 1"
+            case _:
+                pot_eligibility_text = f"Main pot + Side pots 1-{player.pot_eligibility}"
+
         print(PLAYER_STATE_FORMAT.format(
             turn_arrow="-> " if player is game.deal.get_current_player() else "",
             name=player.player_data.name,
@@ -76,11 +87,12 @@ def print_state(game: PokerGame):
             money=f"{player.player_data.money:,}",
             ranking=ranking if not is_preflop else preflop_role,
             action=f"{player.last_action.capitalize()} {f'${player.bet_amount:,}' if player.bet_amount > 0 else ''}",
+            pot_eligibility=pot_eligibility_text,
         ))
 
-    print(f"\nPot: ${game.deal.current_round_pot:,} -> Main pot: ${game.deal.pots[0]:,}"
-          f", Side pots: {' '.join(f'${x:,}' for x in game.deal.pots[1:])}\n"
-          f"Community cards: {card_list_str(game.deal.community_cards)}")
+    print(f"\nCurrent round pot: ${game.deal.current_round_pot:,}  ->  Main pot: ${game.deal.pots[0]:,}", end="")
+    print(f"  |  Side pots: {' '.join(f'${x:,}' for x in game.deal.pots[1:])}\n" if len(game.deal.pots) > 1 else "")
+    print(f"Community cards: {card_list_str(game.deal.community_cards)}")
 
 
 def print_winner(game: PokerGame):
@@ -92,7 +104,7 @@ def print_winner(game: PokerGame):
 
         win = player in game.deal.winners
         new_money = player.player_data.money
-        old_money = new_money - game.deal.pot // len(game.deal.winners)
+        old_money = new_money - game.deal.pots[-1] // len(game.deal.winners)
 
         winner_text = f"WINNER!  ${old_money:,} -> ${new_money:,}" if win else ("Folded" if player.folded else "")
 
@@ -103,15 +115,16 @@ def print_winner(game: PokerGame):
             money=f"{old_money if win else new_money}",
             ranking=ranking,
             action=winner_text,
+            pot_eligibility="",
         ))
 
     if len(game.deal.winners) > 1:
-        split_pot_text = f" --> Split: ${game.deal.pot:,} / {len(game.deal.winners)} = " \
-                         f"{game.deal.pot // len(game.deal.winners):,}"
+        split_pot_text = f" --> Split: ${game.deal.pots:,} / {len(game.deal.winners)} = " \
+                         f"{game.deal.pots // len(game.deal.winners):,}"
     else:
         split_pot_text = ""
 
-    print(f"\nPot: ${game.deal.pot:,}{split_pot_text}\n"
+    print(f"\nPot: ${game.deal.pots}{split_pot_text}\n"
           f"Community cards: {card_list_str(game.deal.community_cards)}")
 
 
@@ -144,6 +157,17 @@ def standard_io_poker():
 
     game = LegacyTestingGame(6)
 
+    # TODO side pot testing stuff
+    # for i, x in enumerate(game.players):
+    #     x.money += 100 * i
+    for i, x in enumerate(game.players):
+        x.money += 100 * (i // 2)
+    # for i, x in enumerate(game.players):
+    #     x.money += 100 * (i // 2) + (i % 2 * 25)
+    # for i, x in enumerate(game.players):
+    #     x.money += 500 * i
+
+
     while True:
         print("\n" + "=" * 80 + "\n")
 
@@ -157,6 +181,7 @@ def standard_io_poker():
                 break
             else:
                 input("Press enter to start next deal. ")
+                game.deal.start_deal()
                 continue
 
         print_state(game)
@@ -173,12 +198,15 @@ def standard_io_poker():
             if action[0] == "QUIT":
                 break
 
-            if action[0] in ("BET", "RAISE"):
+            elif action[0] in ("BET", "RAISE"):
                 if len(action) < 2:
                     print("Specify a betting amount.")
                     continue
 
                 new_amount = int(action[1])
+
+            elif action == ["ALL", "IN"] or action[0] in ("ALL-IN", "ALLIN"):
+                action, new_amount = ["BET"], 99999999999999999999
 
             action_code = Actions.__dict__[action[0]]
             game.deal.action(action_code, new_amount)

@@ -122,13 +122,13 @@ class PlayerHand:
 
         self.bet_amount = 0  # The amount of money spent on the current betting round
         self.last_action = ""  # A string representing the action the player previously made.
-        self.pot_eligibility = 0
+        self.pot_eligibility = -1
 
         self.folded = False
         self.called = False
         self.all_in = False
 
-    def bet(self, new_bet: int, blinds=False):
+    def bet(self, new_bet: int, blinds=False) -> int:
         """
         Pay an amount of money to match the bet of other players.
 
@@ -136,7 +136,7 @@ class PlayerHand:
         :param blinds: If set to True, then `called` will not be set to True. Used on the start of a deal where the
         two players with the blinds must bet an amount of money but still must call/check later.
 
-        :return:
+        :return: The player's new bet amount.
         """
         amount_to_pay = new_bet - self.bet_amount  # How much money to pay to call/raise
 
@@ -157,6 +157,8 @@ class PlayerHand:
             self.last_action = "bet" if not self.all_in else "all in"
         else:
             self.called = True
+
+        return new_bet
 
 
 class Deal:
@@ -280,9 +282,9 @@ class Deal:
                 else:
                     action_broadcast.message = "check"
 
-                player.bet(self.bet_amount)
+                player_bet = player.bet(self.bet_amount)
                 player.called = True
-                action_broadcast.bet_amount = self.bet_amount
+                action_broadcast.bet_amount = player_bet
 
             case Actions.RAISE:  # Bet/raise
                 if new_amount >= player.player_data.money + player.bet_amount:
@@ -307,11 +309,8 @@ class Deal:
                 else:
                     action_broadcast.message = "bet"
 
-                player.bet(new_amount, blinds)
-                if not blinds:
-                    # Update the bet amount of the current round to the new amount.
-                    # Unless the bet is part of the blinds.
-                    self.bet_amount = new_amount
+                player_bet = player.bet(new_amount, blinds)
+                self.bet_amount = max(self.bet_amount, player_bet)
 
                 action_broadcast.bet_amount = player.bet_amount
         # endregion
@@ -348,19 +347,68 @@ class Deal:
         Advance to the next betting round by resetting the round and revealing the next community card.
         """
 
+        """
+        Error checking stuff.
+        """
         if self.winners:
             return
 
+        assert sum(x.bet_amount for x in self.players) == self.current_round_pot, "bet amount sums must match"
+        prev_total_pot = sum(self.pots)
+        prev_round_pot = self.current_round_pot
+
         """
-        Transfer the money to the main pot and side pots.
+        Create new side pot(s) when a player(s) goes all in.
+        """
+        all_in_players = sorted((x for x in self.players if x.all_in), key=lambda x: x.bet_amount)
+        # List of players that are all in, sorted by their bet amount.
+
+        for all_in_player in all_in_players:
+            """
+            For each all in player, a new side pot is created, and that player is set to be eligible for only up until
+            the pot before the newly created pot.
+            
+            Players who are all in for the same amount are counted as one and share the same pot eligibility.
+            
+            A part of the bets of every player who has placed a bet on the last round is placed or "transferred" to the
+            last open pot before the new side pot is created. The amount to be transferred to said pot is the bet amount
+            of the all in player.
+            """
+            if all_in_player.bet_amount <= 0:
+                all_in_player.pot_eligibility = len(self.pots) - 2
+                continue
+
+            transfer_amount = all_in_player.bet_amount  # The amount of money to be transferred to the pot per player.
+
+            for player in self.players:
+                if player.bet_amount <= 0:
+                    continue
+
+                # If bet amount < transfer amount, just transfer what's left.
+                # This only happens when the player has folded.
+                current_transfer = min(transfer_amount, player.bet_amount)
+
+                # Transfer the money: Bet amount -> Currently open pot.
+                # `current_round_pot` must always be the sum of the bet amounts of all players.
+                player.bet_amount -= current_transfer
+                self.current_round_pot -= current_transfer
+                self.pots[-1] += current_transfer
+
+            all_in_player.pot_eligibility = len(self.pots) - 1
+            self.pots.append(0)  # Create a new side pot.
+
+        """
+        Transfer the money to the currently open pot.
+        When new side pot(s) have just been created, transfer the remaining money that hasn't been distributed yet.
         """
         self.pots[-1] += self.current_round_pot
-        self.current_round_pot = 0
+        assert prev_total_pot + prev_round_pot == sum(self.pots), "something went wrong while distributing the bets"
 
         """
         Reset fields
         """
         self.bet_amount = 0
+        self.current_round_pot = 0
         self.current_turn = self.get_next_turn(1, turn=self.game.dealer)
         self.round_finished = False
 
@@ -496,7 +544,7 @@ class PokerGame:
         self.eliminate_players()
         self.update_player_numbers()
 
-        if cycle_dealer:
+        if cycle_dealer:  # TODO Make a better cycle dealer mechanism
             self.dealer = (self.dealer + 1) % len(self.players)  # Cycle dealer
 
         if len(self.players) >= 2:
