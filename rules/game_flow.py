@@ -122,12 +122,12 @@ class PlayerHand:
 
         self.bet_amount = 0  # The amount of money spent on the current betting round
         self.last_action = ""  # A string representing the action the player previously made.
-        self.pot_eligibility = -1  # An integer representing which pots are the player eligible to win.
+        self.pot_eligibility = -1  # An integer representing which pots are the player eligible to participate in.
                                    # -1: Eligible for all pots.
-                                   # n (a number that is more than -1): Eligible only for pots 0 until n.
+                                   # Not -1: Eligible only for pots 0 until that number.
 
         self.winnings = 0  # The amount of money this player won on the current round.
-        self.first_pot_won = -1
+        self.pots_won = []
 
         self.folded = False
         self.called = False
@@ -186,9 +186,9 @@ class Deal:
         self.game = game
         self.players = [PlayerHand(deal=self, player_data=player) for player in game.players]
         # A list of `PlayerHand` instances based on the `PlayerData` list of the `PokerGame`.
-        self.winners = []
-        # A list of `PlayerHand` objects who won the deal. If the deal is still ongoing then the list is empty.
-        self.side_winners = {}
+        self.winners: list[list] = []
+        # A list of sublists of `PlayerHand` objects who has won the deal. Each sublist contains the winner(s) of their
+        # respective pot. When there are no side pots, there is only one sublist.
 
         self.pots = [0]
         self.current_round_pot = 0
@@ -376,9 +376,8 @@ class Deal:
             
             Players who are all in for the same amount are counted as one and share the same pot eligibility.
             
-            A part of the bets of every player who has placed a bet on the last round is placed or "transferred" to the
-            last open pot before the new side pot is created. The amount to be transferred to said pot is the bet amount
-            of the all in player.
+            Every player then gives the same amount of money to each last pot that an all in player is eligible for,
+            which is the bet amount of that all in player.
             """
             if all_in_player.bet_amount <= 0:
                 all_in_player.pot_eligibility = len(self.pots) - 2
@@ -403,6 +402,10 @@ class Deal:
             all_in_player.pot_eligibility = len(self.pots) - 1
             self.pots.append(0)  # Create a new side pot.
 
+        """
+        When a player goes all in and creates a new side pot, but there are no other players that are eligible for that
+        side pot, then that side pot is removed and the money is given back to said all in player.
+        """
         if all_in_players and sum(x.pot_eligibility >= all_in_players[-1].pot_eligibility or
                                   x.pot_eligibility == -1
                                   for x in self.players if not x.folded) <= 1:
@@ -447,7 +450,7 @@ class Deal:
         for player in self.players:
             player.hand_ranking = HandRanking(self.community_cards + player.pocket_cards)
             player.bet_amount = 0
-            player.last_action = "folded" if player.folded else ("all-in" if player.all_in else "")
+            player.last_action = "folded" if player.folded else ("all in" if player.all_in else "")
             player.called = False
 
         """
@@ -479,81 +482,81 @@ class Deal:
         Can also be used when there is only 1 player left who hasn't folded.
         """
 
+        """
+        If everyone except one player folds.
+        """
+        if sum(not player.folded for player in self.players) == 1:
+            winner: PlayerHand = next(player for player in self.players if not player.folded)
+
+            winner.winnings = sum(self.pots) + self.current_round_pot
+            winner.player_data.money += winner.winnings
+            self.winners = [[winner]]
+
+            self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
+            return
+
+        """
+        Remove empty side pots.
+        If a player has a pot eligibility of -1 then that player is eligible for all pots.
+        """
+        if self.pots[-1] == 0:
+            self.pots.pop(-1)
+
         for player in self.players:
             if player.pot_eligibility == -1:
                 player.pot_eligibility = len(self.pots) - 1
 
         """
-        Find out who the winner(s) are.
+        Group every player (who are not folded) based on their pot eligibility.
         """
-        if sum(not player.folded for player in self.players) == 1:
-            """
-            Everyone except one player already folded.
-            """
-            winner: PlayerHand = next(player for player in self.players if not player.folded)
+        eligibility_group = [[] for _ in range(len(self.pots))]
+        for player in self.players:
+            if not player.folded:
+                eligibility_group[player.pot_eligibility].append(player)
 
-            winner.winnings = sum(self.pots) + self.current_round_pot
-            winner.player_data.money += winner.winnings
-            self.winners = [winner]
+        """
+        Figure out the winners of each pot.
+        
+        When there are multiple pots, each pot would have a different set of players that are eligible for that pot.
+        
+        So for every pot starting from the last, player(s) who has a pot eligibility of that pot is added to the
+        set of players eligible for that pot.
+        
+        But instead of adding all the newly eligible players, the algorithm only adds players who have a higher or
+        equal hand ranking overall score to the `current_pot_winners` list, similar to the "find max number"
+        algorithm.
+        """
+        self.winners = [[] for _ in range(len(self.pots))]
+        current_pot_winners = []
 
-            self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
-            return
+        win_score = 0
+        for pot_number, new_pot_participants in list(enumerate(eligibility_group))[::-1]:
+            for player in new_pot_participants:
+                score = player.hand_ranking.overall_score
 
-        elif len(self.pots) == 1:
-            """
-            No side pots, only the main pot.
-            """
-            not_folded = [player for player in self.players if not player.folded]
-            max_score = max(player.hand_ranking.overall_score for player in not_folded)
-            self.winners = [player for player in not_folded if player.hand_ranking.overall_score == max_score]
+                if score > win_score:
+                    win_score = score
+                    current_pot_winners = []
 
-        else:
-            """
-            At least one side pot.
-            """
-            # FIXME There still something a lil bit wrong in this logic.
-            if self.pots[-1] == 0:
-                self.pots.pop(-1)
+                if score >= win_score:
+                    current_pot_winners.append(player)
 
-            rank_order = sorted((player for player in self.players if not player.folded),
-                                key=lambda x: (x.hand_ranking.overall_score << 4) + x.pot_eligibility, reverse=True)
-
-            win_score = rank_order[0].hand_ranking.overall_score
-            win_eligibility = rank_order[0].pot_eligibility
-            self.winners = [player for player in rank_order if player.hand_ranking.overall_score == win_score
-                            and player.pot_eligibility == win_eligibility]
-
-            rank_iter = iter(rank_order[len(self.winners):])
-            while win_eligibility < len(self.pots) - 1:
-                player = next(rank_iter)
-
-                if player.pot_eligibility > win_eligibility:
-                    win_score = player.hand_ranking.overall_score
-                    win_eligibility = player.pot_eligibility
-
-                    self.side_winners[win_eligibility] = [player]
-
-                elif player.pot_eligibility == win_eligibility and player.hand_ranking.overall_score == win_score:
-                    self.side_winners[win_eligibility].append(player)
+            self.winners[pot_number] = current_pot_winners.copy()
 
         """
         Give the money to the winner(s).
         """
-        all_winners = [(self.winners[0].pot_eligibility, self.winners)] + list(self.side_winners.items())
-        # A combined key-value pair list from `winners` and `side_winners`.
+        for pot_number, pot_winners in enumerate(self.winners):
+            prize = self.pots[pot_number] // len(pot_winners)
 
-        prev_pot = -1
+            for winner in pot_winners:
+                winner.pots_won.append(pot_number)
+                winner.winnings += prize
+                winner.player_data.money += prize
 
-        for current_pot, current_pot_winners in all_winners:
-            current_prize = sum(self.pots[prev_pot + 1 : current_pot + 1])
-
-            for winner in current_pot_winners:
-                winner.winnings = current_prize // len(self.winners)
-                winner.first_pot_won = prev_pot + 1
-                winner.player_data.money += winner.winnings
-
-            prev_pot = current_pot
-
+        """
+        Broadcast
+        """
         self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
 
     def broadcast(self, broadcast: GameEvent) -> None:

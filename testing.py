@@ -111,8 +111,7 @@ def print_winner(game: PokerGame):
     for player in game.deal.players:
         player: PlayerHand
 
-        win = player in game.deal.winners
-        side_win = any(player in x for x in game.deal.side_winners.values())
+        win = any(player in x for x in game.deal.winners)
 
         new_money = player.player_data.money
         old_money = new_money - player.winnings
@@ -121,11 +120,18 @@ def print_winner(game: PokerGame):
 
         if win:
             winner_text = f"WINNER!"
-        elif side_win:
-            if player.first_pot_won == player.pot_eligibility:
-                winner_text = f"Side Pot {player.pot_eligibility} Winner!"
-            else:
-                winner_text = f"Side pots {player.first_pot_won}-{player.pot_eligibility} Winner!"
+
+            if len(game.deal.pots) > 1:
+                # if player.first_pot_won == player.pot_eligibility:
+                #     winner_text = f"Side Pot {player.pot_eligibility} Winner!"
+                # else:
+                #     winner_text = f"Side pots {player.first_pot_won}-{player.pot_eligibility} Winner!"
+                if min(player.pots_won) == 0 and max(player.pots_won) == len(game.deal.pots) - 1:
+                    pass
+                elif len(player.pots_won) == 1:
+                    winner_text += f" Pot {player.pots_won[0]}"
+                else:
+                    winner_text += f" Pots {min(player.pots_won)} to {max(player.pots_won)}"
 
         elif player.folded:
             winner_text = "Folded"
@@ -133,7 +139,7 @@ def print_winner(game: PokerGame):
         else:
             winner_text = ""
 
-        reward_text = f"${old_money:,} + ${player.winnings:,} = ${new_money:,}" if win or side_win else ""
+        reward_text = f"+${player.winnings:,} -> ${new_money:,}" if win else ""
 
         print(PLAYER_STATE_FORMAT.format(
             turn_arrow="-> " if win else "",
@@ -177,15 +183,15 @@ def standard_io_poker():
 
     game = LegacyTestingGame(8)
 
-    # TODO side pot testing stuff
+    # Side pot testing stuff
     # for i, x in enumerate(game.players):
     #     x.money += 100 * i
-    # for i, x in enumerate(game.players):
-    #     x.money += 100 * (i // 2)
+    for i, x in enumerate(game.players):
+        x.money += 100 * (i // 2)
     # for i, x in enumerate(game.players):
     #     x.money += 100 * (i // 2) + (i % 2 * 25)
-    for i, x in enumerate(game.players):
-        x.money += 500 * i
+    # for i, x in enumerate(game.players):
+    #     x.money += 500 * i
 
 
     while True:
