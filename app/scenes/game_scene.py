@@ -3,7 +3,6 @@ import random
 
 from app.animations.interpolations import ease_out, ease_in, linear
 from app.audio import play_sound
-from app.widgets.basic.game_bg import GameBackground
 from app.widgets.menu.side_menu import SideMenu, SideMenuButton
 
 from rules.basic import HandRanking
@@ -323,6 +322,8 @@ class GameScene(Scene):
 
         :param unhighlight: If set to True then clear all the highlights.
         """
+        # TODO Hey..... IMPROVE THIS AS WELL
+
         if app_settings.main.get_value("card_highlights") == "off":
             return
 
@@ -331,10 +332,10 @@ class GameScene(Scene):
 
         if showdown:
             # Showdown: Highlight the winning hand(s)
-            ranked_cards = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.ranked_cards)
+            ranked_cards = set(x for winner in self.game.deal.winners[0] for x in winner.hand_ranking.ranked_cards)
 
             if app_settings.main.get_value("card_highlights") in ("all", "all_always"):
-                kickers = set(x for winner in self.game.deal.winners for x in winner.hand_ranking.kickers)
+                kickers = set(x for winner in self.game.deal.winners[0] for x in winner.hand_ranking.kickers)
 
         else:
             # Highlight the ranked cards of the client user
@@ -377,13 +378,15 @@ class GameScene(Scene):
         The method that is called when the deal advances to the next round (a NEW_ROUND game event is received).
         """
 
-        ROUND_NAMES = {3: "flop", 4: "turn", 5: "river"}
+        round_names = {3: "flop", 4: "turn", 5: "river"}
 
         if self.game.deal.winners:
             return
 
         for player in self.players.sprites():
             player.set_sub_text_anim("All in" if player.player_data.player_hand.all_in else "")
+
+        self.update_money_texts()
 
         """
         Show next community cards
@@ -404,10 +407,10 @@ class GameScene(Scene):
         """
         Card sliding sound effect
         """
-        play_sound(f"assets/audio/game/card/slide/{ROUND_NAMES[len(self.community_cards)]}.mp3")
+        play_sound(f"assets/audio/game/card/slide/{round_names[len(self.community_cards)]}.mp3")
 
         app_timer.Timer(anim_delay,
-                        lambda: play_sound(f"assets/audio/game/rounds/{ROUND_NAMES[len(self.community_cards)]}.mp3")
+                        lambda: play_sound(f"assets/audio/game/rounds/{round_names[len(self.community_cards)]}.mp3")
                         )
 
         """
@@ -477,12 +480,15 @@ class GameScene(Scene):
         :param i: The index of sorted_players to show. This method recursively calls itself (using a timer with a delay)
         with `i + 1` as the new argument.
         """
+        # TODO Hey..... IMPROVE THIS
         if i >= len(sorted_players):
             """
             Execute once when revealing the winner(s):
             
-            Flash the screen, set the pot text to 0, and play the win sound effect.
+            Update the money texts, flash the screen, set the pot text to 0, and play the win sound effect.
             """
+            self.update_money_texts()
+
             def set_flash_fac(flash_fac):
                 self.flash_fac = int(flash_fac)
 
@@ -499,7 +505,7 @@ class GameScene(Scene):
         player_display = self.players.sprites()[sorted_players[i]]
         player_hand = player_display.player_data.player_hand
 
-        rank_number = len(sorted_players) - len(self.game.deal.winners) - i + 1
+        rank_number = len(sorted_players) - len(self.game.deal.winners[0]) - i + 1
         # e.g. rank_number = 2 -> The current player is the player placing in 2nd place.
 
         """
@@ -518,7 +524,7 @@ class GameScene(Scene):
         except FileNotFoundError:
             pass
 
-        if player_hand in self.game.deal.winners:
+        if player_hand in self.game.deal.winners[0]:
             """
             Reveal the winner(s)
             """
@@ -622,6 +628,14 @@ class GameScene(Scene):
             0.3,
             lambda: self.bb_button.move_to_player(0.75, bb, self.sb_button, interpolation=ease_out),
         ])
+
+    def update_money_texts(self):
+        if self.pot_text.pot != sum(self.game.deal.pots):
+            self.pot_text.set_text_anim(sum(self.game.deal.pots))
+
+        for player in self.players:
+            player: PlayerDisplay
+            player.update_money()
 
     def update(self, dt):
         super().update(dt)

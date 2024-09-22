@@ -194,6 +194,8 @@ class PlayerDisplay(Widget):
 
     def update_money(self, duration=0.5):
         old_money, new_money = self.money_text_val, self.player_data.money
+        if old_money == new_money:
+            return
 
         if duration > 0:
             animation = VarSlider(duration, old_money, new_money, setter_func=self.set_money_text,

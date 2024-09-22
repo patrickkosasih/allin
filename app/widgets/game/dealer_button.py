@@ -76,7 +76,7 @@ class DealerButton(Widget):
                 start_pos = start_pos_button.get_pos("px", "tl", "ctr")
             else:
                 screen_center = self.parent.rect.center
-                start_pos = screen_center + 2.25 * (Vector2(end_pos) - screen_center)  # Offscreen
+                start_pos = screen_center + 3 * (Vector2(end_pos) - screen_center)  # Offscreen
 
             self.set_pos(*start_pos, "px", "tl", "ctr")
             self.set_shown(True, duration=0)

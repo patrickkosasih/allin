@@ -71,8 +71,9 @@ class SingleplayerGame(InterfaceGame):
         self.time_next_event(event)
 
     def start_game(self):
+        self.prepare_next_deal(cycle_dealer=False)
+        self.timer_group.new_timer(2, self.new_deal)
         self.broadcast(GameEvent(GameEvent.RESET_PLAYERS))
-        self.timer_group.new_timer(2, self.new_deal, (False,))
 
     def time_next_event(self, event):
         match event.code:
@@ -96,7 +97,8 @@ class SingleplayerGame(InterfaceGame):
                 self.timer_group.new_timer(10, self.broadcast, (GameEvent(GameEvent.RESET_DEAL),))
 
             case GameEvent.RESET_DEAL:
-                reset_players = self.eliminate_players()
+                reset_players = any(x.money <= 0 for x in self.players)
+                self.prepare_next_deal()
 
                 if reset_players:
                     self.timer_group.new_timer(2.5, self.broadcast, (GameEvent(GameEvent.RESET_PLAYERS),))

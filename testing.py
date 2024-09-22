@@ -19,7 +19,7 @@ class LegacyTestingGame(PokerGame):
 
     def auto_start_game(self, n_players):
         self.players = [Player(self, f"Player {i + 1}", 1000) for i in range(n_players)]
-        self.new_deal()
+        self.start_game()
         self.deal.start_deal()
 
 
@@ -192,7 +192,7 @@ def standard_io_poker():
     #     x.money += 100 * (i // 2) + (i % 2 * 25)
     # for i, x in enumerate(game.players):
     #     x.money += 500 * i
-
+    # game.dealer += 3
 
     while True:
         print("\n" + "=" * 110 + "\n")
