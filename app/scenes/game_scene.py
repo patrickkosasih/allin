@@ -464,87 +464,81 @@ class GameScene(Scene):
         is_not_folded = lambda x: not x.player_data.player_hand.folded
         # A lambda function that returns True if the player (`x: PlayerDisplay`) is not folded.
 
-        sorted_players = [i for i, player in sorted(enumerate(self.players), key=get_score) if is_not_folded(player)]
-        # A list of player indexes who hasn't folded sorted by the hand ranking.
-
         """
         Start revealing the hand rankings
         """
-        app_timer.Timer(2, self.reveal_rankings, args=(sorted_players,))
+        app_timer.Coroutine(self.reveal_rankings())
 
-    def reveal_rankings(self, sorted_players, i=0):
+    def reveal_rankings(self) -> Generator[float, None, None]:
         """
         Reveal the hand rankings of each player one by one in order from the lowest ranking.
-
-        :param sorted_players: The list of player indexes sorted by the hand ranking.
-        :param i: The index of sorted_players to show. This method recursively calls itself (using a timer with a delay)
-        with `i + 1` as the new argument.
         """
-        # TODO Hey..... IMPROVE THIS
-        if i >= len(sorted_players):
-            """
-            Execute once when revealing the winner(s):
-            
-            Update the money texts, flash the screen, set the pot text to 0, and play the win sound effect.
-            """
-            self.update_money_texts()
 
-            def set_flash_fac(flash_fac):
-                self.flash_fac = int(flash_fac)
-
-            animation = VarSlider(1.5, 50, 0, setter_func=set_flash_fac)
-            self.anim_group.add(animation)
-
-            self.pot_text.set_text_anim(0)
-            app_timer.Timer(0.25, self.highlight_cards, (True,))
-
-            play_sound("assets/audio/game/showdown/win.mp3", volume_mult=0.7)
-
-            return
-
-        player_display = self.players.sprites()[sorted_players[i]]
-        player_hand = player_display.player_data.player_hand
-
-        rank_number = len(sorted_players) - len(self.game.deal.winners[0]) - i + 1
-        # e.g. rank_number = 2 -> The current player is the player placing in 2nd place.
+        yield 2  # Delay after the `showdown` method call.
 
         """
-        Update sub text to hand ranking
+        Create various lists of player displays.
         """
-        ranking_int = player_hand.hand_ranking.ranking_type
-        ranking_text = HandRanking.TYPE_STR[ranking_int].capitalize()
-        player_display.set_sub_text_anim(ranking_text)
+        sorted_players: list[PlayerDisplay]
+        sorted_players = [player for player in
+                          sorted(self.players, key=lambda x: x.player_data.player_hand.hand_ranking.overall_score)
+                          if not player.player_data.player_hand.folded]
+
+        n_winners = len(self.game.deal.winners[0])
+
+        main_winners = sorted_players[-n_winners:]
+        all_winners = [player for player in sorted_players
+                       if player.player_data.player_hand.pots_won]
 
         """
-        Ranking reveal sound effect
+        Reveal the players' hand rankings.
         """
-        try:
+        for i, player_display in enumerate(sorted_players):
+            # Update sub text to hand ranking
+            ranking_int = player_display.player_data.player_hand.hand_ranking.ranking_type
+            if ranking_int == 0:
+                continue  # Don't reveal the ranking if the ranking is "n/a"
+
+            ranking_text = HandRanking.TYPE_STR[ranking_int].capitalize()
+            player_display.set_sub_text_anim(ranking_text)
+
+            rank_number = len(sorted_players) - n_winners - i + 1  # "The current player is ranked in n-th place."
+
+            # Play the reveal sound
             play_sound(f"assets/audio/game/showdown/reveal {rank_number}.mp3",
                        volume_mult=0.5 + 0.5 / max(1, rank_number))
-        except FileNotFoundError:
-            pass
 
-        if player_hand in self.game.deal.winners[0]:
-            """
-            Reveal the winner(s)
-            """
-            # Create a winner crown
-            winner_crown = WinnerCrown(self, player_display)
+            # Delay
+            if player_display not in main_winners:
+                yield 1 / rank_number
+
+        """
+        Create a winner crown for each winner.
+        """
+        show_pots = len(main_winners) != len(all_winners)
+
+        for player_display in all_winners:
+            winner_crown = WinnerCrown(self, player_display, show_pots)
             self.winner_crowns.add(winner_crown)
 
-            # Update player money text
-            player_display.update_money()
+        """
+        Update the players' money texts and set the pot text to 0.
+        """
+        self.update_money_texts()
+        self.pot_text.set_text_anim(0)
 
-            # Call `reveal_rankings` again without delay to reveal other winners if there are any.
-            # Calling the function when the new `i` is out of range creates the screen flash effect.
-            self.reveal_rankings(sorted_players, i + 1)
+        """
+        Extra effects
+        """
+        def set_flash_fac(flash_fac):
+            self.flash_fac = int(flash_fac)
 
-        else:
-            """
-            Reveal the next loser(s)
-            """
-            next_player_delay = 1 / rank_number
-            app_timer.Timer(next_player_delay, self.reveal_rankings, args=(sorted_players, i + 1))
+        animation = VarSlider(1.5, 50, 0, setter_func=set_flash_fac)
+        self.anim_group.add(animation)
+
+        app_timer.Timer(0.25, self.highlight_cards, (True,))
+
+        play_sound("assets/audio/game/showdown/win.mp3", volume_mult=0.7)
 
     def reset_deal(self):
         """

@@ -3,6 +3,9 @@ import pygame
 from app import app_settings
 
 
+IGNORE_MISSING_FILES = True
+
+
 """
 Sound Effects
 """
@@ -12,9 +15,14 @@ class SoundGroup:
 
     @staticmethod
     def play_sound(filename, volume_mult=1.0):
-        sound = SoundGroup.sound_cache.setdefault(filename, pygame.mixer.Sound(filename))
-        sound.set_volume(SoundGroup.volume * volume_mult)
-        sound.play()
+        try:
+            sound = SoundGroup.sound_cache.setdefault(filename, pygame.mixer.Sound(filename))
+            sound.set_volume(SoundGroup.volume * volume_mult)
+            sound.play()
+
+        except FileNotFoundError as e:
+            if not IGNORE_MISSING_FILES:
+                raise e
 
     @staticmethod
     def update_volume():

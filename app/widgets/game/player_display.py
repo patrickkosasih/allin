@@ -169,6 +169,7 @@ class PlayerDisplay(Widget):
             animation = VarSlider(duration=0.25, start_val=0, end_val=1, setter_func=self.set_sub_pos)
 
         elif not new_text and extended:  # Old text -> Nothing
+            self.sub_text_str = ""
             animation = VarSlider(duration=0.25, start_val=1, end_val=0, setter_func=self.set_sub_pos)
 
         else:  # Nothing -> Nothing

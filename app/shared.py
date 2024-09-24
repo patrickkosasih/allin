@@ -117,8 +117,8 @@ class Layer:
     TABLE = 1
     TABLE_TEXT = 2
 
-    WINNER_CROWN = 3
-    CARD = 4
+    CARD = 3
+    WINNER_CROWN = 4
     PLAYER = 5
 
     BB_BUTTON = 6

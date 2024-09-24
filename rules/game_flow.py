@@ -269,6 +269,13 @@ class Deal:
         """
         Do the action
         """
+        if new_amount >= player.player_data.money + player.bet_amount:
+            new_amount = player.player_data.money + player.bet_amount
+
+            if new_amount <= self.bet_amount:
+                # If a player uses the raise button to call an all in.
+                action_type = Actions.CALL
+
         # region Do the action
         match action_type:
             case Actions.FOLD:   # Fold
@@ -403,19 +410,31 @@ class Deal:
             self.pots.append(0)  # Create a new side pot.
 
         """
-        When a player goes all in and creates a new side pot, but there are no other players that are eligible for that
-        side pot, then that side pot is removed and the money is given back to said all in player.
+        When a side pot only has one player participating, then that side pot is removed and the contents are given back
+        to said player.
         """
-        if all_in_players and sum(x.pot_eligibility >= all_in_players[-1].pot_eligibility or
-                                  x.pot_eligibility == -1
-                                  for x in self.players if not x.folded) <= 1:
+        max_eligibility = max((x.pot_eligibility if x.pot_eligibility != -1 else len(self.pots) - 1)
+                              for x in self.players if not x.folded)
 
-            refund_player = all_in_players[-1]
-            refund = self.pots.pop(refund_player.pot_eligibility)
+        last_pot_players = [x for x in self.players if not x.folded and
+                            (x.pot_eligibility >= max_eligibility or x.pot_eligibility == -1)]
+
+        if len(last_pot_players) == 1:
+            refund_player = last_pot_players[0]
+
+            if refund_player.all_in:
+                # Pot with the refund player -> Refund player's money
+                refund = self.pots.pop(refund_player.pot_eligibility)
+                refund_player.all_in = False
+                refund_player.pot_eligibility = -1
+            else:
+                # Refund player's bet amount -> Refund player's money
+                refund = refund_player.bet_amount
+                refund_player.bet_amount = 0
+                self.current_round_pot = 0
 
             refund_player.player_data.money += refund
-            refund_player.all_in = False
-            refund_player.pot_eligibility = -1
+
             prev_round_pot -= refund
 
         """
@@ -490,6 +509,7 @@ class Deal:
 
             winner.winnings = sum(self.pots) + self.current_round_pot
             winner.player_data.money += winner.winnings
+            winner.pots_won = [0]
             self.winners = [[winner]]
 
             self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
