@@ -1,16 +1,20 @@
+from typing import TYPE_CHECKING
+
 import pygame.sprite
 
 from app.animations.var_slider import VarSlider
-from app.animations.move import MoveAnimation
 from app.animations.interpolations import *
 
 from app.shared import *
 from app.tools import app_timer
+from app.widgets.listeners import MouseListener
 from app.widgets.widget import Widget, WidgetComponent
 
+if TYPE_CHECKING:
+    from app.scenes.game_scene import GameScene
 
 class TableText(Widget):
-    def __init__(self, parent, *rect_args):
+    def __init__(self, parent: "GameScene", *rect_args):
         super().__init__(parent, *rect_args)
         self.layer = Layer.TABLE_TEXT
 
@@ -22,7 +26,7 @@ class TableText(Widget):
         self.text = WidgetComponent(self, 0, 0, 100, 100, "%", "ctr", "ctr")
 
         self.text_str = ""
-        self.visible = True
+        self.shown = True
 
         """
         Initialize
@@ -44,25 +48,25 @@ class TableText(Widget):
         if set_rect:
             self.text.rect = self.text.image.get_rect(center=(self.rect.width / 2, self.rect.height / 2))
 
-    def set_visible(self, visible: bool, duration: float = 0.25):
-        if self.visible == visible:
+    def set_shown(self, visible: bool, duration: float = 0.25):
+        if self.shown == visible:
             return
 
         if duration > 0:
-            animation = VarSlider(duration, 255 * self.visible, 255 * visible,
+            animation = VarSlider(duration, 255 * self.shown, 255 * visible,
                                   setter_func=lambda x: self.image.set_alpha(int(x)))
             self.scene.anim_group.add(animation)
         else:
             self.image.set_alpha(255 * visible)
 
-        self.visible = visible
+        self.shown = visible
 
     def update(self, dt):
         self.image.fill((0, 0, 0, 0))
         self.component_group.draw(self.image)
 
 
-class PotText(TableText):
+class PotText(TableText, MouseListener):
     def __init__(self, parent, *rect_args):
         super().__init__(parent, *rect_args)
 
@@ -84,6 +88,20 @@ class PotText(TableText):
         self.scene.anim_group.add(animation)
 
         self.pot = pot
+
+    def on_click(self, event):
+        if self.shown:
+            self.parent: "GameScene"
+            self.parent.show_side_pot_panel(True)
+
+    def update(self, dt):
+        super().update(dt)
+
+        if self.hover:
+            if self.mouse_down:
+                self.image.fill((30, 30, 30), special_flags=pygame.BLEND_SUB)
+            else:
+                self.image.fill((30, 30, 30), special_flags=pygame.BLEND_ADD)
 
 
 class RankingText(TableText):

@@ -3,6 +3,7 @@ import random
 
 from app.animations.interpolations import ease_out, ease_in, linear
 from app.audio import play_sound
+from app.widgets.game.side_pot_panel import SidePotPanel
 from app.widgets.menu.side_menu import SideMenu, SideMenuButton
 
 from rules.basic import HandRanking
@@ -60,10 +61,13 @@ class GameScene(Scene):
         Table texts
         """
         self.pot_text = widgets.game.table_texts.PotText(self, 0, -12.5, 12.5, 5, "%", "ctr", "ctr")
-        self.pot_text.set_visible(False, duration=0)
+        self.pot_text.set_shown(False, duration=0)
 
         self.ranking_text = widgets.game.table_texts.RankingText(self, 0, 12.5, 17.5, 5, "%", "ctr", "ctr")
-        self.ranking_text.set_visible(False, duration=0)
+        self.ranking_text.set_shown(False, duration=0)
+
+        self.side_pot_panel = SidePotPanel(self, 0, 0, 25, 30, "%", "ctr", "ctr", game=self.game)
+        self.side_pot_panel.set_shown(False, duration=0)
 
         """
         Action buttons and bet prompt
@@ -145,6 +149,7 @@ class GameScene(Scene):
                 if not is_sb:
                     total_pot = sum(self.game.deal.pots) + self.game.deal.current_round_pot
                     self.pot_text.set_text_anim(total_pot)
+                    self.side_pot_panel.update_current_bets()
 
                 """
                 Money sound effect
@@ -284,6 +289,10 @@ class GameScene(Scene):
         for x in (self.call_button, self.fold_button):
             x.set_shown(not shown, duration=0.3)
 
+    def show_side_pot_panel(self, shown: bool):
+        self.side_pot_panel.set_shown(shown, duration=0.2)
+        self.pot_text.set_shown(not shown, duration=0.2)
+
     def deal_cards(self):
         """
         Deals the pocket cards to all players and also moves the dealer button.
@@ -310,7 +319,7 @@ class GameScene(Scene):
                     card.card_data = player_display.player_data.player_hand.pocket_cards[j]
                     animation.call_on_finish = card.reveal
 
-        app_timer.Timer(1, self.pot_text.set_visible, (True,))
+        app_timer.Timer(1, self.pot_text.set_shown, (True,))
 
 
     def highlight_cards(self, showdown=False, unhighlight=False):
@@ -365,7 +374,7 @@ class GameScene(Scene):
             if player.player_data is self.game.client_player:
                 card.fade_anim(0.25, 128)
 
-                if self.ranking_text.visible:
+                if self.ranking_text.shown:
                     self.ranking_text.set_text_anim("Folded:  " + self.ranking_text.text_str)
 
             else:
@@ -429,7 +438,7 @@ class GameScene(Scene):
         """
         if len(self.game.deal.community_cards) == 3:
             if self.game.client_player.player_number >= 0:
-                app_timer.Timer(2, self.ranking_text.set_visible, (True,))
+                app_timer.Timer(2, self.ranking_text.set_shown, (True,))
 
             self.sb_button.set_shown(False)
             self.bb_button.set_shown(False)
@@ -439,8 +448,10 @@ class GameScene(Scene):
         Perform a showdown and reveal the winner(s) of the current deal.
         """
 
-        self.ranking_text.set_visible(False)
+        self.ranking_text.set_shown(False)
         self.highlight_cards(unhighlight=True)
+        self.update_money_texts()
+
         for player in self.players.sprites():
             player.set_sub_text_anim("")
 
@@ -515,7 +526,7 @@ class GameScene(Scene):
         """
         Create a winner crown for each winner.
         """
-        show_pots = len(main_winners) != len(all_winners)
+        show_pots = any(max(winner.pots_won) != len(self.game.deal.pots) - 1 for winner in self.game.deal.winners[0])
 
         for player_display in all_winners:
             winner_crown = WinnerCrown(self, player_display, show_pots)
@@ -545,8 +556,10 @@ class GameScene(Scene):
         Reset the sprites of cards and winner crowns, and then start a new deal.
         """
 
-        self.pot_text.set_visible(False)
+        self.pot_text.set_shown(False)
         self.ranking_text.set_text("")
+        self.side_pot_panel.set_shown(False)
+        app_timer.Timer(1, self.side_pot_panel.reset_all_pots)
 
         self.sb_button.set_shown(False)
         self.bb_button.set_shown(False)
@@ -617,13 +630,15 @@ class GameScene(Scene):
 
         app_timer.Sequence([
             lambda: self.dealer_button.move_to_player(0.75, dealer, interpolation=ease_in),
-            0.75,
+            0.751,
             lambda: self.sb_button.move_to_player(0.3, sb, self.dealer_button, interpolation=linear),
-            0.3,
+            0.301,
             lambda: self.bb_button.move_to_player(0.75, bb, self.sb_button, interpolation=ease_out),
         ])
 
     def update_money_texts(self):
+        self.side_pot_panel.update_all_pots()
+
         if self.pot_text.pot != sum(self.game.deal.pots):
             self.pot_text.set_text_anim(sum(self.game.deal.pots))
 

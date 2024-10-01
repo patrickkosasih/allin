@@ -70,7 +70,7 @@ class Panel(MouseListener):
 
         return x, y, w, h
 
-    def add_scrollable(self, widget: Widget, repack=False):
+    def add_scrollable(self, widget: Widget or WidgetComponent, repack=False):
         if repack:
             x, y, w, _ = self.next_pack_rect
             widget.rect.x = x
