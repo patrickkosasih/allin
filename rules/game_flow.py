@@ -122,12 +122,18 @@ class PlayerHand:
 
         self.bet_amount = 0  # The amount of money spent on the current betting round
         self.last_action = ""  # A string representing the action the player previously made.
+        self.pot_eligibility = -1  # An integer representing which pots are the player eligible to participate in.
+                                   # -1: Eligible for all pots.
+                                   # Not -1: Eligible only for pots 0 until that number.
+
+        self.winnings = 0  # The amount of money this player won on the current round.
+        self.pots_won = []
 
         self.folded = False
         self.called = False
         self.all_in = False
 
-    def bet(self, new_bet: int, blinds=False):
+    def bet(self, new_bet: int, blinds=False) -> int:
         """
         Pay an amount of money to match the bet of other players.
 
@@ -135,26 +141,29 @@ class PlayerHand:
         :param blinds: If set to True, then `called` will not be set to True. Used on the start of a deal where the
         two players with the blinds must bet an amount of money but still must call/check later.
 
-        :return:
+        :return: The player's new bet amount.
         """
         amount_to_pay = new_bet - self.bet_amount  # How much money to pay to call/raise
 
         if amount_to_pay >= self.player_data.money:
-            # ALL IN
+            """
+            ALL IN
+            """
             self.all_in = True
 
             amount_to_pay = self.player_data.money
             new_bet = amount_to_pay + self.bet_amount
 
         self.player_data.money -= amount_to_pay
-        self.deal.pot += amount_to_pay
+        self.deal.current_round_pot += amount_to_pay
         self.bet_amount = new_bet
 
         if blinds:
-            if not self.all_in:
-                self.last_action = "bet"
+            self.last_action = "bet" if not self.all_in else "all in"
         else:
             self.called = True
+
+        return new_bet
 
 
 class Deal:
@@ -177,11 +186,13 @@ class Deal:
         self.game = game
         self.players = [PlayerHand(deal=self, player_data=player) for player in game.players]
         # A list of `PlayerHand` instances based on the `PlayerData` list of the `PokerGame`.
-        self.winners = []
-        # A list of `PlayerHand` objects who won the deal. If the deal is still ongoing then the list is empty.
+        self.winners: list[list] = []
+        # A list of sublists of `PlayerHand` objects who has won the deal. Each sublist contains the winner(s) of their
+        # respective pot. When there are no side pots, there is only one sublist.
 
-        self.pot = 0
-        self.bet_amount = 0
+        self.pots = [0]
+        self.current_round_pot = 0
+        self.bet_amount = self.game.sb_amount * 2  # The amount to spend for a player to make a call on this round.
 
         self.community_cards = []
         self.deck = generate_deck()
@@ -206,7 +217,7 @@ class Deal:
 
     def start_deal(self):
         """
-        Start the current deal. Only called once on the start of a deal.
+        Start the current deal. Should only be called ONCE on the start of a deal.
         """
 
         self.deal_started = True
@@ -234,6 +245,9 @@ class Deal:
         :return: An action result integer code.
         """
 
+        """
+        Validation
+        """
         if type(action_type) is not int:
             raise TypeError("action type must be an int")
         elif action_type not in range(3):
@@ -255,6 +269,13 @@ class Deal:
         """
         Do the action
         """
+        if new_amount >= player.player_data.money + player.bet_amount:
+            new_amount = player.player_data.money + player.bet_amount
+
+            if new_amount <= self.bet_amount:
+                # If a player uses the raise button to call an all in.
+                action_type = Actions.CALL
+
         # region Do the action
         match action_type:
             case Actions.FOLD:   # Fold
@@ -274,20 +295,22 @@ class Deal:
                 else:
                     action_broadcast.message = "check"
 
-                player.bet(self.bet_amount)
+                player_bet = player.bet(self.bet_amount)
                 player.called = True
-                action_broadcast.bet_amount = self.bet_amount
+                action_broadcast.bet_amount = player_bet
 
             case Actions.RAISE:  # Bet/raise
                 if new_amount >= player.player_data.money + player.bet_amount:
-                    new_amount = player.player_data.money + player.bet_amount  # ALL-IN
+                    new_amount = player.player_data.money + player.bet_amount  # ALL IN
 
-                elif not blinds and new_amount < self.game.min_bet:
+                elif blinds:
+                    pass  # Bypass the min bet/raise restrictions on blinds.
+
+                elif new_amount < self.game.min_bet:
                     return ActionResult.LESS_THAN_MIN_BET
 
                 elif new_amount < 2 * self.bet_amount:
                     return ActionResult.LESS_THAN_MIN_RAISE
-
 
                 # Everyone except the betting/raising player must call again
                 for x in self.players:
@@ -299,8 +322,8 @@ class Deal:
                 else:
                     action_broadcast.message = "bet"
 
-                self.bet_amount = new_amount
-                player.bet(new_amount, blinds)
+                player_bet = player.bet(new_amount, blinds)
+                self.bet_amount = max(self.bet_amount, player_bet)
 
                 action_broadcast.bet_amount = player.bet_amount
         # endregion
@@ -335,17 +358,97 @@ class Deal:
     def next_round(self):
         """
         Advance to the next betting round by resetting the round and revealing the next community card.
-
-        :return:
         """
 
+        """
+        Error checking stuff.
+        """
         if self.winners:
             return
+
+        assert sum(x.bet_amount for x in self.players) == self.current_round_pot, "bet amount sums must match"
+        prev_total_pot = sum(self.pots)
+        prev_round_pot = self.current_round_pot
+
+        """
+        Create new side pot(s) when a player(s) goes all in.
+        """
+        all_in_players = sorted((x for x in self.players if x.all_in and x.bet_amount > 0), key=lambda x: x.bet_amount)
+        # List of players that went all in on the last round, sorted by their bet amount.
+
+        for all_in_player in all_in_players:
+            """
+            For each player that went all in on the last round, a new side pot is created, and that player is set to be
+            eligible for only up until the pot before the newly created pot.
+            
+            Players who are all in for the same amount are counted as one and share the same pot eligibility.
+            
+            Every player then gives the same amount of money to each last pot that an all in player is eligible for,
+            which is the bet amount of that all in player.
+            """
+            if all_in_player.bet_amount <= 0:
+                all_in_player.pot_eligibility = len(self.pots) - 2
+                continue
+
+            transfer_amount = all_in_player.bet_amount  # The amount of money to be transferred to the pot per player.
+
+            for player in self.players:
+                if player.bet_amount <= 0:
+                    continue
+
+                # If bet amount < transfer amount, just transfer what's left.
+                # This only happens when the player has folded.
+                current_transfer = min(transfer_amount, player.bet_amount)
+
+                # Transfer the money: Bet amount -> Currently open pot.
+                # `current_round_pot` must always be the sum of the bet amounts of all players.
+                player.bet_amount -= current_transfer
+                self.current_round_pot -= current_transfer
+                self.pots[-1] += current_transfer
+
+            all_in_player.pot_eligibility = len(self.pots) - 1
+            self.pots.append(0)  # Create a new side pot.
+
+        """
+        When a side pot only has one player participating, then that side pot is removed and the contents are given back
+        to said player.
+        """
+        max_eligibility = max((x.pot_eligibility if x.pot_eligibility != -1 else len(self.pots) - 1)
+                              for x in self.players if not x.folded)
+
+        last_pot_players = [x for x in self.players if not x.folded and
+                            (x.pot_eligibility >= max_eligibility or x.pot_eligibility == -1)]
+
+        if len(last_pot_players) == 1:
+            refund_player = last_pot_players[0]
+
+            if refund_player.all_in:
+                # Pot with the refund player -> Refund player's money
+                refund = self.pots.pop(refund_player.pot_eligibility)
+                refund_player.all_in = False
+                refund_player.pot_eligibility = -1
+            else:
+                # Refund player's bet amount -> Refund player's money
+                refund = refund_player.bet_amount
+                refund_player.bet_amount = 0
+                self.current_round_pot = 0
+
+            refund_player.player_data.money += refund
+
+            prev_round_pot -= refund
+
+        """
+        Transfer the money to the currently open pot.
+        When new side pot(s) have just been created, transfer the remaining money that hasn't been distributed yet.
+        """
+        self.pots[-1] += self.current_round_pot
+        assert prev_total_pot + prev_round_pot == sum(self.pots), "something went wrong while distributing the bets"
 
         """
         Reset fields
         """
         self.bet_amount = 0
+        self.current_round_pot = 0
         self.current_turn = self.get_next_turn(1, turn=self.game.dealer)
         self.round_finished = False
 
@@ -366,14 +469,15 @@ class Deal:
         for player in self.players:
             player.hand_ranking = HandRanking(self.community_cards + player.pocket_cards)
             player.bet_amount = 0
-            player.last_action = "folded" if player.folded else ("all-in" if player.all_in else "")
+            player.last_action = "folded" if player.folded else ("all in" if player.all_in else "")
             player.called = False
 
         """
         Broadcast game event
         """
         if sum(not player.all_in for player in self.players if not player.folded) <= 1:
-            # If everyone who are still in are all-in (except 1 player or less), then the next betting round is skipped.
+            # If the number of people who haven't folded and aren't all-in is 1 or less, then the next betting round
+            # is skipped.
             self.skip_next_rounds = True
             self.broadcast(GameEvent(GameEvent.SKIP_ROUND, -1, -1, ""))
 
@@ -396,14 +500,83 @@ class Deal:
         Decide the winner of the current deal with a showdown.
         Can also be used when there is only 1 player left who hasn't folded.
         """
-        not_folded = [player for player in self.players if not player.folded]
 
-        max_score = max(player.hand_ranking.overall_score for player in not_folded)
-        self.winners = [player for player in not_folded if player.hand_ranking.overall_score == max_score]
+        """
+        If everyone except one player folds.
+        """
+        if sum(not player.folded for player in self.players) == 1:
+            winner: PlayerHand = next(player for player in self.players if not player.folded)
 
-        for winner in self.winners:
-            winner.player_data.money += self.pot // len(self.winners)
+            winner.winnings = sum(self.pots) + self.current_round_pot
+            winner.player_data.money += winner.winnings
+            winner.pots_won = [0]
+            self.winners = [[winner]]
 
+            self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
+            return
+
+        """
+        Remove empty side pots.
+        If a player has a pot eligibility of -1 then that player is eligible for all pots.
+        """
+        if self.pots[-1] == 0:
+            self.pots.pop(-1)
+
+        for player in self.players:
+            if player.pot_eligibility == -1:
+                player.pot_eligibility = len(self.pots) - 1
+
+        """
+        Group every player (who are not folded) based on their pot eligibility.
+        """
+        eligibility_group = [[] for _ in range(len(self.pots))]
+        for player in self.players:
+            if not player.folded:
+                eligibility_group[player.pot_eligibility].append(player)
+
+        """
+        Figure out the winners of each pot.
+        
+        When there are multiple pots, each pot would have a different set of players that are eligible for that pot.
+        
+        So for every pot starting from the last, player(s) who has a pot eligibility of that pot is added to the
+        set of players eligible for that pot.
+        
+        But instead of adding all the newly eligible players, the algorithm only adds players who have a higher or
+        equal hand ranking overall score to the `current_pot_winners` list, similar to the "find max number"
+        algorithm.
+        """
+        self.winners = [[] for _ in range(len(self.pots))]
+        current_pot_winners = []
+
+        win_score = 0
+        for pot_number, new_pot_participants in list(enumerate(eligibility_group))[::-1]:
+            for player in new_pot_participants:
+                score = player.hand_ranking.overall_score
+
+                if score > win_score:
+                    win_score = score
+                    current_pot_winners = []
+
+                if score >= win_score:
+                    current_pot_winners.append(player)
+
+            self.winners[pot_number] = current_pot_winners.copy()
+
+        """
+        Give the money to the winner(s).
+        """
+        for pot_number, pot_winners in enumerate(self.winners):
+            prize = self.pots[pot_number] // len(pot_winners)
+
+            for winner in pot_winners:
+                winner.pots_won.append(pot_number)
+                winner.winnings += prize
+                winner.player_data.money += prize
+
+        """
+        Broadcast
+        """
         self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
 
     def broadcast(self, broadcast: GameEvent) -> None:
@@ -432,21 +605,15 @@ class Deal:
         if sum(not player.folded for player in self.players) <= 1 or \
             all(player.all_in for player in self.players if not player.folded):
             return turn
-        else:
-            return self.__get_next_turn(n=n - 1, turn=(turn + 1) % len(self.players))
 
-    def __get_next_turn(self, n=1, turn=-1):
-        if self.players[turn].folded or self.players[turn].all_in:
-            # If player is folded/all-in then skip to the next player
-            return self.__get_next_turn(n=n, turn=(turn + 1) % len(self.players))
+        while True:
+            turn = (turn + 1) % len(self.players)
+            if not (self.players[turn].all_in or self.players[turn].folded):
+                n -= 1
+                if n <= 0:
+                    break
 
-        elif n <= 0:
-            # Get current turn
-            return turn
-
-        else:
-            # Get next turn
-            return self.__get_next_turn(n=n-1, turn=(turn + 1) % len(self.players))
+        return turn
 
     def get_current_player(self) -> PlayerHand:
         return self.players[self.current_turn]
@@ -459,30 +626,30 @@ class PokerGame:
     """
 
     def __init__(self):
-        self.players = []
+        self.players: list[Player] = []
         self.dealer = 0  # The index of `self.players` who becomes the dealer of the current deal.
 
         self.sb_amount = 25  # Small blinds amount. Big blinds = 2 * Small blinds.
+
         self.game_in_progress = False
+        self.ready_for_next_deal = False
 
         self.deal: Deal or None = None
 
     def start_game(self):
-        self.new_deal(cycle_dealer=False)
+        self.prepare_next_deal(cycle_dealer=True)
+        self.new_deal()
 
-    def new_deal(self, cycle_dealer=True):
+    def new_deal(self):
         """
         Start a new deal. Players who are out of money are removed, and the dealer is cycled to the next player.
 
-        :param cycle_dealer: Defaults to True. If set to True then the dealer is cycled to the next player.
+
         :return: True if a new deal is started; False otherwise, due to insufficient player count.
         """
-
-        self.eliminate_players()
-        self.update_player_numbers()
-
-        if cycle_dealer:
-            self.dealer = (self.dealer + 1) % len(self.players)  # Cycle dealer
+        if not self.ready_for_next_deal:
+            self.prepare_next_deal()
+        self.ready_for_next_deal = False
 
         if len(self.players) >= 2:
             self.deal = Deal(self)
@@ -493,24 +660,37 @@ class PokerGame:
             self.game_in_progress = False
             return False
 
-    def eliminate_players(self) -> bool:
+    def prepare_next_deal(self, cycle_dealer=True) -> None:
         """
         Check the players' amount of money and remove any players that are bankrupt.
 
-        :return: True if at least 1 player was eliminated, otherwise False.
+        :param cycle_dealer: Defaults to True. If set to True then the dealer is cycled to the next player.
+        """
+        self.ready_for_next_deal = True
+
+        """
+        Cycle dealer
+        """
+        if cycle_dealer:
+            while True:
+                self.dealer = (self.dealer + 1) % len(self.players)
+                if self.players[self.dealer].money > 0:
+                    break
+
+            self.dealer -= sum(x.money <= 0 for x in self.players[:self.dealer])
+
+        """
+        Remove bankrupt players
         """
         bankrupt = [player for player in self.players if player.money <= 0]
         self.players = [player for player in self.players if player.money > 0]
 
+        """
+        Update player numbers
+        """
         for x in bankrupt:
             x.player_number = -2
 
-        if len(bankrupt) > 0:
-            self.update_player_numbers()
-
-        return len(bankrupt) > 0
-
-    def update_player_numbers(self):
         for i, player in enumerate(self.players):
             player.player_number = i
 

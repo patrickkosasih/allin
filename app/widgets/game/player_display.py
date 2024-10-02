@@ -169,6 +169,7 @@ class PlayerDisplay(Widget):
             animation = VarSlider(duration=0.25, start_val=0, end_val=1, setter_func=self.set_sub_pos)
 
         elif not new_text and extended:  # Old text -> Nothing
+            self.sub_text_str = ""
             animation = VarSlider(duration=0.25, start_val=1, end_val=0, setter_func=self.set_sub_pos)
 
         else:  # Nothing -> Nothing
@@ -194,6 +195,8 @@ class PlayerDisplay(Widget):
 
     def update_money(self, duration=0.5):
         old_money, new_money = self.money_text_val, self.player_data.money
+        if old_money == new_money:
+            return
 
         if duration > 0:
             animation = VarSlider(duration, old_money, new_money, setter_func=self.set_money_text,
