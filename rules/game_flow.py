@@ -19,33 +19,35 @@ class Actions:
 
 class ActionResult:
     """
-    The `ActionResult` class contains return codes for the `action` method of `Deal`.
+    The `ActionResult` class contains return codes for the `Hand.action` method.
     """
     SUCCESS = 0
     LESS_THAN_MIN_BET = 1
     LESS_THAN_MIN_RAISE = 2
     ROUND_ALREADY_ENDED = 3
-    DEAL_ALREADY_ENDED = 4
-    DEAL_NOT_STARTED_YET = 5
+    HAND_ALREADY_ENDED = 4
+    HAND_NOT_STARTED_YET = 5
 
 
 @dataclass
 class GameEvent:
     """
-    A game event is used to pass information from an ongoing game/deal to the `receive_event` method of a `Player`
-    object. The information can then be used to update the GUI, call the action method of a bot, and more.
+    A game event is used to pass information from an ongoing game/hand to the `Player.receive_event` method and the
+    `PokerGame.on_event` method.
+
+    The information can then be used to update the GUI, call the action method of a bot, and more.
     """
 
     # Event codes
     DEFAULT_ACTION = 0
-    NEW_DEAL = 1
-    START_DEAL = 2
+    NEW_HAND = 1
+    START_HAND = 2
     ROUND_FINISH = 3
     NEW_ROUND = 4
     START_NEW_ROUND = 5
     SKIP_ROUND = 6
-    DEAL_END = 7
-    RESET_DEAL = 8
+    SHOWDOWN = 7
+    RESET_HAND = 8
     RESET_PLAYERS = 9
 
     # Class fields
@@ -58,34 +60,30 @@ class GameEvent:
 
 class Player:
     """
-    The `Player` class is the player controller class for a single player. Previously known as a player data.
-    It also contains attributes of a player playing throughout the different hands of a poker game. An instance of this
-    class can be a real player that can control their actions, or even a bot.
-
-    The difference between this class to `PlayerHand` is that the attributes of this class is brought on through all
-    the different deals of a game of poker, such as the amount of money.
+    The `Player` class is the player controller class for a single player. Also referred to as a player data.
+    An instance of this class can be a real player that can control their actions, or even a bot.
 
     Some methods of this class are empty and can be altered in a subclass of `Player` for an interface to actions on the
     game.
     """
 
-    def __init__(self, game: "PokerGame", name: str, money: int):
+    def __init__(self, game: "PokerGame", name: str, chips: int):
         self.game = game
         self.player_hand = None
 
         self.name = name
-        self.money = money
+        self.chips = chips
         self.player_number = -2  # -2: Not assigned to any PokerGame
 
     def action(self, action_type: int, new_amount=0) -> GameEvent or None:
         """
-        Calls the `self.game.deal.action()` method along with its arguments, but only if it's currently this player's
-        turn and the deal is not over.
+        Calls the `self.game.hand.action()` method along with its arguments, but only if it's currently this player's
+        turn and the hand is not over.
 
         :return: An `ActionResult` object; `None` if it's not this player's turn.
         """
-        if self.game.deal.get_current_player().player_data is self and not self.game.deal.winners:
-            action_result = self.game.deal.action(action_type, new_amount)
+        if self.game.hand.get_current_player().player_data is self and not self.game.hand.winners:
+            action_result = self.game.hand.action(action_type, new_amount)
             return action_result
         else:
             return None
@@ -103,13 +101,13 @@ class PlayerHand:
     The `PlayerHand` class contains attributes that a player has for the current hand.
 
     The main difference between `Player` and this class is that the attributes of this class is only relevant on
-    the current deal, such as the pocket cards of a player. The `Player` instance can also be accessed by referencing
-    the `player_data` attribute.
+    the current hand, such as the pocket cards of a player. Once the hand is over, the `Hand` and `PlayerHand` objects
+    are disposed of.
     """
 
-    def __init__(self, deal: "Deal", player_data: Player):
-        self.deal = deal
-        self.player_data = player_data
+    def __init__(self, hand: "Hand", player_data: Player):
+        self.hand: "Hand" = hand
+        self.player_data: "Player" = player_data
 
         self.player_data.player_hand = self
         """
@@ -120,89 +118,91 @@ class PlayerHand:
         self.pocket_cards = []
         self.hand_ranking = HandRanking()
 
-        self.bet_amount = 0  # The amount of money spent on the current betting round
+        self.current_round_spent = 0  # The amount of chips spent on the current betting round
         self.last_action = ""  # A string representing the action the player previously made.
         self.pot_eligibility = -1  # An integer representing which pots are the player eligible to participate in.
                                    # -1: Eligible for all pots.
                                    # Not -1: Eligible only for pots 0 until that number.
 
-        self.winnings = 0  # The amount of money this player won on the current round.
-        self.pots_won = []
+        self.winnings: int = 0  # The amount of chips this player won on the current round.
+        self.pots_won: list[int] = []
 
-        self.folded = False
-        self.called = False
-        self.all_in = False
+        self.folded: bool = False
+        self.called: bool = False
+        self.all_in: bool = False
 
-    def bet(self, new_bet: int, blinds=False) -> int:
+    def call_bet(self, amount_to_call: int, blinds=False) -> int:
         """
-        Pay an amount of money to match the bet of other players.
+        Pay an amount of chips to call (match the bet of other players) or bet/raise.
+        IMPORTANT NOTE: This method can only be called by the `Hand.action` method.
 
-        :param new_bet: The equal bet amount.
-        :param blinds: If set to True, then `called` will not be set to True. Used on the start of a deal where the
-        two players with the blinds must bet an amount of money but still must call/check later.
+        :param amount_to_call: The total amount to call on that round.
+        :param blinds: If set to True, then `called` will not be set to True. Used on the start of a hand where the
+        two players with the blinds must bet an amount of chips but still must call/check later.
 
         :return: The player's new bet amount.
         """
-        amount_to_pay = new_bet - self.bet_amount  # How much money to pay to call/raise
+        extra_amount_to_call = amount_to_call - self.current_round_spent  # How much chips to pay to call/raise
 
-        if amount_to_pay >= self.player_data.money:
+        if extra_amount_to_call >= self.player_data.chips:
             """
             ALL IN
             """
             self.all_in = True
 
-            amount_to_pay = self.player_data.money
-            new_bet = amount_to_pay + self.bet_amount
+            extra_amount_to_call = self.player_data.chips
+            amount_to_call = extra_amount_to_call + self.current_round_spent
 
-        self.player_data.money -= amount_to_pay
-        self.deal.current_round_pot += amount_to_pay
-        self.bet_amount = new_bet
+        self.player_data.chips -= extra_amount_to_call
+        self.hand.current_round_bets += extra_amount_to_call
+        self.current_round_spent = amount_to_call
 
-        if blinds:
-            self.last_action = "bet" if not self.all_in else "all in"
-        else:
+        if not blinds:
             self.called = True
 
-        return new_bet
+        return amount_to_call
 
 
-class Deal:
+class Hand:
     """
-    An instance of the `Deal` class represents one hand/deal of a poker game. After a player wins a deal, another deal
-    starts, but the game (`PokerGame`) is still the same.
+    The `Hand` class handles one hand of a poker game, where betting rounds are started, players do actions, community
+    cards are revealed, winners are decided, etc.
+
+    After a hand ends, the old hand is deleted and another hand starts, but the game `PokerGame` is still the same.
     """
 
     def __init__(self, game: "PokerGame"):
         """
-        Initialize the fields of a deal, notably the `PlayerHand` objects and their pocket cards. After initializing the
-        deal, the `start_deal` is separately called to start the deal.
+        Initialize the fields of a hand, notably the `PlayerHand` objects and their pocket cards. After initializing the
+        hand, the `start_hand` is separately called to start the hand.
 
         :param game: The parent `PokerGame` object
         """
 
         if len(game.players) < 2:
-            raise ValueError("there must be at least 2 players to start a deal")
+            raise ValueError("there must be at least 2 players to start a hand")
 
         self.game = game
-        self.players = [PlayerHand(deal=self, player_data=player) for player in game.players]
+        self.players = [PlayerHand(hand=self, player_data=player) for player in game.players]
         # A list of `PlayerHand` instances based on the `PlayerData` list of the `PokerGame`.
         self.winners: list[list] = []
-        # A list of sublists of `PlayerHand` objects who has won the deal. Each sublist contains the winner(s) of their
+        # A list of sublists of `PlayerHand` objects who has won the hand. Each sublist contains the winner(s) of their
         # respective pot. When there are no side pots, there is only one sublist.
 
-        self.pots = [0]
-        self.current_round_pot = 0
-        self.bet_amount = self.game.sb_amount * 2  # The amount to spend for a player to make a call on this round.
+        self.pots: list[int] = [0]
+        self.current_round_bets: int = 0
+        self.amount_to_call: int = self.game.sb_amount * 2  # The amount to spend for a player to make a call on this round.
 
-        self.community_cards = []
-        self.deck = generate_deck()
+        self.community_cards: list[Card] = []
+        self.deck: list[Card] = generate_deck()
 
-        self.current_turn = self.get_next_turn(n=1, turn=self.game.dealer) if len(self.players) > 2 else self.game.dealer
-        self.blinds = (self.current_turn, self.get_next_turn(1))
+        self.current_turn: int = self.get_next_turn(n=1, turn=self.game.dealer)\
+                                 if len(self.players) > 2 else self.game.dealer
+        self.blinds: tuple[int, int] = (self.current_turn, self.get_next_turn(1))
 
-        self.round_finished = False
-        self.deal_started = False
-        self.skip_next_rounds = False
+        self.round_finished: bool = False
+        self.deal_started: bool = False
+        self.skip_next_rounds: bool = False
 
         """
         Deal cards to players
@@ -215,9 +215,9 @@ class Deal:
         for i, player in enumerate(self.players):
             player.pocket_cards = dealed_cards[i * 2: i * 2 + 2]
 
-    def start_deal(self):
+    def start_hand(self):
         """
-        Start the current deal. Should only be called ONCE on the start of a deal.
+        Start the current hand. Should only be called ONCE on the start of a hand.
         """
 
         self.deal_started = True
@@ -230,7 +230,7 @@ class Deal:
 
     def action(self, action_type: int, new_amount=0, blinds=False) -> int:
         """
-        Takes an action for the current turn player. There are 3 types of actions:
+        Do an action for the current turn player. There are 3 types of actions:
         1. Fold
         2. Check/call
         3. Bet/raise
@@ -238,9 +238,9 @@ class Deal:
         :param action_type: Determines the type of action using an integer value from the constants of the `Actions`
         class (0-2).
 
-        :param new_amount: The amount of money to bet. Only used when the action type is to bet/raise.
+        :param new_amount: The amount of chips to bet. Only used when the action type is to bet/raise.
 
-        :param blinds: Used for automatically betting the small and big blinds on the beginning of a deal.
+        :param blinds: Used for automatically betting the small and big blinds on the beginning of a hand.
 
         :return: An action result integer code.
         """
@@ -255,13 +255,13 @@ class Deal:
         elif self.round_finished:
             return ActionResult.ROUND_ALREADY_ENDED
         elif self.winners:
-            return ActionResult.DEAL_ALREADY_ENDED
+            return ActionResult.HAND_ALREADY_ENDED
         elif not self.deal_started:
-            return ActionResult.DEAL_NOT_STARTED_YET
+            return ActionResult.HAND_NOT_STARTED_YET
 
         player: PlayerHand = self.get_current_player()
 
-        action_broadcast = GameEvent(code=GameEvent.DEFAULT_ACTION if not blinds else GameEvent.START_DEAL,
+        action_broadcast = GameEvent(code=GameEvent.DEFAULT_ACTION if not blinds else GameEvent.START_HAND,
                                      prev_player=self.current_turn,
                                      next_player=self.get_next_turn(),
                                      message="")
@@ -269,10 +269,10 @@ class Deal:
         """
         Do the action
         """
-        if new_amount >= player.player_data.money + player.bet_amount:
-            new_amount = player.player_data.money + player.bet_amount
+        if new_amount >= player.player_data.chips + player.current_round_spent:
+            new_amount = player.player_data.chips + player.current_round_spent
 
-            if new_amount <= self.bet_amount:
+            if new_amount <= self.amount_to_call:
                 # If a player uses the raise button to call an all in.
                 action_type = Actions.CALL
 
@@ -281,35 +281,34 @@ class Deal:
             case Actions.FOLD:   # Fold
                 player.folded = True
                 action_broadcast.message = "fold"
-                action_broadcast.bet_amount = player.bet_amount
+                action_broadcast.bet_amount = player.current_round_spent
 
                 # If everyone except one player folds, then that player wins.
                 if sum(not player.folded for player in self.players) == 1:
                     self.showdown()
 
-
             case Actions.CALL:   # Check/call
                 # Set action text
-                if self.bet_amount > 0:
+                if self.amount_to_call > 0:
                     action_broadcast.message = "call"
                 else:
                     action_broadcast.message = "check"
 
-                player_bet = player.bet(self.bet_amount)
+                extra_amount_to_call = player.call_bet(self.amount_to_call)
                 player.called = True
-                action_broadcast.bet_amount = player_bet
+                action_broadcast.bet_amount = extra_amount_to_call
 
             case Actions.RAISE:  # Bet/raise
-                if new_amount >= player.player_data.money + player.bet_amount:
-                    new_amount = player.player_data.money + player.bet_amount  # ALL IN
+                if new_amount >= player.player_data.chips + player.current_round_spent:
+                    new_amount = player.player_data.chips + player.current_round_spent  # ALL IN
 
                 elif blinds:
                     pass  # Bypass the min bet/raise restrictions on blinds.
 
-                elif new_amount < self.game.min_bet:
+                elif new_amount < self.get_min_bet():
                     return ActionResult.LESS_THAN_MIN_BET
 
-                elif new_amount < 2 * self.bet_amount:
+                elif new_amount < self.get_min_raise():
                     return ActionResult.LESS_THAN_MIN_RAISE
 
                 # Everyone except the betting/raising player must call again
@@ -317,15 +316,15 @@ class Deal:
                     x.called = False
 
                 # Set action text
-                if self.bet_amount > 0 and not blinds:
+                if self.amount_to_call > 0 and not blinds:
                     action_broadcast.message = "raise"
                 else:
                     action_broadcast.message = "bet"
 
-                player_bet = player.bet(new_amount, blinds)
-                self.bet_amount = max(self.bet_amount, player_bet)
+                extra_amount_to_call = player.call_bet(new_amount, blinds)
+                self.amount_to_call = max(self.amount_to_call, extra_amount_to_call)
 
-                action_broadcast.bet_amount = player.bet_amount
+                action_broadcast.bet_amount = player.current_round_spent
         # endregion
 
         if player.all_in:
@@ -336,7 +335,7 @@ class Deal:
         """
         After the action
         
-        1. If everyone who hasn't folded has called or is all in, then the deal advances to the next betting round.
+        1. If everyone who hasn't folded has called or is all in, then the hand advances to the next betting round.
            Advancing to the next betting round is done separately by calling the `start_new_round` method
         2. Otherwise, cycle the current turn to the next player.
         """
@@ -357,7 +356,8 @@ class Deal:
 
     def next_round(self):
         """
-        Advance to the next betting round by resetting the round and revealing the next community card.
+        Advance to the next betting round by resetting the previous round, transferring the current round bets to the
+        pot(s), and then revealing the next community card.
         """
 
         """
@@ -366,14 +366,15 @@ class Deal:
         if self.winners:
             return
 
-        assert sum(x.bet_amount for x in self.players) == self.current_round_pot, "bet amount sums must match"
+        assert sum(x.current_round_spent for x in self.players) == self.current_round_bets, "bet amount sums must match"
         prev_total_pot = sum(self.pots)
-        prev_round_pot = self.current_round_pot
+        prev_round_bets = self.current_round_bets
 
         """
         Create new side pot(s) when a player(s) goes all in.
         """
-        all_in_players = sorted((x for x in self.players if x.all_in and x.bet_amount > 0), key=lambda x: x.bet_amount)
+        all_in_players = sorted((x for x in self.players if x.all_in and x.current_round_spent > 0),
+                                key=lambda x: x.current_round_spent)
         # List of players that went all in on the last round, sorted by their bet amount.
 
         for all_in_player in all_in_players:
@@ -383,27 +384,27 @@ class Deal:
             
             Players who are all in for the same amount are counted as one and share the same pot eligibility.
             
-            Every player then gives the same amount of money to each last pot that an all in player is eligible for,
+            Every player then gives the same amount of chips to each last pot that an all in player is eligible for,
             which is the bet amount of that all in player.
             """
-            if all_in_player.bet_amount <= 0:
+            if all_in_player.current_round_spent <= 0:
                 all_in_player.pot_eligibility = len(self.pots) - 2
                 continue
 
-            transfer_amount = all_in_player.bet_amount  # The amount of money to be transferred to the pot per player.
+            transfer_amount = all_in_player.current_round_spent  # The amount of chips to be transferred to the pot per player.
 
             for player in self.players:
-                if player.bet_amount <= 0:
+                if player.current_round_spent <= 0:
                     continue
 
                 # If bet amount < transfer amount, just transfer what's left.
                 # This only happens when the player has folded.
-                current_transfer = min(transfer_amount, player.bet_amount)
+                current_transfer = min(transfer_amount, player.current_round_spent)
 
-                # Transfer the money: Bet amount -> Currently open pot.
+                # Transfer the chips: Current round spent -> Currently open pot.
                 # `current_round_pot` must always be the sum of the bet amounts of all players.
-                player.bet_amount -= current_transfer
-                self.current_round_pot -= current_transfer
+                player.current_round_spent -= current_transfer
+                self.current_round_bets -= current_transfer
                 self.pots[-1] += current_transfer
 
             all_in_player.pot_eligibility = len(self.pots) - 1
@@ -423,32 +424,32 @@ class Deal:
             refund_player = last_pot_players[0]
 
             if refund_player.all_in:
-                # Pot with the refund player -> Refund player's money
+                # Pot with the refund player -> Refund player's chips
                 refund = self.pots.pop(refund_player.pot_eligibility)
                 refund_player.all_in = False
                 refund_player.pot_eligibility = -1
             else:
-                # Refund player's bet amount -> Refund player's money
-                refund = refund_player.bet_amount
-                refund_player.bet_amount = 0
-                self.current_round_pot = 0
+                # Refund player's bet amount -> Refund player's chips
+                refund = refund_player.current_round_spent
+                refund_player.current_round_spent = 0
+                self.current_round_bets = 0
 
-            refund_player.player_data.money += refund
+            refund_player.player_data.chips += refund
 
-            prev_round_pot -= refund
+            prev_round_bets -= refund
 
         """
-        Transfer the money to the currently open pot.
-        When new side pot(s) have just been created, transfer the remaining money that hasn't been distributed yet.
+        Transfer the chips to the currently open pot.
+        When new side pot(s) have just been created, transfer the remaining chips that hasn't been distributed yet.
         """
-        self.pots[-1] += self.current_round_pot
-        assert prev_total_pot + prev_round_pot == sum(self.pots), "something went wrong while distributing the bets"
+        self.pots[-1] += self.current_round_bets
+        assert prev_total_pot + prev_round_bets == sum(self.pots), "something went wrong while distributing the bets"
 
         """
         Reset fields
         """
-        self.bet_amount = 0
-        self.current_round_pot = 0
+        self.amount_to_call = 0
+        self.current_round_bets = 0
         self.current_turn = self.get_next_turn(1, turn=self.game.dealer)
         self.round_finished = False
 
@@ -468,7 +469,7 @@ class Deal:
         """
         for player in self.players:
             player.hand_ranking = HandRanking(self.community_cards + player.pocket_cards)
-            player.bet_amount = 0
+            player.current_round_spent = 0
             player.last_action = "folded" if player.folded else ("all in" if player.all_in else "")
             player.called = False
 
@@ -497,7 +498,7 @@ class Deal:
 
     def showdown(self):
         """
-        Decide the winner of the current deal with a showdown.
+        Decide the winner of the current hand with a showdown.
         Can also be used when there is only 1 player left who hasn't folded.
         """
 
@@ -507,12 +508,12 @@ class Deal:
         if sum(not player.folded for player in self.players) == 1:
             winner: PlayerHand = next(player for player in self.players if not player.folded)
 
-            winner.winnings = sum(self.pots) + self.current_round_pot
-            winner.player_data.money += winner.winnings
+            winner.winnings = sum(self.pots) + self.current_round_bets
+            winner.player_data.chips += winner.winnings
             winner.pots_won = [0]
             self.winners = [[winner]]
 
-            self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
+            self.broadcast(GameEvent(GameEvent.SHOWDOWN, -1, -1, ""))
             return
 
         """
@@ -564,7 +565,7 @@ class Deal:
             self.winners[pot_number] = current_pot_winners.copy()
 
         """
-        Give the money to the winner(s).
+        Give the chips to the winner(s).
         """
         for pot_number, pot_winners in enumerate(self.winners):
             prize = self.pots[pot_number] // len(pot_winners)
@@ -572,12 +573,12 @@ class Deal:
             for winner in pot_winners:
                 winner.pots_won.append(pot_number)
                 winner.winnings += prize
-                winner.player_data.money += prize
+                winner.player_data.chips += prize
 
         """
         Broadcast
         """
-        self.broadcast(GameEvent(GameEvent.DEAL_END, -1, -1, ""))
+        self.broadcast(GameEvent(GameEvent.SHOWDOWN, -1, -1, ""))
 
     def broadcast(self, broadcast: GameEvent) -> None:
         """
@@ -618,55 +619,61 @@ class Deal:
     def get_current_player(self) -> PlayerHand:
         return self.players[self.current_turn]
 
+    def get_min_bet(self):
+        return 2 * self.game.sb_amount
+
+    def get_min_raise(self):
+        return 2 * self.amount_to_call
+
 
 class PokerGame:
     """
-    An instance of `PokerGame` represents an ongoing poker game with multiple players. Throughout an ongoing game,
-    there may be several deals.
+    The `PokerGame` class handles an ongoing poker game with multiple players. Throughout an ongoing game, there may be
+    several hands, but the `PokerGame` is still the same.
     """
 
     def __init__(self):
         self.players: list[Player] = []
-        self.dealer = 0  # The index of `self.players` who becomes the dealer of the current deal.
+        self.dealer: int = 0  # The index of `self.players` who becomes the dealer of the current hand.
 
-        self.sb_amount = 25  # Small blinds amount. Big blinds = 2 * Small blinds.
+        self.sb_amount: int = 25  # Small blinds amount. Big blinds = 2 * Small blinds.
 
-        self.game_in_progress = False
-        self.ready_for_next_deal = False
+        self.game_in_progress: bool = False
+        self.ready_for_next_hand: bool = False
 
-        self.deal: Deal or None = None
+        self.hand: Hand or None = None
 
     def start_game(self):
-        self.prepare_next_deal(cycle_dealer=True)
-        self.new_deal()
+        self.prepare_next_hand(cycle_dealer=True)
+        self.new_hand()
 
-    def new_deal(self):
+    def new_hand(self):
         """
-        Start a new deal. Players who are out of money are removed, and the dealer is cycled to the next player.
+        Start a new hand. Players who are out of chips are removed, and the dealer is cycled to the next player.
 
-
-        :return: True if a new deal is started; False otherwise, due to insufficient player count.
+        :return: True if a new hand is started; False otherwise, due to insufficient player count.
         """
-        if not self.ready_for_next_deal:
-            self.prepare_next_deal()
-        self.ready_for_next_deal = False
+        if not self.ready_for_next_hand:
+            self.prepare_next_hand()
+        self.ready_for_next_hand = False
 
         if len(self.players) >= 2:
-            self.deal = Deal(self)
-            self.broadcast(GameEvent(GameEvent.NEW_DEAL))
+            self.hand = Hand(self)
+            self.broadcast(GameEvent(GameEvent.NEW_HAND))
             self.game_in_progress = True
             return True
         else:
             self.game_in_progress = False
             return False
 
-    def prepare_next_deal(self, cycle_dealer=True) -> None:
+    def prepare_next_hand(self, cycle_dealer=True) -> None:
         """
-        Check the players' amount of money and remove any players that are bankrupt.
+        Reset the hand and prepare for the next hand: cycle the dealer, check the players' amount of chips, and remove
+        any players that are bankrupt.
 
         :param cycle_dealer: Defaults to True. If set to True then the dealer is cycled to the next player.
         """
-        self.ready_for_next_deal = True
+        self.ready_for_next_hand = True
 
         """
         Cycle dealer
@@ -674,16 +681,16 @@ class PokerGame:
         if cycle_dealer:
             while True:
                 self.dealer = (self.dealer + 1) % len(self.players)
-                if self.players[self.dealer].money > 0:
+                if self.players[self.dealer].chips > 0:
                     break
 
-            self.dealer -= sum(x.money <= 0 for x in self.players[:self.dealer])
+            self.dealer -= sum(x.chips <= 0 for x in self.players[:self.dealer])
 
         """
         Remove bankrupt players
         """
-        bankrupt = [player for player in self.players if player.money <= 0]
-        self.players = [player for player in self.players if player.money > 0]
+        bankrupt = [player for player in self.players if player.chips <= 0]
+        self.players = [player for player in self.players if player.chips > 0]
 
         """
         Update player numbers
@@ -708,7 +715,3 @@ class PokerGame:
 
         for player in self.players:
             player.receive_event(broadcast)
-
-    @property
-    def min_bet(self):
-        return 2 * self.sb_amount

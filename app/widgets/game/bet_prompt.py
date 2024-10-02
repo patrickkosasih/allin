@@ -65,7 +65,7 @@ class BetPrompt(Widget):
         if edit_mode:
             self.edit_button.set_icon(load_image("assets/sprites/action icons/cancel.png"), 0.9)
             self.confirm_button.current_bet_input = self.bet_amount
-            self.confirm_button.set_side_text_money(0)
+            self.confirm_button.set_side_text_int(0)
             self.confirm_button.all_in = False
 
         else:
@@ -92,11 +92,12 @@ class BetSlider(Slider):
         self.prompt.set_bet(self.current_value)
 
     def update_range(self):
-        current_bet = self.prompt.game_scene.game.deal.bet_amount
-        min_bet = self.prompt.game_scene.game.min_bet
+        current_bet = self.prompt.game_scene.game.hand.amount_to_call
+        min_bet = self.prompt.game_scene.game.hand.get_min_bet()
+        min_raise = self.prompt.game_scene.game.hand.get_min_raise()
 
-        self.min_value = 2 * current_bet if current_bet else min_bet
-        self.max_value = self.prompt.player.money + self.prompt.player.player_hand.bet_amount
+        self.min_value = min_raise if current_bet > 0 else min_bet
+        self.max_value = self.prompt.player.chips + self.prompt.player.player_hand.current_round_spent
 
         self.min_value = min(self.min_value, self.max_value)
 
@@ -143,13 +144,13 @@ class BetConfirmButton(KeyboardListener, SideTextedButton):
         else:
             self.set_text(f"${self.prompt.bet_amount:,}")
 
-            amount_to_pay = self.prompt.bet_amount - self.prompt.player.player_hand.bet_amount
-            self.all_in = amount_to_pay >= self.prompt.player.money
+            amount_to_pay = self.prompt.bet_amount - self.prompt.player.player_hand.current_round_spent
+            self.all_in = amount_to_pay >= self.prompt.player.chips
 
-            if self.prompt.player.player_hand.bet_amount > 0:
-                self.set_side_text_money(amount_to_pay)
+            if self.prompt.player.player_hand.current_round_spent > 0:
+                self.set_side_text_int(amount_to_pay)
             else:
-                self.set_side_text_money(0)
+                self.set_side_text_int(0)
 
     def update(self, dt):
         if self.prompt.edit_mode:

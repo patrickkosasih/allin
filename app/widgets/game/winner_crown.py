@@ -36,14 +36,14 @@ def generate_pot_text(pots_won: list[int]) -> str:
 
 class WinnerCrown(Widget):
     """
-    The winner crown is a widget placed behind a player display for the player who has won the deal. A winner crown is
+    The winner crown is a widget placed behind a player display for the player who has won the hand. A winner crown is
     not part of the player display, but is placed based on the player display's position.
 
     A winner crown widget has 5 components:
     1. Highlight        : A bright border around the player display.
     2. Crown            : A crown icon placed above the player's profile icon.
     3. Main text        : A text saying "Winner!" or "Side Pot Winner!"
-    4. Sub text         : A smaller text that shows the amount of money won and which pots were won by the player.
+    4. Sub text         : A smaller text that shows the amount of chips won and which pots were won by the player.
     5. Text shadow      : A subtle dark background behind the texts to make them more readable.
     """
 
