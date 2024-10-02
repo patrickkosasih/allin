@@ -376,7 +376,7 @@ class HandRanking:
         beats a higher tiebreaker score.
 
         After calculating the tiebreaker score, the overall score is determined. The overall score is based on both the
-        ranking type and the tiebreaker score. The player(s) with the highest overall score wins the deal.
+        ranking type and the tiebreaker score. The player(s) with the highest overall score wins the hand.
 
         ==============================
         The Tiebreaker Score Algorithm

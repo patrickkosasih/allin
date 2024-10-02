@@ -32,7 +32,7 @@ class ComponentCodes:
     # Head
     HEAD_BASE = 2
     NAME_TEXT = 3
-    MONEY_TEXT = 4
+    CHIPS_TEXT = 4
     PROFILE_PIC = 5
 
 
@@ -44,7 +44,7 @@ class PlayerDisplay(Widget):
     I. Head
         1. Head base
         2. Name text
-        3. Money text
+        3. Chips text
         4. Profile picture
 
     II. Sub
@@ -80,7 +80,7 @@ class PlayerDisplay(Widget):
         """`sub_pos` determines the current position of the sub. 0 being retracted (hidden behind the head), and 1 being
         extended (placed right below the head)."""
 
-        self.money_text_val: int = self.player_data.money
+        self.chips_text_val: int = self.player_data.chips
 
         self.init_components()
 
@@ -129,8 +129,8 @@ class PlayerDisplay(Widget):
                 component.image = FontSave.get_font(3.5).render(self.player_data.name, True, DEFAULT_TEXT_COLOR)
                 component.rect = component.image.get_rect(center=((w + h_head / 2) / 2, 0.25 * h_head))
 
-            case ComponentCodes.MONEY_TEXT:
-                component.image = FontSave.get_font(3.5).render(f"${self.money_text_val:,}", True, DEFAULT_TEXT_COLOR)
+            case ComponentCodes.CHIPS_TEXT:
+                component.image = FontSave.get_font(3.5).render(f"${self.chips_text_val:,}", True, DEFAULT_TEXT_COLOR)
                 component.rect = component.image.get_rect(center=((w + h_head / 2) / 2, 0.75 * h_head))
 
             case ComponentCodes.PROFILE_PIC:
@@ -189,22 +189,22 @@ class PlayerDisplay(Widget):
         self.redraw_component(ComponentCodes.SUB_BASE)
         self.redraw_component(ComponentCodes.SUB_TEXT)
 
-    def set_money_text(self, money: int or float):
-        self.money_text_val = int(money)
-        self.redraw_component(ComponentCodes.MONEY_TEXT)
+    def set_chips_text(self, chips: int or float):
+        self.chips_text_val = int(chips)
+        self.redraw_component(ComponentCodes.CHIPS_TEXT)
 
-    def update_money(self, duration=0.5):
-        old_money, new_money = self.money_text_val, self.player_data.money
-        if old_money == new_money:
+    def update_chips(self, duration=0.5):
+        old_chips, new_chips = self.chips_text_val, self.player_data.chips
+        if old_chips == new_chips:
             return
 
         if duration > 0:
-            animation = VarSlider(duration, old_money, new_money, setter_func=self.set_money_text,
+            animation = VarSlider(duration, old_chips, new_chips, setter_func=self.set_chips_text,
                                   interpolation=lambda x: ease_out(x, 3))
             self.anim_group.add(animation)
 
         else:
-            self.set_money_text(new_money)
+            self.set_chips_text(new_chips)
 
     """
     Overridden animation methods
@@ -233,5 +233,5 @@ class PlayerDisplay(Widget):
     sub_text = property(lambda self: self.components[ComponentCodes.SUB_TEXT])
     head_base = property(lambda self: self.components[ComponentCodes.HEAD_BASE])
     name_text = property(lambda self: self.components[ComponentCodes.NAME_TEXT])
-    money_text = property(lambda self: self.components[ComponentCodes.MONEY_TEXT])
+    chips_text = property(lambda self: self.components[ComponentCodes.CHIPS_TEXT])
     profile_pic = property(lambda self: self.components[ComponentCodes.PROFILE_PIC])

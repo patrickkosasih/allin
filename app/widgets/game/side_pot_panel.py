@@ -124,17 +124,17 @@ class SidePotPanel(Panel):
                 self.parent.show_side_pot_panel(False)
 
     def update_current_bets(self):
-        self._current_bets_text.set_pot_value_anim(self.game.deal.current_round_pot)
+        self._current_bets_text.set_pot_value_anim(self.game.hand.current_round_bets)
 
     def update_all_pots(self):
         self.update_current_bets()
 
-        for side_pot_text, pot_value in zip(self._side_pot_texts, self.game.deal.pots):
+        for side_pot_text, pot_value in zip(self._side_pot_texts, self.game.hand.pots):
             side_pot_text.set_pot_value_anim(pot_value)
 
             if not side_pot_text.shown and pot_value > 0:
                 side_pot_text.set_shown(True)
-                bottommost_text = self._side_pot_texts[len(self.game.deal.pots) - 1]
+                bottommost_text = self._side_pot_texts[len(self.game.hand.pots) - 1]
                 self._scroll_min = self.rect.h - bottommost_text.rect.top - self._outer_margin
 
     def reset_all_pots(self):

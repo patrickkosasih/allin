@@ -11,8 +11,8 @@ from rules.game_flow import Player, GameEvent, PokerGame
 
 
 class ClientPlayer(Player):
-    def __init__(self, game: "InterfaceGame", name: str, money: int):
-        super().__init__(game, name, money)
+    def __init__(self, game: "InterfaceGame", name: str, chips: int):
+        super().__init__(game, name, chips)
         self.game: "InterfaceGame"
 
     def receive_event(self, game_event: GameEvent):

@@ -20,7 +20,7 @@ class LegacyTestingGame(PokerGame):
     def auto_start_game(self, n_players):
         self.players = [Player(self, f"Player {i + 1}", 1000) for i in range(n_players)]
         self.start_game()
-        self.deal.start_deal()
+        self.hand.start_hand()
 
 
 """
@@ -28,7 +28,7 @@ class LegacyTestingGame(PokerGame):
 String formats
 ==============
 """
-PLAYER_STATE_FORMAT = ("{turn_arrow: <3}{name: <15}{pocket_cards: <10}${money: <10}{ranking: <18} "
+PLAYER_STATE_FORMAT = ("{turn_arrow: <3}{name: <15}{pocket_cards: <10}${chips: <10}{ranking: <18} "
                        "{action: <25} {action_extras}")
 
 
@@ -45,7 +45,7 @@ def print_state(game: PokerGame):
         a. An arrow (->) for the current turn player
         b. Player name
         c. Pocket cards
-        d. Money
+        d. Chips
         e. Dealer, small blinds, big blinds (on preflop round); or
            Current hand ranking (after the flop)
         f. Player action
@@ -54,20 +54,20 @@ def print_state(game: PokerGame):
     3. Community cards
     """
 
-    for player in game.deal.players:  # player: PlayerHand
-        is_preflop = bool(not game.deal.community_cards)
+    for player in game.hand.players:  # player: PlayerHand
+        is_preflop = bool(not game.hand.community_cards)
         preflop_role = ""
         ranking = HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize() if not is_preflop else "n/a"
 
         if is_preflop:
             # If the current round is still the preflop round then determine the D, SB, and BB
-            players = game.deal.players
+            players = game.hand.players
 
             if player is players[game.dealer]:
                 preflop_role = "D"
-            elif player is players[game.deal.blinds[0]]:
+            elif player is players[game.hand.blinds[0]]:
                 preflop_role = "SB"
-            elif player is players[game.deal.blinds[1]]:
+            elif player is players[game.hand.blinds[1]]:
                 preflop_role = "BB"
 
         match player.pot_eligibility:
@@ -81,12 +81,12 @@ def print_state(game: PokerGame):
                 pot_eligibility_text = f"Main pot + Side pots 1-{player.pot_eligibility}"
 
         print(PLAYER_STATE_FORMAT.format(
-            turn_arrow="-> " if player is game.deal.get_current_player() else "",
+            turn_arrow="-> " if player is game.hand.get_current_player() else "",
             name=player.player_data.name,
             pocket_cards=card_list_str(player.pocket_cards),
-            money=f"{player.player_data.money:,}",
+            chips=f"{player.player_data.chips:,}",
             ranking=ranking if not is_preflop else preflop_role,
-            action=f"{player.last_action.capitalize()} {f'${player.bet_amount:,}' if player.bet_amount > 0 else ''}",
+            action=f"{player.last_action.capitalize()} {f'${player.amount_to_call:,}' if player.amount_to_call > 0 else ''}",
             action_extras=pot_eligibility_text,
         ))
 
@@ -94,39 +94,39 @@ def print_state(game: PokerGame):
 
 
 def print_below(game: PokerGame):
-    print(f"\nCommunity cards: {card_list_str(game.deal.community_cards)}")
+    print(f"\nCommunity cards: {card_list_str(game.hand.community_cards)}")
 
-    round_pot_text = f"Current round pot: ${game.deal.current_round_pot:,}  ->  "
-    print(f"{round_pot_text}Main pot: ${game.deal.pots[0]:,}")
+    round_pot_text = f"Current round pot: ${game.hand.current_round_bets:,}  ->  "
+    print(f"{round_pot_text}Main pot: ${game.hand.pots[0]:,}")
 
     side_pot_space = len(round_pot_text)
-    for i, side_pot in enumerate(game.deal.pots[1:]):
+    for i, side_pot in enumerate(game.hand.pots[1:]):
         print(f"{" " * side_pot_space}Side pot {i + 1}: ${side_pot:,}")
 
 
 def print_winner(game: PokerGame):
     """
-    Print the winner(s) of the deal when a deal ends by showdown or everyone folding.
+    Print the winner(s) of the hand when a hand ends by showdown or everyone folding.
     """
-    for player in game.deal.players:
+    for player in game.hand.players:
         player: PlayerHand
 
-        win = any(player in x for x in game.deal.winners)
+        win = any(player in x for x in game.hand.winners)
 
-        new_money = player.player_data.money
-        old_money = new_money - player.winnings
+        new_chips = player.player_data.chips
+        old_chips = new_chips - player.winnings
 
         ranking = HandRanking.TYPE_STR[player.hand_ranking.ranking_type].capitalize()
 
         if win:
             winner_text = f"WINNER!"
 
-            if len(game.deal.pots) > 1:
+            if len(game.hand.pots) > 1:
                 # if player.first_pot_won == player.pot_eligibility:
                 #     winner_text = f"Side Pot {player.pot_eligibility} Winner!"
                 # else:
                 #     winner_text = f"Side pots {player.first_pot_won}-{player.pot_eligibility} Winner!"
-                if min(player.pots_won) == 0 and max(player.pots_won) == len(game.deal.pots) - 1:
+                if min(player.pots_won) == 0 and max(player.pots_won) == len(game.hand.pots) - 1:
                     pass
                 elif len(player.pots_won) == 1:
                     winner_text += f" Pot {player.pots_won[0]}"
@@ -139,13 +139,13 @@ def print_winner(game: PokerGame):
         else:
             winner_text = ""
 
-        reward_text = f"+${player.winnings:,} -> ${new_money:,}" if win else ""
+        reward_text = f"+${player.winnings:,} -> ${new_chips:,}" if win else ""
 
         print(PLAYER_STATE_FORMAT.format(
             turn_arrow="-> " if win else "",
             name=player.player_data.name,
             pocket_cards=card_list_str(player.pocket_cards),
-            money=f"{old_money:,}",
+            chips=f"{old_chips:,}",
             ranking=ranking,
             action=winner_text,
             action_extras=reward_text,
@@ -185,45 +185,45 @@ def standard_io_poker():
 
     # Side pot testing stuff
     # for i, x in enumerate(game.players):
-    #     x.money += 100 * i
+    #     x.chips += 100 * i
     for i, x in enumerate(game.players):
-        x.money += 100 * (i // 2)
+        x.chips += 100 * (i // 2)
     # for i, x in enumerate(game.players):
-    #     x.money += 100 * (i // 2) + (i % 2 * 25)
+    #     x.chips += 100 * (i // 2) + (i % 2 * 25)
     # for i, x in enumerate(game.players):
-    #     x.money += 500 * i
+    #     x.chips += 500 * i
     # game.dealer += 3
 
     while True:
         print("\n" + "=" * 110 + "\n")
 
-        if game.deal.winners:
+        if game.hand.winners:
             print_winner(game)
             print()
-            game.new_deal()
+            game.new_hand()
 
             if len(game.players) < 2:
                 thing = "||{:^60}||"
                 print(thing.format("=" * 60))
                 print(thing.format(f"VICTORY FOR {game.players[0].name.upper()} GRAAAAAAAAHHHHHHHHHHHHH"))
-                print(thing.format(f"{game.players[0].name} is the last one standing with ${game.players[0].money:,}!"))
+                print(thing.format(f"{game.players[0].name} is the last one standing with ${game.players[0].chips:,}!"))
                 print(thing.format("=" * 60))
                 break
 
             else:
-                input("Press enter to start next deal. ")
-                game.deal.start_deal()
+                input("Press enter to start next hand. ")
+                game.hand.start_hand()
                 continue
 
         print_state(game)
         print()
 
-        if game.deal.skip_next_rounds:
+        if game.hand.skip_next_rounds:
             input("Press enter to continue. ")
-            game.deal.next_round()
+            game.hand.next_round()
             continue
 
-        player_name = game.deal.get_current_player().player_data.name  # Name of the current turn player
+        player_name = game.hand.get_current_player().player_data.name  # Name of the current turn player
         action = input(f"What will {player_name} do? ")
         # action = "all in"
 
@@ -248,11 +248,11 @@ def standard_io_poker():
                 action, new_amount = ["BET"], 99999999999999999999
 
             action_code = Actions.__dict__[action[0]]
-            game.deal.action(action_code, new_amount)
+            game.hand.action(action_code, new_amount)
 
-            if game.deal.round_finished:
-                game.deal.next_round()
-                game.deal.start_new_round()
+            if game.hand.round_finished:
+                game.hand.next_round()
+                game.hand.start_new_round()
 
         except (IndexError, KeyError):
             print("Invalid input.")

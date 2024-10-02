@@ -30,7 +30,7 @@ class SingleplayerMenuScene(Scene):
             FieldType.NUMBER_PICKER, min_value=1, max_value=9, default_value=5
         )
 
-        self.setting_panel.add_entry("starting_money", "Starting Money").set_input_widget(
+        self.setting_panel.add_entry("starting_chips", "Starting Chips").set_input_widget(
             FieldType.NUMBER_PICKER, min_value=500, max_value=10000, default_value=1000, step=500,
             format_func=lambda x: f"${x:,}"
         )

@@ -47,7 +47,7 @@ class ActionButton(Button, ABC):
 class SideTextedButton(Button):
     """
     The side texted button is a button with an additional "side text" on the right hand side of the button. This side
-    text is used to display the amount of money the player needs to spend to make a call or raise. The side text also
+    text is used to display the amount of chips the player needs to spend to make a call or raise. The side text also
     has a special rainbow effect when an action results in all in.
 
     There are currently two subclasses of SideTextedButton:
@@ -59,12 +59,12 @@ class SideTextedButton(Button):
         super().__init__(parent, *rect_args,  **kwargs)
 
         self.side_text = pygame.sprite.Sprite(self.component_group)
-        self.set_side_text_money(0)
+        self.set_side_text_int(0)
 
         self.all_in = False
         self.rainbow_fac = 0
 
-    def set_side_text_money(self, amount):
+    def set_side_text_int(self, amount: int):
         side_text_str = f"-${amount:,}" if amount > 0 else ""
         self.set_side_text(side_text_str, (247, 218, 136))
 
@@ -109,7 +109,7 @@ class CallButton(ActionButton, SideTextedButton):
         self.player.action(Actions.CALL)
 
     def update_bet_amount(self, new_bet_amount: int):
-        amount_to_pay = new_bet_amount - self.player.player_hand.bet_amount
+        amount_to_pay = new_bet_amount - self.player.player_hand.current_round_spent
 
         if amount_to_pay > 0:
             self.set_text("Call")
@@ -118,9 +118,9 @@ class CallButton(ActionButton, SideTextedButton):
             self.set_text("Check")
             self.set_icon(load_image("assets/sprites/action icons/check.png"), 0.8)
 
-        self.all_in = amount_to_pay >= self.player.money
+        self.all_in = amount_to_pay >= self.player.chips
 
-        self.set_side_text_money(amount_to_pay)
+        self.set_side_text_int(amount_to_pay)
 
 
 class RaiseButton(ActionButton):

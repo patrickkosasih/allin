@@ -23,7 +23,6 @@ from app.widgets.game.player_display import PlayerDisplay
 from app.widgets.game.bet_prompt import BetPrompt
 
 from app.animations.var_slider import VarSlider
-from app.animations.fade import FadeAlphaAnimation
 
 
 COMM_CARD_ROTATIONS = (198, 126, 270, 54, -18)
@@ -113,17 +112,17 @@ class GameScene(Scene):
             case GameEvent.RESET_PLAYERS:
                 self.reset_players()
 
-            case GameEvent.NEW_DEAL:
+            case GameEvent.NEW_HAND:
                 self.deal_cards()
 
             case GameEvent.NEW_ROUND | GameEvent.SKIP_ROUND:
                 self.next_round()
 
-            case GameEvent.DEAL_END:
+            case GameEvent.SHOWDOWN:
                 app_timer.Timer(1, self.showdown)
 
-            case GameEvent.RESET_DEAL:
-                self.reset_deal()
+            case GameEvent.RESET_HAND:
+                self.reset_hand()
 
             case _:
                 player_action = True
@@ -134,7 +133,7 @@ class GameScene(Scene):
         """
         Update the subtext on a player action
         """
-        is_sb: bool = (event.code == GameEvent.START_DEAL) and (event.prev_player == self.game.deal.blinds[0])
+        is_sb: bool = (event.code == GameEvent.START_HAND) and (event.prev_player == self.game.hand.blinds[0])
         # True if the current game event is the small blinds (SB) action.
 
         if event.prev_player >= 0:
@@ -147,22 +146,22 @@ class GameScene(Scene):
                 Update the pot text
                 """
                 if not is_sb:
-                    total_pot = sum(self.game.deal.pots) + self.game.deal.current_round_pot
+                    total_pot = sum(self.game.hand.pots) + self.game.hand.current_round_bets
                     self.pot_text.set_text_anim(total_pot)
                     self.side_pot_panel.update_current_bets()
 
                 """
-                Money sound effect
+                Chips sound effect
                 """
-                play_sound("assets/audio/game/actions/money.mp3", 0.5)
+                play_sound("assets/audio/game/actions/chips.mp3", 0.5)
 
             self.players.sprites()[event.prev_player].set_sub_text_anim(action_str)
-            self.players.sprites()[event.prev_player].update_money()
+            self.players.sprites()[event.prev_player].update_chips()
 
         """
         Action sound effect
         """
-        if event.code == GameEvent.START_DEAL:
+        if event.code == GameEvent.START_HAND:
             if is_sb:
                 play_sound("assets/audio/game/rounds/blinds.mp3")
             if event.message == "all in":
@@ -176,7 +175,7 @@ class GameScene(Scene):
         """
         if event.next_player == self.game.client_player.player_number and not is_sb:
             for x in self.action_buttons:
-                x.update_bet_amount(self.game.deal.bet_amount)
+                x.update_bet_amount(self.game.hand.amount_to_call)
             self.show_action_buttons(True)
 
         elif event.prev_player == self.game.client_player.player_number:
@@ -280,7 +279,7 @@ class GameScene(Scene):
             x.set_shown(shown, duration=0.4 + 0.05 * i)
 
     def show_bet_prompt(self, shown: bool):
-        if self.game.deal.current_turn != self.game.client_player.player_number:
+        if self.game.hand.current_turn != self.game.client_player.player_number:
             self.bet_prompt.set_shown(False)
             return
 
@@ -341,10 +340,10 @@ class GameScene(Scene):
 
         if showdown:
             # Showdown: Highlight the winning hand(s)
-            ranked_cards = set(x for winner in self.game.deal.winners[0] for x in winner.hand_ranking.ranked_cards)
+            ranked_cards = set(x for winner in self.game.hand.winners[0] for x in winner.hand_ranking.ranked_cards)
 
             if app_settings.main.get_value("card_highlights") in ("all", "all_always"):
-                kickers = set(x for winner in self.game.deal.winners[0] for x in winner.hand_ranking.kickers)
+                kickers = set(x for winner in self.game.hand.winners[0] for x in winner.hand_ranking.kickers)
 
         else:
             # Highlight the ranked cards of the client user
@@ -384,24 +383,24 @@ class GameScene(Scene):
 
     def next_round(self):
         """
-        The method that is called when the deal advances to the next round (a NEW_ROUND game event is received).
+        The method that is called when the hand advances to the next round (a NEW_ROUND game event is received).
         """
 
         round_names = {3: "flop", 4: "turn", 5: "river"}
 
-        if self.game.deal.winners:
+        if self.game.hand.winners:
             return
 
         for player in self.players.sprites():
             player.set_sub_text_anim("All in" if player.player_data.player_hand.all_in else "")
 
-        self.update_money_texts()
+        self.update_chips_texts()
 
         """
         Show next community cards
         """
-        for i in range(len(self.community_cards), len(self.game.deal.community_cards)):
-            card_data = self.game.deal.community_cards[i]
+        for i in range(len(self.community_cards), len(self.game.hand.community_cards)):
+            card_data = self.game.hand.community_cards[i]
 
             start_pos = self.table.get_edge_pos(COMM_CARD_ROTATIONS[i], (3, 3), 5)
             card = Card(self, *start_pos, "px", "tl", "ctr", card_data=card_data)
@@ -436,7 +435,7 @@ class GameScene(Scene):
         """
         Hide blinds button and show ranking text on the flop round
         """
-        if len(self.game.deal.community_cards) == 3:
+        if len(self.game.hand.community_cards) == 3:
             if self.game.client_player.player_number >= 0:
                 app_timer.Timer(2, self.ranking_text.set_shown, (True,))
 
@@ -445,12 +444,12 @@ class GameScene(Scene):
 
     def showdown(self):
         """
-        Perform a showdown and reveal the winner(s) of the current deal.
+        Perform a showdown and reveal the winner(s) of the current hand.
         """
 
         self.ranking_text.set_shown(False)
         self.highlight_cards(unhighlight=True)
-        self.update_money_texts()
+        self.update_chips_texts(update_players=False)
 
         for player in self.players.sprites():
             player.set_sub_text_anim("")
@@ -495,7 +494,7 @@ class GameScene(Scene):
                           sorted(self.players, key=lambda x: x.player_data.player_hand.hand_ranking.overall_score)
                           if not player.player_data.player_hand.folded]
 
-        n_winners = len(self.game.deal.winners[0])
+        n_winners = len(self.game.hand.winners[0])
 
         main_winners = sorted_players[-n_winners:]
         all_winners = [player for player in sorted_players
@@ -526,16 +525,16 @@ class GameScene(Scene):
         """
         Create a winner crown for each winner.
         """
-        show_pots = any(max(winner.pots_won) != len(self.game.deal.pots) - 1 for winner in self.game.deal.winners[0])
+        show_pots = any(max(winner.pots_won) != len(self.game.hand.pots) - 1 for winner in self.game.hand.winners[0])
 
         for player_display in all_winners:
             winner_crown = WinnerCrown(self, player_display, show_pots)
             self.winner_crowns.add(winner_crown)
 
         """
-        Update the players' money texts and set the pot text to 0.
+        Update the players' chips texts and set the pot text to 0.
         """
-        self.update_money_texts()
+        self.update_chips_texts()
         self.pot_text.set_text_anim(0)
 
         """
@@ -551,9 +550,9 @@ class GameScene(Scene):
 
         play_sound("assets/audio/game/showdown/win.mp3", volume_mult=0.7)
 
-    def reset_deal(self):
+    def reset_hand(self):
         """
-        Reset the sprites of cards and winner crowns, and then start a new deal.
+        Reset the sprites of cards and winner crowns, and then start a new hand.
         """
 
         self.pot_text.set_shown(False)
@@ -590,7 +589,7 @@ class GameScene(Scene):
             card_end_pos = self.table.get_edge_pos(rot, (3, 3), 5)
             card.move_anim(random.uniform(2, 2.5), card_end_pos)
 
-        app_timer.Timer(2.5, self.delete_on_new_deal)
+        app_timer.Timer(2.5, self.delete_on_new_hand)
 
         """
         Reset action buttons
@@ -600,9 +599,9 @@ class GameScene(Scene):
 
         self.call_button.all_in = False
 
-    def delete_on_new_deal(self):
+    def delete_on_new_hand(self):
         """
-        When starting a new deal, remove all pocket cards, community cards, and winner crowns from the `all_sprites`
+        When starting a new hand, remove all pocket cards, community cards, and winner crowns from the `all_sprites`
         sprite group and other sprite groups.
         """
 
@@ -625,8 +624,8 @@ class GameScene(Scene):
         """
 
         dealer: PlayerDisplay = self.players.sprites()[self.game.dealer]
-        sb: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[0]]
-        bb: PlayerDisplay = self.players.sprites()[self.game.deal.blinds[1]]
+        sb: PlayerDisplay = self.players.sprites()[self.game.hand.blinds[0]]
+        bb: PlayerDisplay = self.players.sprites()[self.game.hand.blinds[1]]
 
         app_timer.Sequence([
             lambda: self.dealer_button.move_to_player(0.75, dealer, interpolation=ease_in),
@@ -636,15 +635,16 @@ class GameScene(Scene):
             lambda: self.bb_button.move_to_player(0.75, bb, self.sb_button, interpolation=ease_out),
         ])
 
-    def update_money_texts(self):
+    def update_chips_texts(self, update_players=True):
         self.side_pot_panel.update_all_pots()
 
-        if self.pot_text.pot != sum(self.game.deal.pots):
-            self.pot_text.set_text_anim(sum(self.game.deal.pots))
+        if self.pot_text.pot != sum(self.game.hand.pots):
+            self.pot_text.set_text_anim(sum(self.game.hand.pots))
 
-        for player in self.players:
-            player: PlayerDisplay
-            player.update_money()
+        if update_players:
+            for player in self.players:
+                player: PlayerDisplay
+                player.update_chips()
 
     def update(self, dt):
         super().update(dt)
