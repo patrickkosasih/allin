@@ -3,6 +3,7 @@ from typing import Callable
 import pygame
 
 from app import audio, app_settings
+from app.scenes.multiplayer_menu import MultiplayerMenuScene
 from app.scenes.settings_scene import SettingsScene
 from app.scenes.side_scenes import BackgroundScene, OverlayScene
 from app.scenes.singleplayer_menu import SingleplayerMenuScene
@@ -140,6 +141,9 @@ class App:
 
                     case "singleplayer":
                         self.scene = SingleplayerMenuScene(self)
+
+                    case "multiplayer":
+                        self.scene = MultiplayerMenuScene(self)
 
                     case "settings":
                         self.scene = SettingsScene(self)

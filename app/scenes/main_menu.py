@@ -55,7 +55,7 @@ class MainMenuScene(Scene):
                                          font=FontSave.get_font(5),
                                          icon=load_image("assets/sprites/menu icons/multiplayer.png"),
                                          icon_size=0.6, text_align="bottom", icon_align="middle", text_align_offset=0.04,
-                                         command=lambda: print("Multiplayer come'th soon..."))
+                                         command=self.multiplayer_click)
 
         self.settings_button = Button(self, -11, 25, 20, 10, "%", "ctr", "ctr", text_str="Settings",
                                       b_thickness=0, color=MAIN_MENU_BUTTON_COLOR, font=FontSave.get_font(5),
@@ -123,6 +123,9 @@ class MainMenuScene(Scene):
 
     def singleplayer_click(self):
         self.app.change_scene_anim("singleplayer")
+
+    def multiplayer_click(self):
+        self.app.change_scene_anim("multiplayer")
 
     def settings_click(self):
         self.app.change_scene_anim("settings")
